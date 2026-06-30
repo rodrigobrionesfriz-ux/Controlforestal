@@ -110,8 +110,14 @@
 
   <header>
     <div class="rings"></div>
-    <div class="eyebrow">Negocio de la madera</div>
-    <h1>Control de Gestión Área Forestal</h1>
+    <div style="display:flex; align-items:center; gap:14px">
+      <img id="headerLogo" style="display:none; width:48px; height:48px; border-radius:8px; object-fit:cover; background:#fff" />
+      <div>
+        <div class="eyebrow">Negocio de la madera</div>
+        <h1 id="headerTitulo">Control de Gestión Área Forestal</h1>
+        <div id="headerRazon" style="font-size:13px; color:var(--sap); font-weight:600; margin-top:2px;"></div>
+      </div>
+    </div>
     <div class="status" id="status"><span class="dot wait"></span>Conectando con Firebase&hellip;</div>
     <div class="userbar" id="userbar" style="display:none">
       <span id="userInfo"></span>
@@ -128,6 +134,7 @@
       <button data-tab="importar">Importar Excel</button>
       <button data-tab="gastos">Gastos</button>
       <button data-tab="usuarios" data-admin="1">Usuarios</button>
+      <button data-tab="empresa" data-admin="1">Empresa</button>
     </nav>
   </header>
 
@@ -144,13 +151,14 @@
           <div><label>Comuna</label><input id="comuna" placeholder="Los Ángeles" /></div>
           <div><label>Especie predominante</label><select id="especie"><option value="pino">Pino</option><option value="eucalipto">Eucalipto</option><option value="nativo">Nativo</option><option value="otro">Otro</option></select></div>
           <div><label>Tipo de negocio</label><select id="tipoNegocio"><option value="bosque_en_pie">Bosque en pie</option><option value="madera_puesta_planta">Madera puesta en planta</option></select></div>
+          <div><label>Georreferenciación (lat, lng)</label><input id="rolGeo" placeholder="-37.4689, -72.3534" /><div class="hint">Coordenadas del predio para trazabilidad.</div></div>
         </div>
         <div class="actions"><button class="primary" id="btnGuardar" disabled>Guardar rol</button><span class="msg" id="formMsg"></span></div>
       </section>
       <section class="card">
         <h2><span class="num">02</span> Roles registrados</h2>
-        <table><thead><tr><th>Rol</th><th>Predio</th><th>Propietario</th><th>Comuna</th><th>Especie</th><th>Negocio</th></tr></thead>
-        <tbody id="tablaRoles"><tr><td colspan="6" class="empty">Cargando&hellip;</td></tr></tbody></table>
+        <table><thead><tr><th>Rol</th><th>Predio</th><th>Propietario</th><th>Comuna</th><th>Especie</th><th>Geo</th><th>Negocio</th></tr></thead>
+        <tbody id="tablaRoles"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
       </section>
     </div>
 
@@ -166,14 +174,26 @@
           <div><label>Teléfono</label><input id="pTel" placeholder="+56 9 1234 5678" /></div>
           <div><label>Comuna</label><input id="pComuna" placeholder="Mininco" /></div>
           <div><label>¿Es planta de destino?</label><select id="pEsPlanta"><option value="true">Sí — planta de destino</option><option value="false">No — solo cliente</option></select></div>
-          <div><label>Bodega principal</label><input id="pBodega" placeholder="Bodega Norte" /></div>
-          <div><label>Georreferencia (lat, lng)</label><input id="pGeo" placeholder="-37.45, -72.40" /><div class="hint">Exigida para trazabilidad.</div></div>
         </div>
+
+        <div style="margin-top:20px; padding-top:18px; border-top:1px solid var(--line)">
+          <label style="font-size:13px">Bodegas de entrega</label>
+          <p class="hint" style="margin-top:0; margin-bottom:12px">Agrega una o varias bodegas con su dirección, comuna y georreferenciación.</p>
+          <div class="grid">
+            <div><label>Nombre bodega</label><input id="bNombre" placeholder="Bodega Norte" /></div>
+            <div><label>Dirección</label><input id="bDireccion" placeholder="Camino Industrial 100" /></div>
+            <div><label>Comuna</label><input id="bComuna" placeholder="Mininco" /></div>
+            <div><label>Georreferenciación (lat, lng)</label><input id="bGeo" placeholder="-37.45, -72.40" /></div>
+          </div>
+          <div class="actions" style="margin-top:12px"><button class="mini" id="btnAddBodega" type="button">+ Agregar bodega</button></div>
+          <div id="bodegasLista" style="margin-top:12px"></div>
+        </div>
+
         <div class="actions"><button class="primary" id="btnGuardarPlanta" disabled>Guardar ficha</button><span class="msg" id="plantaMsg"></span></div>
       </section>
       <section class="card">
         <h2><span class="num">02</span> Plantas y clientes</h2>
-        <table><thead><tr><th>Nombre</th><th>RUT</th><th>Contacto</th><th>Comuna</th><th>Bodega</th><th>Tipo</th></tr></thead>
+        <table><thead><tr><th>Nombre</th><th>RUT</th><th>Contacto</th><th>Comuna</th><th class="num-cell">Bodegas</th><th>Tipo</th></tr></thead>
         <tbody id="tablaPlantas"><tr><td colspan="6" class="empty">Cargando&hellip;</td></tr></tbody></table>
       </section>
     </div>
@@ -288,7 +308,7 @@
           <button class="primary" id="btnPreview" disabled>Analizar archivo</button>
           <span class="msg" id="impMsg"></span>
         </div>
-        <div class="hint" style="margin-top:10px">Acepta la plantilla genérica o el formato "Base fletes" (columnas A–M). El vínculo se hace por <strong>Rol Predio</strong> y el código de producto se toma de <strong>EE/PP</strong>; si el código coincide con uno del catálogo, actualiza el avance de la OC.</div>
+        <div class="hint" style="margin-top:10px">Reconoce 3 formatos: plantilla genérica · <strong>Base fletes</strong> (rol en "Rol Predio", código en "EE/PP") · <strong>Base proformas</strong> (rol extraído de "Centro Costo", código en "Producto", cantidad en "Cantidad"). El vínculo es por rol + código; si el código coincide con el catálogo, actualiza el avance de la OC.</div>
       </section>
       <section class="card" id="previewCard" style="display:none">
         <h2><span class="num">02</span> Vista previa</h2>
@@ -361,6 +381,35 @@
         <tbody id="tablaUsuarios"><tr><td colspan="5" class="empty">Cargando…</td></tr></tbody></table>
       </section>
     </div>
+
+    <!-- EMPRESA (solo admin) -->
+    <div class="view" id="view-empresa">
+      <section class="card">
+        <h2><span class="num">01</span> Datos de la empresa</h2>
+        <p class="sub">Esta información identifica a tu empresa en el sistema. El logo aparecerá en la cabecera.</p>
+        <div style="display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap; margin-bottom:20px">
+          <div style="text-align:center">
+            <div id="logoPreview" style="width:120px; height:120px; border-radius:12px; border:2px dashed var(--line); display:flex; align-items:center; justify-content:center; background:var(--paper); overflow:hidden; color:var(--muted); font-size:12px;">Sin logo</div>
+            <label style="margin-top:10px; cursor:pointer; display:inline-block; background:var(--moss); color:#fff; padding:7px 14px; border-radius:7px; font-size:13px;">
+              Subir logo<input type="file" id="logoInput" accept="image/png,image/jpeg,image/webp" style="display:none" />
+            </label>
+            <div class="hint" style="margin-top:6px">PNG/JPG, máx. 500 KB</div>
+          </div>
+          <div style="flex:1; min-width:280px">
+            <div class="grid">
+              <div><label>RUT</label><input id="empRut" placeholder="76.123.456-7" /></div>
+              <div><label>Razón social</label><input id="empRazon" placeholder="Maderas del Sur SpA" /></div>
+              <div><label>Dirección</label><input id="empDireccion" placeholder="Av. Principal 1234" /></div>
+              <div><label>Comuna</label><input id="empComuna" placeholder="Los Ángeles" /></div>
+              <div><label>Teléfono</label><input id="empTelefono" placeholder="+56 9 1234 5678" /></div>
+              <div><label>Correo electrónico</label><input id="empEmail" type="email" placeholder="contacto@empresa.cl" /></div>
+              <div><label>Contacto</label><input id="empContacto" placeholder="Nombre del contacto" /></div>
+            </div>
+          </div>
+        </div>
+        <div class="actions"><button class="primary" id="btnGuardarEmpresa" disabled>Guardar datos</button><span class="msg" id="empresaMsg"></span></div>
+      </section>
+    </div>
   </main>
 
   <script type="module">
@@ -388,6 +437,9 @@
     const $ = (id) => document.getElementById(id);
     const esc = (s) => (s ?? "").toString().replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
     const fmt = (n) => (n == null || n === "") ? "0" : Number(n).toLocaleString("es-CL");
+    // Parsea "lat, lng" -> {lat,lng} o null
+    const parseGeo = (raw) => { const v=(raw||"").trim(); if(!v) return null; const p=v.split(",").map((s)=>parseFloat(s.trim())); return (p.length===2 && !isNaN(p[0]) && !isNaN(p[1])) ? {lat:p[0],lng:p[1]} : null; };
+    const geoTxt = (g) => g && g.lat!=null ? (g.lat+", "+g.lng) : "—";
     const statusEl = $("status");
 
     let rolesCache = [], plantasCache = [], productosCache = [], negociosCache = [], ocCache = [], recepcionesCache = [];
@@ -412,6 +464,7 @@
       const botonesEditar = ["btnGuardar","btnGuardarPlanta","btnGuardarProd","btnGuardarNeg","btnGuardarOC","btnGuardarRec","btnGuardarGasto","btnImportar","btnPreview"];
       botonesEditar.forEach((id)=>{ const el=$(id); if(el){ el.disabled = !editar; el.title = editar?"":"No tienes permiso para editar"; } });
       $("btnCrearUsuario").disabled = !esAdmin;
+      $("btnGuardarEmpresa").disabled = !esAdmin;
     }
 
     // Login / registro
@@ -527,9 +580,9 @@
       if (usuarioActual) aplicarPermisos();
       rolesCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       const t = $("tablaRoles");
-      t.innerHTML = snap.empty ? '<tr><td colspan="6" class="empty">Aún no hay roles.</td></tr>' :
+      t.innerHTML = snap.empty ? '<tr><td colspan="7" class="empty">Aún no hay roles.</td></tr>' :
         rolesCache.map((r) => { const c = r.tipoNegocio==="bosque_en_pie"?"pie":"planta"; const x=r.tipoNegocio==="bosque_en_pie"?"Bosque en pie":"Puesta en planta";
-          return '<tr><td><strong>'+esc(r.numeroRol)+'</strong></td><td>'+esc(r.nombrePredio)+'</td><td>'+esc(r.propietario)+'</td><td>'+esc(r.comuna)+'</td><td>'+esc(r.especiePredominante)+'</td><td><span class="tag '+c+'">'+x+'</span></td></tr>'; }).join("");
+          return '<tr><td><strong>'+esc(r.numeroRol)+'</strong></td><td>'+esc(r.nombrePredio)+'</td><td>'+esc(r.propietario)+'</td><td>'+esc(r.comuna)+'</td><td>'+esc(r.especiePredominante)+'</td><td>'+esc(geoTxt(r.georeferencia))+'</td><td><span class="tag '+c+'">'+x+'</span></td></tr>'; }).join("");
       setSelect($("nRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona un rol —");
       setSelect($("rRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona rol —");
       setSelect($("gRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona rol —");
@@ -540,8 +593,8 @@
       const numeroRol = $("numeroRol").value.trim(); const m = $("formMsg");
       if (!numeroRol) { m.textContent="El número de rol es obligatorio."; m.className="msg err"; return; }
       $("btnGuardar").disabled=true; m.textContent="Guardando…"; m.className="msg";
-      try { await addDoc(collection(db,"roles"),{ numeroRol, nombrePredio:$("nombrePredio").value.trim(), propietario:$("propietario").value.trim(), comuna:$("comuna").value.trim(), especiePredominante:$("especie").value, tipoNegocio:$("tipoNegocio").value, estado:"activo", fechaCreacion:serverTimestamp() });
-        m.textContent="✓ Rol guardado."; m.className="msg ok"; ["numeroRol","nombrePredio","propietario","comuna"].forEach((id)=>$(id).value="");
+      try { await addDoc(collection(db,"roles"),{ numeroRol, nombrePredio:$("nombrePredio").value.trim(), propietario:$("propietario").value.trim(), comuna:$("comuna").value.trim(), especiePredominante:$("especie").value, tipoNegocio:$("tipoNegocio").value, georeferencia: parseGeo($("rolGeo").value), estado:"activo", fechaCreacion:serverTimestamp() });
+        m.textContent="✓ Rol guardado."; m.className="msg ok"; ["numeroRol","nombrePredio","propietario","comuna","rolGeo"].forEach((id)=>$(id).value="");
       } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardar").disabled=false; }
     });
 
@@ -550,22 +603,53 @@
       plantasCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       const t = $("tablaPlantas");
       t.innerHTML = snap.empty ? '<tr><td colspan="6" class="empty">Aún no hay plantas ni clientes.</td></tr>' :
-        plantasCache.map((p)=>{ const c=p.esPlantaDestino?"planta":"abierta"; const x=p.esPlantaDestino?"Planta destino":"Cliente"; const bod=(p.bodegas&&p.bodegas[0])?p.bodegas[0].nombre:"—";
-          return '<tr><td><strong>'+esc(p.nombre)+'</strong></td><td>'+esc(p.rut)+'</td><td>'+esc(p.contactoNombre)+'</td><td>'+esc(p.comuna)+'</td><td>'+esc(bod)+'</td><td><span class="tag '+c+'">'+x+'</span></td></tr>'; }).join("");
+        plantasCache.map((p)=>{ const c=p.esPlantaDestino?"planta":"abierta"; const x=p.esPlantaDestino?"Planta destino":"Cliente";
+          const nBod=(p.bodegas||[]).length; const nombresBod=(p.bodegas||[]).map((b)=>b.nombre).join(", ");
+          return '<tr><td><strong>'+esc(p.nombre)+'</strong></td><td>'+esc(p.rut)+'</td><td>'+esc(p.contactoNombre)+'</td><td>'+esc(p.comuna)+'</td><td class="num-cell" title="'+esc(nombresBod)+'">'+nBod+'</td><td><span class="tag '+c+'">'+x+'</span></td></tr>'; }).join("");
       const plantasDestino = plantasCache.filter((p)=>p.esPlantaDestino);
       setSelect($("nPlanta"), plantasDestino, (p)=>'<option value="'+p.id+'">'+esc(p.nombre)+'</option>', "— Sin asignar —");
       setSelect($("ocPlanta"), plantasCache, (p)=>'<option value="'+p.id+'">'+esc(p.nombre)+'</option>', "— Selecciona planta —");
     }, ()=>{});
 
+    // ---- Bodegas dinámicas (en el formulario de planta) ----
+    let bodegasTemp = [];
+    function renderBodegasTemp(){
+      const cont = $("bodegasLista");
+      if (!bodegasTemp.length){ cont.innerHTML = '<p class="hint">Sin bodegas agregadas aún.</p>'; return; }
+      cont.innerHTML = bodegasTemp.map((b,i)=>'<span class="falt-chip"><strong>'+esc(b.nombre)+'</strong>'
+        + (b.comuna?' · '+esc(b.comuna):'') + (b.georeferencia?' · 📍':'')
+        + ' <button class="mini" data-del-bodega="'+i+'" type="button">✕</button></span>').join("");
+      cont.querySelectorAll("[data-del-bodega]").forEach((btn)=> btn.addEventListener("click", ()=>{ bodegasTemp.splice(parseInt(btn.dataset.delBodega),1); renderBodegasTemp(); }));
+    }
+    renderBodegasTemp();
+
+    $("btnAddBodega").addEventListener("click", () => {
+      const nombre = $("bNombre").value.trim();
+      if (!nombre){ $("plantaMsg").textContent="La bodega necesita un nombre."; $("plantaMsg").className="msg err"; return; }
+      bodegasTemp.push({
+        bodegaId: Date.now().toString(36),
+        nombre,
+        direccion: $("bDireccion").value.trim(),
+        comuna: $("bComuna").value.trim(),
+        georeferencia: parseGeo($("bGeo").value),
+      });
+      ["bNombre","bDireccion","bComuna","bGeo"].forEach((id)=>$(id).value="");
+      $("plantaMsg").textContent=""; renderBodegasTemp();
+    });
+
     $("btnGuardarPlanta").addEventListener("click", async () => {
       const nombre = $("pNombre").value.trim(); const m = $("plantaMsg");
       if (!nombre) { m.textContent="El nombre es obligatorio."; m.className="msg err"; return; }
-      let geo = null; const raw = $("pGeo").value.trim();
-      if (raw) { const parts = raw.split(",").map((s)=>parseFloat(s.trim())); if(parts.length===2 && !isNaN(parts[0]) && !isNaN(parts[1])) geo={lat:parts[0],lng:parts[1]}; }
-      const bodegas = $("pBodega").value.trim() ? [{ bodegaId: Date.now().toString(36), nombre:$("pBodega").value.trim(), georeferencia:geo }] : [];
+      // Si quedó una bodega escrita sin agregar, la incluimos automáticamente
+      const bodegas = [...bodegasTemp];
+      if ($("bNombre").value.trim()){
+        bodegas.push({ bodegaId: Date.now().toString(36), nombre:$("bNombre").value.trim(), direccion:$("bDireccion").value.trim(), comuna:$("bComuna").value.trim(), georeferencia:parseGeo($("bGeo").value) });
+      }
       $("btnGuardarPlanta").disabled=true; m.textContent="Guardando…"; m.className="msg";
       try { await addDoc(collection(db,"clientes"),{ nombre, rut:$("pRut").value.trim(), contactoNombre:$("pContacto").value.trim(), contactoTelefono:$("pTel").value.trim(), comuna:$("pComuna").value.trim(), esPlantaDestino: $("pEsPlanta").value==="true", bodegas, estado:"activo", fechaCreacion:serverTimestamp() });
-        m.textContent="✓ Ficha guardada."; m.className="msg ok"; ["pNombre","pRut","pContacto","pTel","pComuna","pBodega","pGeo"].forEach((id)=>$(id).value="");
+        m.textContent="✓ Ficha guardada con "+bodegas.length+" bodega(s)."; m.className="msg ok";
+        ["pNombre","pRut","pContacto","pTel","pComuna","bNombre","bDireccion","bComuna","bGeo"].forEach((id)=>$(id).value="");
+        bodegasTemp = []; renderBodegasTemp();
       } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarPlanta").disabled=false; }
     });
 
@@ -747,24 +831,33 @@
         // Mapear cada fila a campos normalizados.
         // Acepta dos formatos: la plantilla genérica y la "Base fletes" real.
         const pick = (row, claves) => { for (const k of claves){ if (row[k] !== undefined && row[k] !== "") return row[k]; } return ""; };
+        // Extrae el número de rol del inicio de un texto tipo "105-13 LOS SAUCES" -> "105-13"
+        const extraerRol = (txt) => { const m = (txt||"").toString().trim().match(/^(\d+\-\d+)/); return m ? m[1] : (txt||"").toString().trim(); };
         filasPreview = filas.map((raw, i) => {
           const row = {}; Object.keys(raw).forEach((k) => { row[normHeader(k)] = raw[k]; });
-          const numeroRol  = pick(row, ["numero_rol","rol_predio"]).toString().trim();
-          // EE/PP es el código de producto que cruza con la OC (también se acepta codigo_producto / cod_producto como respaldo).
-          const codigoProd = pick(row, ["codigo_producto","ee/pp","cod_producto"]).toString().trim();
-          const mr = parseFloat(pick(row, ["metros_ruma","mr_recep."])) || 0;
+          // Rol: directo (numero_rol/rol_predio) o extraído de centro_costo (formato BASE_PROF)
+          let numeroRol = pick(row, ["numero_rol","rol_predio"]).toString().trim();
+          if (!numeroRol){ const cc = pick(row, ["centro_costo","centro_de_costo"]); if (cc) numeroRol = extraerRol(cc); }
+          // Código de producto: EE/PP (fletes) · producto (BASE_PROF) · codigo_producto (plantilla)
+          const codigoProd = pick(row, ["codigo_producto","ee/pp","producto","cod_producto"]).toString().trim();
+          // Cantidad en metros ruma: mr_recep (fletes) · cantidad (BASE_PROF) · metros_ruma (plantilla)
+          const mr = parseFloat(pick(row, ["metros_ruma","mr_recep.","cantidad"])) || 0;
           const m3 = parseFloat(pick(row, ["m3"])) || 0;
-          const bodega  = pick(row, ["nombre_bodega","nombre_destino"]).toString().trim();
-          const guia    = pick(row, ["numero_guia","nºg/d","ng/d"]).toString().trim();
+          const bodega  = pick(row, ["nombre_bodega","nombre_destino","bodega"]).toString().trim();
+          const guia    = pick(row, ["numero_guia","nºg/d","ng/d","guia_asociada"]).toString().trim();
           const patente = pick(row, ["patente","camion/_carro"]).toString().trim();
           const fecha   = pick(row, ["fecha","fecha_ing"]).toString().trim();
-          // Campos extra de la base de fletes (A–M) que se guardan como respaldo
+          // Campos extra que se guardan como respaldo (de cualquiera de los formatos)
           const extra = {
-            nroGMM: pick(row, ["nºgmm","ngmm"]).toString().trim(),
+            nroGMM: pick(row, ["nºgmm","ngmm","gmm"]).toString().trim(),
             comuna: pick(row, ["comuna_ctto.","comuna"]).toString().trim(),
-            descripPredio: pick(row, ["descrip._predio"]).toString().trim(),
-            tipo: pick(row, ["tipo"]).toString().trim(),
+            descripPredio: pick(row, ["descrip._predio","descripcion"]).toString().trim(),
+            tipo: pick(row, ["tipo","motivo"]).toString().trim(),
             factura: pick(row, ["factura"]).toString().trim(),
+            proveedor: pick(row, ["proveedor","transportista"]).toString().trim(),
+            costoUnitario: parseFloat(pick(row, ["costo_unitario"])) || null,
+            neto: parseFloat(pick(row, ["neto"])) || null,
+            centroCosto: pick(row, ["centro_costo","centro_de_costo"]).toString().trim(),
           };
           const rol = rolesCache.find((r) => (r.numeroRol||"").toString().trim() === numeroRol);
           const prod = codigoProd ? productosCache.find((p) => (p.codigo||"").toString().trim().toLowerCase() === codigoProd.toLowerCase()) : null;
@@ -774,19 +867,37 @@
           if (codigoProd && !prod) errores.push("código no existe");
           if (mr<=0 && m3<=0) errores.push("sin cantidades");
           // El código es opcional aquí: si viene vacío, la recepción se guarda igual (sin imputar a OC por producto)
-          return { fila: i+2, numeroRol, codigoProd, bodega, mr, m3, guia, patente, fecha, extra, rol, prod, valida: errores.length===0, errores };
+          const gmm = (extra.nroGMM||"").toString().trim();
+          return { fila: i+2, numeroRol, codigoProd, bodega, mr, m3, guia, patente, fecha, extra, gmm, rol, prod, valida: errores.length===0, errores };
         });
 
-        const validas = filasPreview.filter((f)=>f.valida).length;
-        $("previewResumen").textContent = `${filasPreview.length} filas leídas · ${validas} válidas · ${filasPreview.length-validas} con problemas.`;
-        $("tablaPreview").innerHTML = filasPreview.map((f)=>{
-          const estado = f.valida ? '<span class="tag abierta">✓ válida</span>' : '<span class="tag alerta">'+esc(f.errores.join(", "))+'</span>';
+        // Marcar duplicados: contra lo ya cargado (por GMM) y contra el propio archivo
+        const gmmExistentes = new Set(recepcionesCache.map((r)=>(r.nroGMM||"").toString().trim()).filter(Boolean));
+        const vistosEnArchivo = new Set();
+        filasPreview.forEach((f)=>{
+          if (f.gmm && gmmExistentes.has(f.gmm)) f.duplicado = "existe";       // ya está en el sistema
+          else if (f.gmm && vistosEnArchivo.has(f.gmm)) f.duplicado = "repetido"; // repetido dentro del mismo Excel
+          else { f.duplicado = null; if (f.gmm) vistosEnArchivo.add(f.gmm); }
+        });
+
+        const validasNuevas = filasPreview.filter((f)=>f.valida && !f.duplicado).length;
+        const yaExisten = filasPreview.filter((f)=>f.duplicado).length;
+        const conProblemas = filasPreview.filter((f)=>!f.valida).length;
+        $("previewResumen").innerHTML = `<strong>${filasPreview.length}</strong> filas leídas · <strong style="color:var(--ok)">${validasNuevas} nuevas a importar</strong> · <strong style="color:var(--muted)">${yaExisten} ya existen (se omiten)</strong> · <strong style="color:var(--danger)">${conProblemas} con problemas</strong>.`;
+        // Mostrar solo una muestra si son muchas filas (rendimiento)
+        const muestra = filasPreview.slice(0, 200);
+        $("tablaPreview").innerHTML = muestra.map((f)=>{
+          let estado;
+          if (!f.valida) estado = '<span class="tag alerta">'+esc(f.errores.join(", "))+'</span>';
+          else if (f.duplicado==="existe") estado = '<span class="tag completada">ya existe</span>';
+          else if (f.duplicado==="repetido") estado = '<span class="tag completada">repetido en archivo</span>';
+          else estado = '<span class="tag abierta">✓ nueva</span>';
           const prodTxt = f.prod ? prodLabel(f.prod) : f.codigoProd;
           return '<tr><td>'+f.fila+'</td><td>'+esc(f.numeroRol)+'</td><td>'+esc(prodTxt)+'</td><td>'+esc(f.bodega)+'</td><td class="num-cell">'+fmt(f.mr)+'</td><td class="num-cell">'+fmt(f.m3)+'</td><td>'+esc(f.guia)+'</td><td>'+estado+'</td></tr>';
-        }).join("");
+        }).join("") + (filasPreview.length>200 ? '<tr><td colspan="8" class="empty">… mostrando 200 de '+filasPreview.length+' filas. Todas se procesarán al importar.</td></tr>' : '');
         renderFaltantes();
         $("previewCard").style.display = "block";
-        $("btnImportar").disabled = validas===0;
+        $("btnImportar").disabled = validasNuevas===0;
         m.textContent = ""; 
         $("previewCard").scrollIntoView({ behavior:"smooth" });
       } catch (e) { m.textContent = "Error al leer: "+e.message; m.className="msg err"; }
@@ -856,10 +967,11 @@
     }
 
     $("btnImportar").addEventListener("click", async () => {
-      const validas = filasPreview.filter((f)=>f.valida);
+      // Solo filas válidas y NO duplicadas (nuevas)
+      const validas = filasPreview.filter((f)=>f.valida && !f.duplicado);
       const m = $("importResultMsg");
-      if (!validas.length) return;
-      $("btnImportar").disabled = true; m.textContent = "Importando "+validas.length+" recepciones…"; m.className="msg";
+      if (!validas.length){ m.textContent = "No hay filas nuevas para importar."; m.className="msg warn"; return; }
+      $("btnImportar").disabled = true; m.textContent = "Importando "+validas.length+" recepciones nuevas…"; m.className="msg";
       // Convierte fecha DD/MM/YYYY o YYYY-MM-DD a periodo YYYY-MM
       const periodoDe = (f) => {
         const v = (f.fecha||"").toString().trim();
@@ -869,12 +981,15 @@
         if (mYMD) return mYMD[1] + "-" + mYMD[2];
         return new Date().toISOString().slice(0,7);
       };
+      // ID de documento seguro a partir del GMM (o autogenerado si no hay GMM)
+      const docIdDe = (f) => f.gmm ? ("gmm_" + f.gmm.replace(/[^a-zA-Z0-9_\-]/g,"_")) : ("rec_" + Date.now() + "_" + Math.random().toString(36).slice(2,8));
       const clavesAfectadas = new Set();
       let ok=0, err=0;
       try {
         for (const f of validas){
           try {
-            await addDoc(collection(db,"recepciones"), {
+            // setDoc con ID = GMM: idempotente, no duplica si se reimporta
+            await setDoc(doc(db,"recepciones", docIdDe(f)), {
               rolId: f.rol.id, numeroRol: f.rol.numeroRol,
               productoId: f.prod ? f.prod.id : null,
               productoLabel: f.prod ? prodLabel(f.prod) : null,
@@ -884,24 +999,26 @@
               numeroGuia: f.guia, patente: f.patente,
               ordenCompraId: null, ocNumero: null,
               periodo: periodoDe(f), origen: "importacion_excel",
-              // Campos extra de la base de fletes (A–M)
+              // Campos extra (de cualquiera de los formatos de importación)
               nroGMM: f.extra.nroGMM || null,
               comuna: f.extra.comuna || null, descripPredio: f.extra.descripPredio || null,
               tipo: f.extra.tipo || null, factura: f.extra.factura || null,
+              proveedor: f.extra.proveedor || null, costoUnitario: f.extra.costoUnitario,
+              neto: f.extra.neto, centroCosto: f.extra.centroCosto || null,
               estado: "recibido", fechaCreacion: serverTimestamp(),
             });
-            // Solo afecta OC si la fila trae código de producto válido
             if (f.prod) clavesAfectadas.add(f.rol.id+"|"+f.prod.id);
             ok++;
+            // Feedback de progreso cada 50 filas
+            if (ok % 50 === 0){ m.textContent = "Importando… "+ok+" de "+validas.length; }
           } catch(e){ err++; }
         }
-        // Esperar breve para que recepcionesCache se actualice por el onSnapshot, luego recalcular OCs
-        m.textContent = "✓ "+ok+" recepciones importadas"+(err?(" · "+err+" con error"):"")+". Recalculando avance de OC…"; m.className="msg ok";
+        m.textContent = "✓ "+ok+" recepciones nuevas importadas"+(err?(" · "+err+" con error"):"")+". Recalculando avance de OC…"; m.className="msg ok";
         setTimeout(async () => {
           try { await recalcularOCsAfectadas(clavesAfectadas);
-            m.textContent = "✓ "+ok+" recepciones importadas y avance de OC actualizado. Revisa la pestaña Órdenes de compra.";
+            m.textContent = "✓ "+ok+" recepciones nuevas importadas y avance de OC actualizado. Las que ya existían se omitieron.";
           } catch(e){ m.textContent = "Recepciones importadas, pero error al recalcular OC: "+e.message; m.className="msg warn"; }
-        }, 1500);
+        }, 1800);
         $("btnImportar").disabled = true;
       } catch(e){ m.textContent = "Error: "+e.message; m.className="msg err"; $("btnImportar").disabled=false; }
     });
@@ -1016,6 +1133,66 @@
         const nuevo = b.dataset.estado==="inactivo" ? "activo" : "inactivo";
         try { await updateDoc(doc(db,"usuarios",b.dataset.toggle), { estado: nuevo }); } catch(e){ alert("Error: "+e.message); }
       }));
+    }, ()=>{});
+
+    // ================== EMPRESA ==================
+    let logoBase64 = null;  // logo en memoria mientras se edita
+
+    // Carga y comprime el logo a base64 (máx ~500KB, redimensiona a 400px)
+    $("logoInput").addEventListener("change", (e) => {
+      const file = e.target.files[0]; const m = $("empresaMsg");
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024){ m.textContent="La imagen es muy grande (máx 2MB)."; m.className="msg err"; return; }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          // Redimensionar manteniendo proporción, lado máx 400px
+          const max = 400; let w = img.width, h = img.height;
+          if (w > max || h > max){ if (w>h){ h=Math.round(h*max/w); w=max; } else { w=Math.round(w*max/h); h=max; } }
+          const canvas = document.createElement("canvas"); canvas.width=w; canvas.height=h;
+          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+          logoBase64 = canvas.toDataURL("image/jpeg", 0.85);
+          $("logoPreview").innerHTML = '<img src="'+logoBase64+'" style="width:100%;height:100%;object-fit:cover" />';
+          m.textContent="Logo cargado. No olvides Guardar."; m.className="msg ok";
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    $("btnGuardarEmpresa").addEventListener("click", async () => {
+      if (!puede("usuarios")){ return; }  // solo admin
+      const m = $("empresaMsg");
+      $("btnGuardarEmpresa").disabled = true; m.textContent="Guardando…"; m.className="msg";
+      try {
+        const datos = {
+          rut: $("empRut").value.trim(), razonSocial: $("empRazon").value.trim(),
+          direccion: $("empDireccion").value.trim(), comuna: $("empComuna").value.trim(),
+          telefono: $("empTelefono").value.trim(), email: $("empEmail").value.trim(),
+          contacto: $("empContacto").value.trim(),
+          fechaActualizacion: serverTimestamp(),
+        };
+        if (logoBase64 !== null) datos.logo = logoBase64;  // solo actualiza logo si se cargó uno nuevo
+        await setDoc(doc(db,"config","empresa"), datos, { merge: true });
+        m.textContent="✓ Datos de la empresa guardados."; m.className="msg ok";
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; }
+      finally { $("btnGuardarEmpresa").disabled = !puede("usuarios"); }
+    });
+
+    // Escuchar datos de empresa y aplicarlos (header + formulario)
+    onSnapshot(doc(db,"config","empresa"), (snap) => {
+      if (!snap.exists()) return;
+      const e = snap.data();
+      // Rellenar formulario
+      $("empRut").value = e.rut||""; $("empRazon").value = e.razonSocial||"";
+      $("empDireccion").value = e.direccion||""; $("empComuna").value = e.comuna||"";
+      $("empTelefono").value = e.telefono||""; $("empEmail").value = e.email||"";
+      $("empContacto").value = e.contacto||"";
+      // Aplicar al header
+      if (e.razonSocial) $("headerRazon").textContent = e.razonSocial;
+      if (e.logo){ $("headerLogo").src = e.logo; $("headerLogo").style.display = "block";
+        $("logoPreview").innerHTML = '<img src="'+e.logo+'" style="width:100%;height:100%;object-fit:cover" />'; }
     }, ()=>{});
   </script>
 </body>
