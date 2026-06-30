@@ -1,0 +1,1022 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Control de Gestión Área Forestal</title>
+  <style>
+    :root {
+      --bark: #2c2018; --moss: #4a5d3a; --moss-light: #6b8050; --sap: #c89b3c;
+      --paper: #f6f4ee; --paper-2: #ece8dd; --ink: #20180f; --muted: #7a7164;
+      --line: #d9d2c4; --danger: #a3432f; --ok: #4a5d3a; --warn: #b8791f;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Inter", -apple-system, system-ui, sans-serif; background: var(--paper); color: var(--ink); line-height: 1.5; }
+    header { background: var(--bark); color: var(--paper); padding: 28px 32px 0; position: relative; overflow: hidden; }
+    header .rings { position: absolute; right: -120px; top: -120px; width: 320px; height: 320px; border-radius: 50%; background: repeating-radial-gradient(circle, transparent 0 9px, rgba(200,155,60,0.10) 9px 11px); pointer-events: none; }
+    header h1 { margin: 0; font-size: 26px; letter-spacing: -0.02em; font-weight: 700; }
+    header .eyebrow { text-transform: uppercase; letter-spacing: 0.18em; font-size: 11px; color: var(--sap); font-weight: 600; margin-bottom: 6px; }
+    header .status { margin-top: 10px; font-size: 13px; color: #cfc8ba; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+    .dot.ok { background: #8fb46a; } .dot.wait { background: var(--sap); } .dot.err { background: var(--danger); }
+    nav.tabs { display: flex; gap: 2px; margin-top: 20px; position: relative; z-index: 1; flex-wrap: wrap; }
+    nav.tabs button { background: transparent; border: none; color: #cfc8ba; font-family: inherit; font-size: 13px; font-weight: 600; padding: 11px 15px; cursor: pointer; border-radius: 8px 8px 0 0; border-bottom: 3px solid transparent; white-space: nowrap; }
+    nav.tabs button:hover { color: var(--paper); }
+    nav.tabs button.active { color: var(--ink); background: var(--paper); border-bottom-color: var(--sap); }
+    main { max-width: 1040px; margin: 0 auto; padding: 32px; }
+    .view { display: none; } .view.active { display: block; }
+    .card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 24px; margin-bottom: 28px; }
+    .card h2 { margin: 0 0 4px; font-size: 17px; display: flex; align-items: baseline; gap: 10px; }
+    .card h2 .num { font-size: 12px; color: var(--sap); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .card .sub { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .grid.g3 { grid-template-columns: repeat(3, 1fr); }
+    @media (max-width: 640px) { .grid, .grid.g3 { grid-template-columns: 1fr; } }
+    label { display: block; font-size: 12px; font-weight: 600; color: var(--bark); margin-bottom: 5px; }
+    input, select { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 7px; font-size: 14px; font-family: inherit; background: var(--paper); }
+    input:focus, select:focus { outline: 2px solid var(--moss-light); border-color: transparent; }
+    .actions { margin-top: 18px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    button.primary { font-family: inherit; font-size: 14px; font-weight: 600; padding: 10px 20px; border-radius: 7px; border: none; cursor: pointer; background: var(--moss); color: #fff; }
+    button.primary:hover { background: var(--moss-light); }
+    button.primary:disabled { opacity: 0.5; cursor: default; }
+    .msg { font-size: 13px; } .msg.ok { color: var(--ok); } .msg.err { color: var(--danger); } .msg.warn { color: var(--warn); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 10px 12px; border-bottom: 2px solid var(--line); }
+    td { padding: 11px 12px; border-bottom: 1px solid var(--paper-2); vertical-align: top; }
+    tr:hover td { background: var(--paper); }
+    .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; }
+    .tag.pie { background: #e8efe0; color: var(--moss); }
+    .tag.planta { background: #f3e6c8; color: #8a6a1e; }
+    .tag.abierta { background: #e0e9f0; color: #3a5a6b; }
+    .tag.completada { background: #e8e4dc; color: var(--muted); }
+    .tag.alerta { background: #f6e0cf; color: var(--danger); }
+    .empty { text-align: center; color: var(--muted); padding: 28px; font-size: 14px; }
+    .num-cell { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+    .bar { height: 6px; background: var(--paper-2); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+    .bar > span { display: block; height: 100%; background: var(--moss); }
+    .bar > span.warn { background: var(--warn); }
+    .bar > span.full { background: var(--muted); }
+    .alert-panel { background: #fbf3ea; border: 1px solid #ecd3b3; border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; }
+    .alert-panel h3 { margin: 0 0 8px; font-size: 14px; color: var(--danger); }
+    .alert-panel ul { margin: 0; padding-left: 18px; font-size: 13px; }
+    .alert-panel.hidden { display: none; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .oc-pick { margin-top: 12px; padding: 14px; background: #fbf3ea; border: 1px solid #ecd3b3; border-radius: 8px; display: none; }
+    .oc-pick.show { display: block; }
+    .falt-box { background: #fbf3ea; border: 1px solid #ecd3b3; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; }
+    .falt-box h4 { margin: 0 0 8px; font-size: 13px; color: var(--warn); }
+    .falt-chip { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 4px 10px; margin: 3px; font-size: 13px; }
+    .falt-chip button { font-size: 11px; padding: 3px 10px; border-radius: 14px; }
+    button.mini { font-family: inherit; font-weight: 600; border: none; cursor: pointer; background: var(--moss); color: #fff; }
+    button.mini:disabled { opacity: .5; cursor: default; }
+    button.mini.done { background: var(--ok); }
+    /* Login */
+    #loginScreen { position: fixed; inset: 0; background: var(--bark); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+    #loginScreen .box { background: #fff; border-radius: 14px; padding: 36px 32px; width: 100%; max-width: 380px; }
+    #loginScreen .rings2 { width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 16px; background: repeating-radial-gradient(circle, var(--bark) 0 4px, var(--sap) 4px 6px); }
+    #loginScreen h2 { margin: 0 0 4px; text-align: center; font-size: 20px; }
+    #loginScreen p.sub2 { text-align: center; color: var(--muted); font-size: 13px; margin: 0 0 22px; }
+    #loginScreen label { margin-top: 12px; }
+    #loginScreen button { width: 100%; margin-top: 18px; }
+    #loginScreen .toggle { text-align: center; margin-top: 14px; font-size: 13px; color: var(--moss); cursor: pointer; }
+    #loginScreen .firstHint { background: #f3e6c8; color: #8a6a1e; font-size: 12px; padding: 8px 10px; border-radius: 7px; margin-top: 14px; text-align: center; display: none; }
+    .app-hidden { display: none !important; }
+    .userbar { display: flex; align-items: center; gap: 12px; margin-top: 12px; font-size: 13px; color: #cfc8ba; }
+    .userbar .badge { background: var(--sap); color: var(--bark); font-weight: 700; padding: 2px 10px; border-radius: 20px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+    .userbar button { background: transparent; border: 1px solid #5a4a3a; color: #cfc8ba; font-family: inherit; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px; cursor: pointer; }
+    .userbar button:hover { background: #3a2c20; }
+    .tab-hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <!-- LOGIN -->
+  <div id="loginScreen">
+    <div class="box">
+      <div class="rings2"></div>
+      <h2>Control Forestal</h2>
+      <p class="sub2" id="loginSubtitle">Inicia sesión para continuar</p>
+      <div id="loginFields">
+        <label>Correo</label><input id="authEmail" type="email" placeholder="correo@empresa.cl" />
+        <label>Contraseña</label><input id="authPass" type="password" placeholder="••••••••" />
+        <label id="authNameLabel" style="display:none">Nombre</label>
+        <input id="authName" type="text" placeholder="Nombre y apellido" style="display:none" />
+        <div class="firstHint" id="firstHint">No hay usuarios aún. El primero que se registre será <strong>Administrador</strong>.</div>
+        <button class="primary" id="btnAuth">Entrar</button>
+        <div class="toggle" id="authToggle">¿No tienes cuenta? Regístrate</div>
+        <p class="msg" id="authMsg" style="text-align:center; margin-top:12px"></p>
+      </div>
+    </div>
+  </div>
+
+  <header>
+    <div class="rings"></div>
+    <div class="eyebrow">Negocio de la madera</div>
+    <h1>Control de Gestión Área Forestal</h1>
+    <div class="status" id="status"><span class="dot wait"></span>Conectando con Firebase&hellip;</div>
+    <div class="userbar" id="userbar" style="display:none">
+      <span id="userInfo"></span>
+      <span class="badge" id="userBadge"></span>
+      <button id="btnLogout">Cerrar sesión</button>
+    </div>
+    <nav class="tabs">
+      <button data-tab="roles" class="active">Roles</button>
+      <button data-tab="plantas">Plantas / Clientes</button>
+      <button data-tab="productos">Productos</button>
+      <button data-tab="negocios">Negocios</button>
+      <button data-tab="oc">Órdenes de compra</button>
+      <button data-tab="recepciones">Recepciones</button>
+      <button data-tab="importar">Importar Excel</button>
+      <button data-tab="gastos">Gastos</button>
+      <button data-tab="usuarios" data-admin="1">Usuarios</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ROLES -->
+    <div class="view active" id="view-roles">
+      <section class="card">
+        <h2><span class="num">01</span> Registrar rol de predio</h2>
+        <p class="sub">El rol de predio es el eje del sistema.</p>
+        <div class="grid">
+          <div><label>Número de rol</label><input id="numeroRol" placeholder="12345-67" /></div>
+          <div><label>Nombre del predio</label><input id="nombrePredio" placeholder="Fundo El Roble" /></div>
+          <div><label>Propietario</label><input id="propietario" placeholder="Juan Pérez" /></div>
+          <div><label>Comuna</label><input id="comuna" placeholder="Los Ángeles" /></div>
+          <div><label>Especie predominante</label><select id="especie"><option value="pino">Pino</option><option value="eucalipto">Eucalipto</option><option value="nativo">Nativo</option><option value="otro">Otro</option></select></div>
+          <div><label>Tipo de negocio</label><select id="tipoNegocio"><option value="bosque_en_pie">Bosque en pie</option><option value="madera_puesta_planta">Madera puesta en planta</option></select></div>
+        </div>
+        <div class="actions"><button class="primary" id="btnGuardar" disabled>Guardar rol</button><span class="msg" id="formMsg"></span></div>
+      </section>
+      <section class="card">
+        <h2><span class="num">02</span> Roles registrados</h2>
+        <table><thead><tr><th>Rol</th><th>Predio</th><th>Propietario</th><th>Comuna</th><th>Especie</th><th>Negocio</th></tr></thead>
+        <tbody id="tablaRoles"><tr><td colspan="6" class="empty">Cargando&hellip;</td></tr></tbody></table>
+      </section>
+    </div>
+
+    <!-- PLANTAS / CLIENTES -->
+    <div class="view" id="view-plantas">
+      <section class="card">
+        <h2><span class="num">01</span> Ficha de planta / cliente</h2>
+        <p class="sub">Las plantas de destino se tratan como clientes, con bodegas georreferenciadas para trazabilidad.</p>
+        <div class="grid">
+          <div><label>Nombre</label><input id="pNombre" placeholder="Planta CMPC Mininco" /></div>
+          <div><label>RUT</label><input id="pRut" placeholder="33.333.333-3" /></div>
+          <div><label>Contacto</label><input id="pContacto" placeholder="María López" /></div>
+          <div><label>Teléfono</label><input id="pTel" placeholder="+56 9 1234 5678" /></div>
+          <div><label>Comuna</label><input id="pComuna" placeholder="Mininco" /></div>
+          <div><label>¿Es planta de destino?</label><select id="pEsPlanta"><option value="true">Sí — planta de destino</option><option value="false">No — solo cliente</option></select></div>
+          <div><label>Bodega principal</label><input id="pBodega" placeholder="Bodega Norte" /></div>
+          <div><label>Georreferencia (lat, lng)</label><input id="pGeo" placeholder="-37.45, -72.40" /><div class="hint">Exigida para trazabilidad.</div></div>
+        </div>
+        <div class="actions"><button class="primary" id="btnGuardarPlanta" disabled>Guardar ficha</button><span class="msg" id="plantaMsg"></span></div>
+      </section>
+      <section class="card">
+        <h2><span class="num">02</span> Plantas y clientes</h2>
+        <table><thead><tr><th>Nombre</th><th>RUT</th><th>Contacto</th><th>Comuna</th><th>Bodega</th><th>Tipo</th></tr></thead>
+        <tbody id="tablaPlantas"><tr><td colspan="6" class="empty">Cargando&hellip;</td></tr></tbody></table>
+      </section>
+    </div>
+
+    <!-- PRODUCTOS -->
+    <div class="view" id="view-productos">
+      <section class="card">
+        <h2><span class="num">01</span> Ficha de producto</h2>
+        <p class="sub">Catálogo de productos que se solicitan en las órdenes de compra.</p>
+        <div class="grid g3">
+          <div><label>Código de producto</label><input id="prodCodigo" placeholder="P244" /><div class="hint">Debe coincidir con el código del Excel de recepciones.</div></div>
+          <div><label>Especie</label><select id="prodEspecie"><option value="pino">Pino</option><option value="eucalipto">Eucalipto</option><option value="nativo">Nativo</option><option value="otro">Otro</option></select></div>
+          <div><label>Variedad</label><input id="prodVariedad" placeholder="Radiata" /></div>
+          <div><label>Tipo de producto</label><input id="prodTipo" placeholder="Trozo aserrable / Pulpable" /></div>
+          <div><label>Largo (m)</label><input id="prodLargo" type="number" step="0.01" placeholder="2.44" /></div>
+          <div><label>Diámetro mín. (cm)</label><input id="prodDiam" type="number" step="0.1" placeholder="18" /></div>
+          <div><label>Calidad / grado</label><input id="prodCalidad" placeholder="Grado 1" /></div>
+        </div>
+        <div class="actions"><button class="primary" id="btnGuardarProd" disabled>Guardar producto</button><span class="msg" id="prodMsg"></span></div>
+      </section>
+      <section class="card">
+        <h2><span class="num">02</span> Catálogo de productos</h2>
+        <table><thead><tr><th>Código</th><th>Especie</th><th>Variedad</th><th>Tipo</th><th class="num-cell">Largo</th><th class="num-cell">Diám.</th><th>Calidad</th></tr></thead>
+        <tbody id="tablaProd"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
+      </section>
+    </div>
+
+    <!-- NEGOCIOS -->
+    <div class="view" id="view-negocios">
+      <section class="card">
+        <h2><span class="num">01</span> Nueva ficha de negocio</h2>
+        <p class="sub">Cada negocio se asocia a un único rol de predio.</p>
+        <div class="grid">
+          <div><label>Rol de predio</label><select id="nRol"><option value="">— Selecciona un rol —</option></select></div>
+          <div><label>Proveedor</label><input id="nProveedor" placeholder="Aserradero Sur" /></div>
+          <div><label>Especie</label><select id="nEspecie"><option value="pino">Pino</option><option value="eucalipto">Eucalipto</option><option value="nativo">Nativo</option><option value="otro">Otro</option></select></div>
+          <div><label>Volumen estimado (m³)</label><input id="nVolumen" type="number" step="0.01" placeholder="1200" /></div>
+          <div><label>Precio compra</label><input id="nPrecio" type="number" step="1" placeholder="35000" /></div>
+          <div><label>Planta de destino</label><select id="nPlanta"><option value="">— Sin asignar —</option></select></div>
+          <div><label>Tipo de negocio</label><select id="nTipo"><option value="bosque_en_pie">Bosque en pie (cosecha + flete)</option><option value="madera_puesta_planta">Madera puesta en planta</option></select></div>
+        </div>
+        <div class="actions"><button class="primary" id="btnGuardarNeg" disabled>Guardar negocio</button><span class="msg" id="negMsg"></span></div>
+      </section>
+      <section class="card">
+        <h2><span class="num">02</span> Negocios registrados</h2>
+        <table><thead><tr><th>Rol</th><th>Proveedor</th><th>Especie</th><th class="num-cell">Vol. m³</th><th>Planta</th><th>Tipo</th></tr></thead>
+        <tbody id="tablaNeg"><tr><td colspan="6" class="empty">Cargando&hellip;</td></tr></tbody></table>
+      </section>
+    </div>
+
+    <!-- ÓRDENES DE COMPRA -->
+    <div class="view" id="view-oc">
+      <section class="card">
+        <h2><span class="num">01</span> Nueva orden de compra</h2>
+        <p class="sub">La OC la pide una planta/cliente y se asigna a un negocio. Define cantidad solicitada en metros ruma y m³.</p>
+        <div class="grid">
+          <div><label>Negocio (rol)</label><select id="ocNegocio"><option value="">— Selecciona negocio —</option></select></div>
+          <div><label>Planta / cliente</label><select id="ocPlanta"><option value="">— Selecciona planta —</option></select></div>
+          <div><label>Producto</label><select id="ocProducto"><option value="">— Selecciona producto —</option></select></div>
+          <div><label>N° orden de compra</label><input id="ocNumero" placeholder="OC-2026-001" /></div>
+          <div><label>Solicitado — metros ruma</label><input id="ocMr" type="number" step="0.01" placeholder="2000" /></div>
+          <div><label>Solicitado — m³</label><input id="ocM3" type="number" step="0.01" placeholder="1500" /></div>
+          <div><label>Umbral de alerta</label><input id="ocUmbral" type="number" step="1" value="300" /><div class="hint">Alerta cuando falten ≤ este valor (en mr o m³).</div></div>
+        </div>
+        <div class="actions"><button class="primary" id="btnGuardarOC" disabled>Guardar OC</button><span class="msg" id="ocMsg"></span></div>
+      </section>
+      <section class="card">
+        <h2><span class="num">02</span> Órdenes de compra y avance</h2>
+        <p class="sub">El avance se actualiza con cada recepción.</p>
+        <table><thead><tr><th>OC</th><th>Rol</th><th>Producto</th><th>Planta</th><th class="num-cell">Mr (rec/sol)</th><th class="num-cell">m³ (rec/sol)</th><th>Estado</th></tr></thead>
+        <tbody id="tablaOC"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
+      </section>
+    </div>
+
+    <!-- RECEPCIONES -->
+    <div class="view" id="view-recepciones">
+      <div class="alert-panel hidden" id="alertPanel">
+        <h3>⚠️ Órdenes por completar</h3>
+        <ul id="alertList"></ul>
+      </div>
+      <section class="card">
+        <h2><span class="num">01</span> Registrar recepción</h2>
+        <p class="sub">Se imputa automáticamente a la OC abierta del rol + producto. Si hay varias, el sistema te pedirá elegir.</p>
+        <div class="grid">
+          <div><label>Rol de predio</label><select id="rRol"><option value="">— Selecciona rol —</option></select></div>
+          <div><label>Producto</label><select id="rProducto"><option value="">— Selecciona producto —</option></select></div>
+          <div><label>Metros ruma recibidos</label><input id="rMr" type="number" step="0.01" placeholder="120" /></div>
+          <div><label>m³ recibidos</label><input id="rM3" type="number" step="0.01" placeholder="90" /></div>
+          <div><label>N° guía de despacho</label><input id="rGuia" placeholder="GD-00123" /></div>
+          <div><label>Patente</label><input id="rPatente" placeholder="ABCD-12" /></div>
+        </div>
+        <div class="oc-pick" id="ocPick">
+          <label>Hay varias OC abiertas para ese rol + producto. ¿A cuál imputar?</label>
+          <select id="ocPickSelect"></select>
+        </div>
+        <div class="actions"><button class="primary" id="btnGuardarRec" disabled>Registrar recepción</button><span class="msg" id="recMsg"></span></div>
+      </section>
+      <section class="card">
+        <h2><span class="num">02</span> Recepciones registradas</h2>
+        <table><thead><tr><th>Fecha</th><th>Rol</th><th>Producto</th><th class="num-cell">Mr</th><th class="num-cell">m³</th><th>Guía</th><th>OC</th></tr></thead>
+        <tbody id="tablaRec"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
+      </section>
+    </div>
+
+    <!-- IMPORTAR EXCEL -->
+    <div class="view" id="view-importar">
+      <section class="card">
+        <h2><span class="num">01</span> Importar recepciones desde Excel/CSV</h2>
+        <p class="sub">Las recepciones se vinculan por número de rol y código de producto. El avance de las OC se recalcula tras importar.</p>
+        <div class="actions">
+          <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="max-width:340px" />
+          <button class="primary" id="btnPreview" disabled>Analizar archivo</button>
+          <span class="msg" id="impMsg"></span>
+        </div>
+        <div class="hint" style="margin-top:10px">Acepta la plantilla genérica o el formato "Base fletes" (columnas A–M). El vínculo se hace por <strong>Rol Predio</strong> y el código de producto se toma de <strong>EE/PP</strong>; si el código coincide con uno del catálogo, actualiza el avance de la OC.</div>
+      </section>
+      <section class="card" id="previewCard" style="display:none">
+        <h2><span class="num">02</span> Vista previa</h2>
+        <p class="sub" id="previewResumen"></p>
+        <div id="faltantesPanel" style="display:none; margin-bottom:18px;"></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Rol</th><th>Producto</th><th>Bodega</th><th class="num-cell">Mr</th><th class="num-cell">m³</th><th>Guía</th><th>Validación</th></tr></thead>
+        <tbody id="tablaPreview"></tbody></table></div>
+        <div class="actions">
+          <button class="primary" id="btnImportar" disabled>Importar filas válidas</button>
+          <span class="msg" id="importResultMsg"></span>
+        </div>
+      </section>
+    </div>
+
+    <!-- GASTOS -->
+    <div class="view" id="view-gastos">
+      <section class="card">
+        <h2><span class="num">01</span> Registrar gasto</h2>
+        <p class="sub">Los gastos se asocian al rol de predio. La categoría es libre: escribe la que uses.</p>
+        <div class="grid">
+          <div><label>Rol de predio</label><select id="gRol"><option value="">— Selecciona rol —</option></select></div>
+          <div><label>Categoría</label><input id="gCategoria" list="gCatList" placeholder="Flete, cosecha, manejo…" />
+            <datalist id="gCatList"></datalist><div class="hint">Se autocompleta con categorías que ya usaste.</div></div>
+          <div><label>Descripción</label><input id="gDescripcion" placeholder="Flete tramo predio-planta" /></div>
+          <div><label>Monto</label><input id="gMonto" type="number" step="1" placeholder="850000" /></div>
+          <div><label>Fecha</label><input id="gFecha" type="date" /></div>
+          <div><label>Proveedor</label><input id="gProveedor" placeholder="Transportes XX" /></div>
+        </div>
+        <div class="actions"><button class="primary" id="btnGuardarGasto" disabled>Guardar gasto</button><span class="msg" id="gastoMsg"></span></div>
+      </section>
+
+      <section class="card">
+        <h2><span class="num">02</span> Totales de gasto por rol</h2>
+        <p class="sub">Suma de todos los gastos agrupados por rol.</p>
+        <table><thead><tr><th>Rol</th><th class="num-cell">N° gastos</th><th class="num-cell">Total $</th></tr></thead>
+        <tbody id="tablaTotales"><tr><td colspan="3" class="empty">Sin gastos aún.</td></tr></tbody></table>
+      </section>
+
+      <section class="card">
+        <h2><span class="num">03</span> Gastos registrados</h2>
+        <div class="actions" style="margin-top:0; margin-bottom:14px">
+          <select id="gFiltroRol" style="max-width:280px"><option value="">Todos los roles</option></select>
+        </div>
+        <table><thead><tr><th>Fecha</th><th>Rol</th><th>Categoría</th><th>Descripción</th><th>Proveedor</th><th class="num-cell">Monto $</th></tr></thead>
+        <tbody id="tablaGastos"><tr><td colspan="6" class="empty">Cargando…</td></tr></tbody></table>
+      </section>
+    </div>
+
+    <!-- USUARIOS (solo admin) -->
+    <div class="view" id="view-usuarios">
+      <section class="card">
+        <h2><span class="num">01</span> Crear usuario</h2>
+        <p class="sub">Solo el administrador puede crear usuarios. Define su tipo y permisos.</p>
+        <div class="grid">
+          <div><label>Nombre</label><input id="uNombre" placeholder="Nombre y apellido" /></div>
+          <div><label>Correo</label><input id="uEmail" type="email" placeholder="correo@empresa.cl" /></div>
+          <div><label>Contraseña inicial</label><input id="uPass" type="password" placeholder="mínimo 6 caracteres" /></div>
+          <div><label>Tipo de usuario</label><select id="uTipo">
+            <option value="consulta">Consulta (solo ver)</option>
+            <option value="operador">Operador (ver y editar)</option>
+            <option value="admin">Administrador (todo)</option>
+          </select></div>
+        </div>
+        <div class="hint" style="margin-top:8px">El tipo define los permisos: <strong>Consulta</strong> solo ve · <strong>Operador</strong> crea y edita · <strong>Admin</strong> todo + gestiona usuarios.</div>
+        <div class="actions"><button class="primary" id="btnCrearUsuario" disabled>Crear usuario</button><span class="msg" id="usuarioMsg"></span></div>
+      </section>
+      <section class="card">
+        <h2><span class="num">02</span> Usuarios del sistema</h2>
+        <table><thead><tr><th>Nombre</th><th>Correo</th><th>Tipo</th><th>Estado</th><th>Acción</th></tr></thead>
+        <tbody id="tablaUsuarios"><tr><td colspan="5" class="empty">Cargando…</td></tr></tbody></table>
+      </section>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, increment, getDoc, getDocs, onSnapshot, query, orderBy, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { initializeApp as initApp2 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import * as XLSX from "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAfacX-Nsg-syuRoBVuKrSX0qrUB9Hjaz0",
+      authDomain: "controlgestionforestal.firebaseapp.com",
+      projectId: "controlgestionforestal",
+      storageBucket: "controlgestionforestal.firebasestorage.app",
+      messagingSenderId: "904362474657",
+      appId: "1:904362474657:web:253406f96fd8a5f88ec4e0"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    // App secundaria para crear usuarios sin perder la sesión del admin
+    const app2 = initApp2(firebaseConfig, "secundaria");
+    const auth2 = getAuth(app2);
+
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => (s ?? "").toString().replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
+    const fmt = (n) => (n == null || n === "") ? "0" : Number(n).toLocaleString("es-CL");
+    const statusEl = $("status");
+
+    let rolesCache = [], plantasCache = [], productosCache = [], negociosCache = [], ocCache = [], recepcionesCache = [];
+
+    const prodLabel = (p) => [p.especie, p.variedad, p.tipoProducto, p.largo ? p.largo + "m" : ""].filter(Boolean).join(" · ");
+
+    // ================== AUTENTICACIÓN Y PERMISOS ==================
+    // Permisos por tipo: ver / editar / borrar. (borrar reservado para futuras acciones de borrado en la UI)
+    const PERMISOS = {
+      admin:    { ver:true, editar:true, borrar:true, usuarios:true },
+      operador: { ver:true, editar:true, borrar:false, usuarios:false },
+      consulta: { ver:true, editar:false, borrar:false, usuarios:false },
+    };
+    let usuarioActual = null;   // { uid, email, nombre, tipo }
+    const puede = (accion) => usuarioActual ? !!PERMISOS[usuarioActual.tipo]?.[accion] : false;
+
+    // Aplica permisos a la interfaz: oculta pestaña usuarios si no es admin, deshabilita botones de guardar si no puede editar.
+    function aplicarPermisos(){
+      const esAdmin = puede("usuarios");
+      document.querySelectorAll('nav.tabs button[data-admin]').forEach((b)=> b.classList.toggle("tab-hidden", !esAdmin));
+      const editar = puede("editar");
+      const botonesEditar = ["btnGuardar","btnGuardarPlanta","btnGuardarProd","btnGuardarNeg","btnGuardarOC","btnGuardarRec","btnGuardarGasto","btnImportar","btnPreview"];
+      botonesEditar.forEach((id)=>{ const el=$(id); if(el){ el.disabled = !editar; el.title = editar?"":"No tienes permiso para editar"; } });
+      $("btnCrearUsuario").disabled = !esAdmin;
+    }
+
+    // Login / registro
+    let modoRegistro = false;
+    let hayUsuarios = true;  // se ajusta al cargar
+
+    async function verificarPrimerUsuario(){
+      try {
+        const snap = await getDocs(query(collection(db,"usuarios")));
+        hayUsuarios = !snap.empty;
+      } catch(e){ hayUsuarios = true; }
+      // Si no hay usuarios, forzar modo registro y avisar que será admin
+      if (!hayUsuarios){ setModo(true); $("firstHint").style.display="block"; }
+    }
+
+    function setModo(registro){
+      modoRegistro = registro;
+      $("loginSubtitle").textContent = registro ? "Crea tu cuenta" : "Inicia sesión para continuar";
+      $("btnAuth").textContent = registro ? "Registrarme" : "Entrar";
+      $("authToggle").textContent = registro ? "¿Ya tienes cuenta? Inicia sesión" : "¿No tienes cuenta? Regístrate";
+      $("authNameLabel").style.display = registro ? "block" : "none";
+      $("authName").style.display = registro ? "block" : "none";
+      if (!registro) $("firstHint").style.display = "none";
+    }
+
+    $("authToggle").addEventListener("click", ()=> setModo(!modoRegistro));
+
+    $("btnAuth").addEventListener("click", async () => {
+      const email = $("authEmail").value.trim(), pass = $("authPass").value;
+      const m = $("authMsg");
+      if (!email || !pass){ m.textContent="Ingresa correo y contraseña."; m.className="msg err"; return; }
+      $("btnAuth").disabled = true; m.textContent = "Procesando…"; m.className="msg";
+      try {
+        if (modoRegistro){
+          // Re-chequear si hay usuarios justo antes (para asignar admin al primero)
+          const snap = await getDocs(query(collection(db,"usuarios")));
+          const esPrimero = snap.empty;
+          const cred = await createUserWithEmailAndPassword(auth, email, pass);
+          await setDoc(doc(db,"usuarios",cred.user.uid), {
+            uid: cred.user.uid, email, nombre: $("authName").value.trim() || email,
+            tipo: esPrimero ? "admin" : "consulta",   // primero = admin; el resto entra como consulta hasta que un admin lo cambie
+            estado: "activo", fechaCreacion: serverTimestamp(),
+          });
+          // onAuthStateChanged se encargará de cargar la sesión
+        } else {
+          await signInWithEmailAndPassword(auth, email, pass);
+        }
+      } catch(e){
+        const msgs = { "auth/invalid-credential":"Correo o contraseña incorrectos.", "auth/email-already-in-use":"Ese correo ya está registrado.", "auth/weak-password":"La contraseña debe tener al menos 6 caracteres.", "auth/invalid-email":"Correo inválido." };
+        m.textContent = msgs[e.code] || ("Error: "+e.message); m.className="msg err";
+        $("btnAuth").disabled = false;
+      }
+    });
+
+    $("btnLogout").addEventListener("click", ()=> signOut(auth));
+
+    // Estado de sesión: controla el acceso a toda la app
+    onAuthStateChanged(auth, async (user) => {
+      if (!user){
+        usuarioActual = null;
+        $("loginScreen").classList.remove("app-hidden");
+        $("userbar").style.display = "none";
+        $("btnAuth").disabled = false;
+        $("authMsg").textContent = "";
+        verificarPrimerUsuario();
+        return;
+      }
+      // Cargar el perfil del usuario desde Firestore
+      try {
+        const snap = await getDoc(doc(db,"usuarios",user.uid));
+        if (snap.exists()){
+          usuarioActual = { uid:user.uid, ...snap.data() };
+        } else {
+          // Usuario de Auth sin perfil: crear como consulta
+          usuarioActual = { uid:user.uid, email:user.email, nombre:user.email, tipo:"consulta", estado:"activo" };
+          await setDoc(doc(db,"usuarios",user.uid), { ...usuarioActual, fechaCreacion: serverTimestamp() });
+        }
+      } catch(e){ usuarioActual = { uid:user.uid, email:user.email, nombre:user.email, tipo:"consulta" }; }
+
+      if (usuarioActual.estado === "inactivo"){
+        $("authMsg").textContent = "Tu cuenta está inactiva. Contacta al administrador.";
+        $("authMsg").className = "msg err";
+        await signOut(auth); return;
+      }
+
+      // Entrar a la app
+      $("loginScreen").classList.add("app-hidden");
+      $("userbar").style.display = "flex";
+      $("userInfo").textContent = usuarioActual.nombre || usuarioActual.email;
+      $("userBadge").textContent = usuarioActual.tipo;
+      aplicarPermisos();
+    });
+
+    // Pestañas
+    document.querySelectorAll("nav.tabs button").forEach((b) => {
+      b.addEventListener("click", () => {
+        document.querySelectorAll("nav.tabs button").forEach((x) => x.classList.remove("active"));
+        document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
+        b.classList.add("active");
+        $("view-" + b.dataset.tab).classList.add("active");
+      });
+    });
+
+    function setSelect(sel, items, mapFn, placeholder) {
+      const prev = sel.value;
+      sel.innerHTML = '<option value="">' + placeholder + '</option>' + items.map(mapFn).join("");
+      sel.value = prev;
+    }
+
+    // ---- ROLES ----
+    onSnapshot(query(collection(db, "roles"), orderBy("fechaCreacion", "desc")), (snap) => {
+      statusEl.innerHTML = '<span class="dot ok"></span>Conectado &middot; controlgestionforestal';
+      if (usuarioActual) aplicarPermisos();
+      rolesCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const t = $("tablaRoles");
+      t.innerHTML = snap.empty ? '<tr><td colspan="6" class="empty">Aún no hay roles.</td></tr>' :
+        rolesCache.map((r) => { const c = r.tipoNegocio==="bosque_en_pie"?"pie":"planta"; const x=r.tipoNegocio==="bosque_en_pie"?"Bosque en pie":"Puesta en planta";
+          return '<tr><td><strong>'+esc(r.numeroRol)+'</strong></td><td>'+esc(r.nombrePredio)+'</td><td>'+esc(r.propietario)+'</td><td>'+esc(r.comuna)+'</td><td>'+esc(r.especiePredominante)+'</td><td><span class="tag '+c+'">'+x+'</span></td></tr>'; }).join("");
+      setSelect($("nRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona un rol —");
+      setSelect($("rRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona rol —");
+      setSelect($("gRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona rol —");
+      setSelect($("gFiltroRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "Todos los roles");
+    }, (e)=>{ statusEl.innerHTML='<span class="dot err"></span>Error: '+e.message; });
+
+    $("btnGuardar").addEventListener("click", async () => {
+      const numeroRol = $("numeroRol").value.trim(); const m = $("formMsg");
+      if (!numeroRol) { m.textContent="El número de rol es obligatorio."; m.className="msg err"; return; }
+      $("btnGuardar").disabled=true; m.textContent="Guardando…"; m.className="msg";
+      try { await addDoc(collection(db,"roles"),{ numeroRol, nombrePredio:$("nombrePredio").value.trim(), propietario:$("propietario").value.trim(), comuna:$("comuna").value.trim(), especiePredominante:$("especie").value, tipoNegocio:$("tipoNegocio").value, estado:"activo", fechaCreacion:serverTimestamp() });
+        m.textContent="✓ Rol guardado."; m.className="msg ok"; ["numeroRol","nombrePredio","propietario","comuna"].forEach((id)=>$(id).value="");
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardar").disabled=false; }
+    });
+
+    // ---- PLANTAS ----
+    onSnapshot(query(collection(db,"clientes"), orderBy("fechaCreacion","desc")), (snap) => {
+      plantasCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
+      const t = $("tablaPlantas");
+      t.innerHTML = snap.empty ? '<tr><td colspan="6" class="empty">Aún no hay plantas ni clientes.</td></tr>' :
+        plantasCache.map((p)=>{ const c=p.esPlantaDestino?"planta":"abierta"; const x=p.esPlantaDestino?"Planta destino":"Cliente"; const bod=(p.bodegas&&p.bodegas[0])?p.bodegas[0].nombre:"—";
+          return '<tr><td><strong>'+esc(p.nombre)+'</strong></td><td>'+esc(p.rut)+'</td><td>'+esc(p.contactoNombre)+'</td><td>'+esc(p.comuna)+'</td><td>'+esc(bod)+'</td><td><span class="tag '+c+'">'+x+'</span></td></tr>'; }).join("");
+      const plantasDestino = plantasCache.filter((p)=>p.esPlantaDestino);
+      setSelect($("nPlanta"), plantasDestino, (p)=>'<option value="'+p.id+'">'+esc(p.nombre)+'</option>', "— Sin asignar —");
+      setSelect($("ocPlanta"), plantasCache, (p)=>'<option value="'+p.id+'">'+esc(p.nombre)+'</option>', "— Selecciona planta —");
+    }, ()=>{});
+
+    $("btnGuardarPlanta").addEventListener("click", async () => {
+      const nombre = $("pNombre").value.trim(); const m = $("plantaMsg");
+      if (!nombre) { m.textContent="El nombre es obligatorio."; m.className="msg err"; return; }
+      let geo = null; const raw = $("pGeo").value.trim();
+      if (raw) { const parts = raw.split(",").map((s)=>parseFloat(s.trim())); if(parts.length===2 && !isNaN(parts[0]) && !isNaN(parts[1])) geo={lat:parts[0],lng:parts[1]}; }
+      const bodegas = $("pBodega").value.trim() ? [{ bodegaId: Date.now().toString(36), nombre:$("pBodega").value.trim(), georeferencia:geo }] : [];
+      $("btnGuardarPlanta").disabled=true; m.textContent="Guardando…"; m.className="msg";
+      try { await addDoc(collection(db,"clientes"),{ nombre, rut:$("pRut").value.trim(), contactoNombre:$("pContacto").value.trim(), contactoTelefono:$("pTel").value.trim(), comuna:$("pComuna").value.trim(), esPlantaDestino: $("pEsPlanta").value==="true", bodegas, estado:"activo", fechaCreacion:serverTimestamp() });
+        m.textContent="✓ Ficha guardada."; m.className="msg ok"; ["pNombre","pRut","pContacto","pTel","pComuna","pBodega","pGeo"].forEach((id)=>$(id).value="");
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarPlanta").disabled=false; }
+    });
+
+    // ---- PRODUCTOS ----
+    onSnapshot(query(collection(db,"productos"), orderBy("fechaCreacion","desc")), (snap) => {
+      productosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
+      const t = $("tablaProd");
+      t.innerHTML = snap.empty ? '<tr><td colspan="6" class="empty">Aún no hay productos.</td></tr>' :
+        productosCache.map((p)=>'<tr><td><strong>'+esc(p.codigo)+'</strong></td><td>'+esc(p.especie)+'</td><td>'+esc(p.variedad)+'</td><td>'+esc(p.tipoProducto)+'</td><td class="num-cell">'+esc(p.largo)+'</td><td class="num-cell">'+esc(p.diametroMin)+'</td><td>'+esc(p.calidad)+'</td></tr>').join("");
+      setSelect($("ocProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodLabel(p))+'</option>', "— Selecciona producto —");
+      setSelect($("rProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodLabel(p))+'</option>', "— Selecciona producto —");
+    }, ()=>{});
+
+    $("btnGuardarProd").addEventListener("click", async () => {
+      const m = $("prodMsg");
+      $("btnGuardarProd").disabled=true; m.textContent="Guardando…"; m.className="msg";
+      try { await addDoc(collection(db,"productos"),{ codigo:$("prodCodigo").value.trim(), especie:$("prodEspecie").value, variedad:$("prodVariedad").value.trim(), tipoProducto:$("prodTipo").value.trim(), largo:parseFloat($("prodLargo").value)||null, diametroMin:parseFloat($("prodDiam").value)||null, calidad:$("prodCalidad").value.trim(), fechaCreacion:serverTimestamp() });
+        m.textContent="✓ Producto guardado."; m.className="msg ok"; ["prodCodigo","prodVariedad","prodTipo","prodLargo","prodDiam","prodCalidad"].forEach((id)=>$(id).value="");
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarProd").disabled=false; }
+    });
+
+    // ---- NEGOCIOS ----
+    onSnapshot(query(collection(db,"negocios"), orderBy("fechaCreacion","desc")), (snap) => {
+      negociosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
+      const t = $("tablaNeg");
+      t.innerHTML = snap.empty ? '<tr><td colspan="6" class="empty">Aún no hay negocios.</td></tr>' :
+        negociosCache.map((n)=>{ const c=n.tipoNegocio==="bosque_en_pie"?"pie":"planta"; const x=n.tipoNegocio==="bosque_en_pie"?"Bosque en pie":"Puesta en planta";
+          return '<tr><td><strong>'+esc(n.numeroRol)+'</strong></td><td>'+esc(n.proveedor)+'</td><td>'+esc(n.especie)+'</td><td class="num-cell">'+fmt(n.volumenEstimadoM3)+'</td><td>'+esc(n.plantaDestinoNombre||"—")+'</td><td><span class="tag '+c+'">'+x+'</span></td></tr>'; }).join("");
+      setSelect($("ocNegocio"), negociosCache, (n)=>'<option value="'+n.id+'">'+esc(n.numeroRol)+' · '+esc(n.proveedor||"")+'</option>', "— Selecciona negocio —");
+    }, ()=>{});
+
+    $("btnGuardarNeg").addEventListener("click", async () => {
+      const rolId = $("nRol").value; const m = $("negMsg");
+      if (!rolId) { m.textContent="Debes seleccionar un rol."; m.className="msg err"; return; }
+      const rol = rolesCache.find((r)=>r.id===rolId); const planta = plantasCache.find((p)=>p.id===$("nPlanta").value);
+      $("btnGuardarNeg").disabled=true; m.textContent="Guardando…"; m.className="msg";
+      try { await addDoc(collection(db,"negocios"),{ rolId, numeroRol: rol?rol.numeroRol:"", proveedor:$("nProveedor").value.trim(), especie:$("nEspecie").value, volumenEstimadoM3:parseFloat($("nVolumen").value)||0, precioCompra:parseFloat($("nPrecio").value)||0, plantaDestinoId:$("nPlanta").value||null, plantaDestinoNombre: planta?planta.nombre:null, tipoNegocio:$("nTipo").value, incluyeCosecha:$("nTipo").value==="bosque_en_pie", incluyeFlete:$("nTipo").value==="bosque_en_pie", estado:"en_curso", fechaCreacion:serverTimestamp() });
+        m.textContent="✓ Negocio guardado."; m.className="msg ok"; ["nProveedor","nVolumen","nPrecio"].forEach((id)=>$(id).value=""); $("nRol").value=""; $("nPlanta").value="";
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarNeg").disabled=false; }
+    });
+
+    // ---- ÓRDENES DE COMPRA ----
+    onSnapshot(query(collection(db,"ordenesCompra"), orderBy("fechaCreacion","desc")), (snap) => {
+      ocCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
+      const t = $("tablaOC");
+      t.innerHTML = snap.empty ? '<tr><td colspan="7" class="empty">Aún no hay órdenes de compra.</td></tr>' :
+        ocCache.map((o)=>{
+          const recMr=o.recibido?.metrosRuma||0, solMr=o.solicitado?.metrosRuma||0;
+          const recM3=o.recibido?.m3||0, solM3=o.solicitado?.m3||0;
+          const restMr=solMr-recMr, restM3=solM3-recM3, um=o.umbralAlerta??300;
+          let est="abierta", cls="abierta", txt="Abierta";
+          if (restMr<=0 && restM3<=0){ est="completada"; cls="completada"; txt="Completada"; }
+          else if (restMr<=um || restM3<=um){ est="por_completar"; cls="alerta"; txt="⚠️ Por completar"; }
+          const pMr=solMr?Math.min(100,recMr/solMr*100):0; const barCls = est==="completada"?"full":(est==="por_completar"?"warn":"");
+          return '<tr><td><strong>'+esc(o.numero)+'</strong></td><td>'+esc(o.numeroRol)+'</td><td>'+esc(o.productoLabel)+'</td><td>'+esc(o.plantaNombre||"—")+'</td>'+
+            '<td class="num-cell">'+fmt(recMr)+' / '+fmt(solMr)+'<div class="bar"><span class="'+barCls+'" style="width:'+pMr+'%"></span></div></td>'+
+            '<td class="num-cell">'+fmt(recM3)+' / '+fmt(solM3)+'</td>'+
+            '<td><span class="tag '+cls+'">'+txt+'</span></td></tr>';
+        }).join("");
+      renderAlertas();
+    }, ()=>{});
+
+    function renderAlertas() {
+      const alertas = ocCache.filter((o)=>{
+        const restMr=(o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0);
+        const restM3=(o.solicitado?.m3||0)-(o.recibido?.m3||0); const um=o.umbralAlerta??300;
+        return (restMr>0 || restM3>0) && (restMr<=um || restM3<=um);
+      });
+      const panel=$("alertPanel"), list=$("alertList");
+      if (!alertas.length){ panel.classList.add("hidden"); return; }
+      panel.classList.remove("hidden");
+      list.innerHTML = alertas.map((o)=>{ const restMr=(o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0); const restM3=(o.solicitado?.m3||0)-(o.recibido?.m3||0);
+        return '<li><strong>'+esc(o.numero)+'</strong> ('+esc(o.numeroRol)+' · '+esc(o.productoLabel)+') — faltan '+fmt(Math.max(0,restMr))+' mr / '+fmt(Math.max(0,restM3))+' m³</li>'; }).join("");
+    }
+
+    $("btnGuardarOC").addEventListener("click", async () => {
+      const negId=$("ocNegocio").value, prodId=$("ocProducto").value; const m=$("ocMsg");
+      if (!negId || !prodId){ m.textContent="Negocio y producto son obligatorios."; m.className="msg err"; return; }
+      const neg=negociosCache.find((n)=>n.id===negId); const prod=productosCache.find((p)=>p.id===prodId); const planta=plantasCache.find((p)=>p.id===$("ocPlanta").value);
+      $("btnGuardarOC").disabled=true; m.textContent="Guardando…"; m.className="msg";
+      try { await addDoc(collection(db,"ordenesCompra"),{ numero:$("ocNumero").value.trim()||("OC-"+Date.now()), negocioId:negId, rolId:neg.rolId, numeroRol:neg.numeroRol, productoId:prodId, productoLabel:prodLabel(prod), plantaId:$("ocPlanta").value||null, plantaNombre:planta?planta.nombre:null, solicitado:{ metrosRuma:parseFloat($("ocMr").value)||0, m3:parseFloat($("ocM3").value)||0 }, recibido:{ metrosRuma:0, m3:0 }, umbralAlerta:parseFloat($("ocUmbral").value)||300, estado:"abierta", fechaCreacion:serverTimestamp() });
+        m.textContent="✓ OC guardada."; m.className="msg ok"; ["ocNumero","ocMr","ocM3"].forEach((id)=>$(id).value=""); $("ocUmbral").value="300"; $("ocNegocio").value=""; $("ocPlanta").value=""; $("ocProducto").value="";
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarOC").disabled=false; }
+    });
+
+    // ---- RECEPCIONES (vínculo + alerta) ----
+    function ocsAbiertas(rolId, prodId) {
+      return ocCache.filter((o)=> o.rolId===rolId && o.productoId===prodId && o.estado!=="completada");
+    }
+    function actualizarPickOC() {
+      const matches = ocsAbiertas($("rRol").value, $("rProducto").value);
+      const pick=$("ocPick"), sel=$("ocPickSelect");
+      if (matches.length>1){ pick.classList.add("show"); sel.innerHTML = matches.map((o)=>'<option value="'+o.id+'">'+esc(o.numero)+' · '+esc(o.plantaNombre||"")+' (faltan '+fmt((o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0))+' mr)</option>').join(""); }
+      else { pick.classList.remove("show"); }
+    }
+    $("rRol").addEventListener("change", actualizarPickOC);
+    $("rProducto").addEventListener("change", actualizarPickOC);
+
+    onSnapshot(query(collection(db,"recepciones"), orderBy("fechaCreacion","desc")), (snap) => {
+      recepcionesCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
+      const t=$("tablaRec");
+      t.innerHTML = snap.empty ? '<tr><td colspan="7" class="empty">Aún no hay recepciones.</td></tr>' :
+        snap.docs.map((d)=>{ const r=d.data(); const fecha = r.fechaCreacion?.toDate ? r.fechaCreacion.toDate().toLocaleDateString("es-CL") : "—";
+          return '<tr><td>'+fecha+'</td><td><strong>'+esc(r.numeroRol)+'</strong></td><td>'+esc(r.productoLabel)+'</td><td class="num-cell">'+fmt(r.metrosRuma)+'</td><td class="num-cell">'+fmt(r.m3)+'</td><td>'+esc(r.numeroGuia)+'</td><td>'+esc(r.ocNumero||"sin OC")+'</td></tr>'; }).join("");
+    }, ()=>{});
+
+    $("btnGuardarRec").addEventListener("click", async () => {
+      const rolId=$("rRol").value, prodId=$("rProducto").value; const m=$("recMsg");
+      if (!rolId || !prodId){ m.textContent="Rol y producto son obligatorios."; m.className="msg err"; return; }
+      const mr=parseFloat($("rMr").value)||0, m3=parseFloat($("rM3").value)||0;
+      if (mr<=0 && m3<=0){ m.textContent="Ingresa metros ruma o m³."; m.className="msg err"; return; }
+      const rol=rolesCache.find((r)=>r.id===rolId); const prod=productosCache.find((p)=>p.id===prodId);
+
+      // Resolver OC destino
+      const matches = ocsAbiertas(rolId, prodId);
+      let ocDestino = null;
+      if (matches.length===1) ocDestino = matches[0];
+      else if (matches.length>1){ const sel=$("ocPickSelect").value; ocDestino = matches.find((o)=>o.id===sel) || matches[0]; }
+
+      $("btnGuardarRec").disabled=true; m.textContent="Guardando…"; m.className="msg";
+      try {
+        // 1) Crear la recepción
+        await addDoc(collection(db,"recepciones"),{ rolId, numeroRol: rol?rol.numeroRol:"", productoId:prodId, productoLabel:prodLabel(prod), metrosRuma:mr, m3, numeroGuia:$("rGuia").value.trim(), patente:$("rPatente").value.trim(), ordenCompraId: ocDestino?ocDestino.id:null, ocNumero: ocDestino?ocDestino.numero:null, periodo: new Date().toISOString().slice(0,7), estado:"recibido", fechaCreacion:serverTimestamp() });
+
+        // 2) Actualizar avance de la OC e revisar alerta
+        if (ocDestino){
+          const ref = doc(db,"ordenesCompra",ocDestino.id);
+          const nuevoMr = (ocDestino.recibido?.metrosRuma||0)+mr;
+          const nuevoM3 = (ocDestino.recibido?.m3||0)+m3;
+          const solMr = ocDestino.solicitado?.metrosRuma||0, solM3 = ocDestino.solicitado?.m3||0;
+          const um = ocDestino.umbralAlerta??300;
+          const restMr = solMr-nuevoMr, restM3 = solM3-nuevoM3;
+          let estado="abierta";
+          if (restMr<=0 && restM3<=0) estado="completada";
+          else if (restMr<=um || restM3<=um) estado="por_completar";
+          await updateDoc(ref,{ "recibido.metrosRuma":nuevoMr, "recibido.m3":nuevoM3, estado });
+          if (estado==="por_completar"){ m.textContent="✓ Recepción guardada. ⚠️ La OC "+ocDestino.numero+" está por completarse (faltan "+fmt(Math.max(0,restMr))+" mr / "+fmt(Math.max(0,restM3))+" m³)."; m.className="msg warn"; }
+          else if (estado==="completada"){ m.textContent="✓ Recepción guardada. La OC "+ocDestino.numero+" quedó completada."; m.className="msg ok"; }
+          else { m.textContent="✓ Recepción imputada a "+ocDestino.numero+"."; m.className="msg ok"; }
+        } else {
+          m.textContent="✓ Recepción guardada, pero no hay OC abierta para ese rol + producto."; m.className="msg warn";
+        }
+        ["rMr","rM3","rGuia","rPatente"].forEach((id)=>$(id).value=""); $("ocPick").classList.remove("show");
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarRec").disabled=false; }
+    });
+
+    // ================== IMPORTACIÓN EXCEL/CSV ==================
+    let filasPreview = [];
+
+    $("fileInput").addEventListener("change", () => { $("btnPreview").disabled = !$("fileInput").files.length; });
+
+    // Normaliza encabezados: minúsculas, sin acentos, espacios->_
+    function normHeader(h){ return (h??"").toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_"); }
+
+    function leerArchivo(file){
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const wb = XLSX.read(e.target.result, { type: "array" });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(ws, { defval: "", raw: false });
+            resolve(json);
+          } catch (err) { reject(err); }
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    $("btnPreview").addEventListener("click", async () => {
+      const file = $("fileInput").files[0]; const m = $("impMsg");
+      if (!file){ return; }
+      m.textContent = "Leyendo archivo…"; m.className = "msg";
+      try {
+        const filas = await leerArchivo(file);
+        if (!filas.length){ m.textContent = "El archivo no tiene filas."; m.className = "msg err"; return; }
+
+        // Mapear cada fila a campos normalizados.
+        // Acepta dos formatos: la plantilla genérica y la "Base fletes" real.
+        const pick = (row, claves) => { for (const k of claves){ if (row[k] !== undefined && row[k] !== "") return row[k]; } return ""; };
+        filasPreview = filas.map((raw, i) => {
+          const row = {}; Object.keys(raw).forEach((k) => { row[normHeader(k)] = raw[k]; });
+          const numeroRol  = pick(row, ["numero_rol","rol_predio"]).toString().trim();
+          // EE/PP es el código de producto que cruza con la OC (también se acepta codigo_producto / cod_producto como respaldo).
+          const codigoProd = pick(row, ["codigo_producto","ee/pp","cod_producto"]).toString().trim();
+          const mr = parseFloat(pick(row, ["metros_ruma","mr_recep."])) || 0;
+          const m3 = parseFloat(pick(row, ["m3"])) || 0;
+          const bodega  = pick(row, ["nombre_bodega","nombre_destino"]).toString().trim();
+          const guia    = pick(row, ["numero_guia","nºg/d","ng/d"]).toString().trim();
+          const patente = pick(row, ["patente","camion/_carro"]).toString().trim();
+          const fecha   = pick(row, ["fecha","fecha_ing"]).toString().trim();
+          // Campos extra de la base de fletes (A–M) que se guardan como respaldo
+          const extra = {
+            nroGMM: pick(row, ["nºgmm","ngmm"]).toString().trim(),
+            comuna: pick(row, ["comuna_ctto.","comuna"]).toString().trim(),
+            descripPredio: pick(row, ["descrip._predio"]).toString().trim(),
+            tipo: pick(row, ["tipo"]).toString().trim(),
+            factura: pick(row, ["factura"]).toString().trim(),
+          };
+          const rol = rolesCache.find((r) => (r.numeroRol||"").toString().trim() === numeroRol);
+          const prod = codigoProd ? productosCache.find((p) => (p.codigo||"").toString().trim().toLowerCase() === codigoProd.toLowerCase()) : null;
+          const errores = [];
+          if (!numeroRol) errores.push("falta rol");
+          else if (!rol) errores.push("rol no existe");
+          if (codigoProd && !prod) errores.push("código no existe");
+          if (mr<=0 && m3<=0) errores.push("sin cantidades");
+          // El código es opcional aquí: si viene vacío, la recepción se guarda igual (sin imputar a OC por producto)
+          return { fila: i+2, numeroRol, codigoProd, bodega, mr, m3, guia, patente, fecha, extra, rol, prod, valida: errores.length===0, errores };
+        });
+
+        const validas = filasPreview.filter((f)=>f.valida).length;
+        $("previewResumen").textContent = `${filasPreview.length} filas leídas · ${validas} válidas · ${filasPreview.length-validas} con problemas.`;
+        $("tablaPreview").innerHTML = filasPreview.map((f)=>{
+          const estado = f.valida ? '<span class="tag abierta">✓ válida</span>' : '<span class="tag alerta">'+esc(f.errores.join(", "))+'</span>';
+          const prodTxt = f.prod ? prodLabel(f.prod) : f.codigoProd;
+          return '<tr><td>'+f.fila+'</td><td>'+esc(f.numeroRol)+'</td><td>'+esc(prodTxt)+'</td><td>'+esc(f.bodega)+'</td><td class="num-cell">'+fmt(f.mr)+'</td><td class="num-cell">'+fmt(f.m3)+'</td><td>'+esc(f.guia)+'</td><td>'+estado+'</td></tr>';
+        }).join("");
+        renderFaltantes();
+        $("previewCard").style.display = "block";
+        $("btnImportar").disabled = validas===0;
+        m.textContent = ""; 
+        $("previewCard").scrollIntoView({ behavior:"smooth" });
+      } catch (e) { m.textContent = "Error al leer: "+e.message; m.className="msg err"; }
+    });
+
+    // --- Creación rápida de roles y productos faltantes desde la previa ---
+    function renderFaltantes(){
+      const panel = $("faltantesPanel");
+      // Roles que aparecen en el archivo pero no existen en el sistema
+      const rolesFaltan = [...new Set(filasPreview.filter((f)=>f.numeroRol && !f.rol).map((f)=>f.numeroRol))];
+      // Códigos de producto que vienen en el archivo pero no existen en el catálogo
+      const prodsFaltan = [...new Set(filasPreview.filter((f)=>f.codigoProd && !f.prod).map((f)=>f.codigoProd))];
+      if (!rolesFaltan.length && !prodsFaltan.length){ panel.style.display="none"; panel.innerHTML=""; return; }
+      let html = "";
+      if (rolesFaltan.length){
+        html += '<div class="falt-box"><h4>⚠️ Roles que no existen ('+rolesFaltan.length+')</h4>'
+          + rolesFaltan.map((r)=>'<span class="falt-chip">'+esc(r)+' <button class="mini" data-crear-rol="'+esc(r)+'">Crear rol</button></span>').join("")
+          + '<div class="hint" style="margin-top:6px">Se crean con el número de rol. Luego puedes completar predio, propietario, etc. en la pestaña Roles.</div></div>';
+      }
+      if (prodsFaltan.length){
+        html += '<div class="falt-box"><h4>⚠️ Códigos de producto que no existen ('+prodsFaltan.length+')</h4>'
+          + prodsFaltan.map((c)=>'<span class="falt-chip">'+esc(c)+' <button class="mini" data-crear-prod="'+esc(c)+'">Crear producto</button></span>').join("")
+          + '<div class="hint" style="margin-top:6px">Se crean solo con el código. Completa especie, largo, etc. en la pestaña Productos.</div></div>';
+      }
+      html += '<button class="primary" id="btnReanalizar">Volver a analizar</button>';
+      panel.innerHTML = html;
+      panel.style.display = "block";
+      // Listeners de cada botón
+      panel.querySelectorAll("[data-crear-rol]").forEach((b)=> b.addEventListener("click", ()=>crearRolRapido(b.dataset.crearRol, b)));
+      panel.querySelectorAll("[data-crear-prod]").forEach((b)=> b.addEventListener("click", ()=>crearProductoRapido(b.dataset.crearProd, b)));
+      $("btnReanalizar").addEventListener("click", ()=> $("btnPreview").click());
+    }
+
+    async function crearRolRapido(numeroRol, btn){
+      btn.disabled = true; btn.textContent = "Creando…";
+      try {
+        await addDoc(collection(db,"roles"), { numeroRol, nombrePredio:"", propietario:"", comuna:"", especiePredominante:"pino", tipoNegocio:"bosque_en_pie", estado:"activo", origen:"creado_desde_importacion", fechaCreacion:serverTimestamp() });
+        btn.textContent = "✓ Creado"; btn.classList.add("done");
+      } catch(e){ btn.disabled=false; btn.textContent="Reintentar"; }
+    }
+
+    async function crearProductoRapido(codigo, btn){
+      btn.disabled = true; btn.textContent = "Creando…";
+      try {
+        await addDoc(collection(db,"productos"), { codigo, especie:"pino", variedad:"", tipoProducto:"", largo:null, diametroMin:null, calidad:"", origen:"creado_desde_importacion", fechaCreacion:serverTimestamp() });
+        btn.textContent = "✓ Creado"; btn.classList.add("done");
+      } catch(e){ btn.disabled=false; btn.textContent="Reintentar"; }
+    }
+
+    // Recalcula avance de una OC sumando TODAS las recepciones de su rol+producto.
+    async function recalcularOCsAfectadas(claves){
+      // claves: Set de "rolId|productoId" afectadas
+      for (const oc of ocCache){
+        const clave = oc.rolId+"|"+oc.productoId;
+        if (!claves.has(clave)) continue;
+        // sumar recepciones de ese rol+producto
+        const recs = recepcionesCache.filter((r)=> r.rolId===oc.rolId && r.productoId===oc.productoId);
+        const sumMr = recs.reduce((a,r)=>a+(r.metrosRuma||0),0);
+        const sumM3 = recs.reduce((a,r)=>a+(r.m3||0),0);
+        const solMr = oc.solicitado?.metrosRuma||0, solM3 = oc.solicitado?.m3||0, um = oc.umbralAlerta??300;
+        const restMr = solMr-sumMr, restM3 = solM3-sumM3;
+        let estado="abierta";
+        if (restMr<=0 && restM3<=0) estado="completada";
+        else if (restMr<=um || restM3<=um) estado="por_completar";
+        await updateDoc(doc(db,"ordenesCompra",oc.id), { "recibido.metrosRuma":sumMr, "recibido.m3":sumM3, estado });
+      }
+    }
+
+    $("btnImportar").addEventListener("click", async () => {
+      const validas = filasPreview.filter((f)=>f.valida);
+      const m = $("importResultMsg");
+      if (!validas.length) return;
+      $("btnImportar").disabled = true; m.textContent = "Importando "+validas.length+" recepciones…"; m.className="msg";
+      // Convierte fecha DD/MM/YYYY o YYYY-MM-DD a periodo YYYY-MM
+      const periodoDe = (f) => {
+        const v = (f.fecha||"").toString().trim();
+        let mDMY = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+        if (mDMY) return mDMY[3] + "-" + mDMY[2].padStart(2,"0");
+        let mYMD = v.match(/^(\d{4})-(\d{2})/);
+        if (mYMD) return mYMD[1] + "-" + mYMD[2];
+        return new Date().toISOString().slice(0,7);
+      };
+      const clavesAfectadas = new Set();
+      let ok=0, err=0;
+      try {
+        for (const f of validas){
+          try {
+            await addDoc(collection(db,"recepciones"), {
+              rolId: f.rol.id, numeroRol: f.rol.numeroRol,
+              productoId: f.prod ? f.prod.id : null,
+              productoLabel: f.prod ? prodLabel(f.prod) : null,
+              codigoProducto: f.codigoProd || null,
+              nombreBodega: f.bodega || null,
+              metrosRuma: f.mr, m3: f.m3,
+              numeroGuia: f.guia, patente: f.patente,
+              ordenCompraId: null, ocNumero: null,
+              periodo: periodoDe(f), origen: "importacion_excel",
+              // Campos extra de la base de fletes (A–M)
+              nroGMM: f.extra.nroGMM || null,
+              comuna: f.extra.comuna || null, descripPredio: f.extra.descripPredio || null,
+              tipo: f.extra.tipo || null, factura: f.extra.factura || null,
+              estado: "recibido", fechaCreacion: serverTimestamp(),
+            });
+            // Solo afecta OC si la fila trae código de producto válido
+            if (f.prod) clavesAfectadas.add(f.rol.id+"|"+f.prod.id);
+            ok++;
+          } catch(e){ err++; }
+        }
+        // Esperar breve para que recepcionesCache se actualice por el onSnapshot, luego recalcular OCs
+        m.textContent = "✓ "+ok+" recepciones importadas"+(err?(" · "+err+" con error"):"")+". Recalculando avance de OC…"; m.className="msg ok";
+        setTimeout(async () => {
+          try { await recalcularOCsAfectadas(clavesAfectadas);
+            m.textContent = "✓ "+ok+" recepciones importadas y avance de OC actualizado. Revisa la pestaña Órdenes de compra.";
+          } catch(e){ m.textContent = "Recepciones importadas, pero error al recalcular OC: "+e.message; m.className="msg warn"; }
+        }, 1500);
+        $("btnImportar").disabled = true;
+      } catch(e){ m.textContent = "Error: "+e.message; m.className="msg err"; $("btnImportar").disabled=false; }
+    });
+
+    // ================== GASTOS (por rol) ==================
+    let gastosCache = [];
+
+    // Fecha por defecto: hoy
+    $("gFecha").value = new Date().toISOString().slice(0,10);
+
+    $("btnGuardarGasto").addEventListener("click", async () => {
+      const rolId = $("gRol").value; const m = $("gastoMsg");
+      const monto = parseFloat($("gMonto").value) || 0;
+      if (!rolId){ m.textContent="Debes seleccionar un rol."; m.className="msg err"; return; }
+      if (monto<=0){ m.textContent="Ingresa un monto válido."; m.className="msg err"; return; }
+      const rol = rolesCache.find((r)=>r.id===rolId);
+      const fecha = $("gFecha").value;
+      const periodo = fecha && /^\d{4}-\d{2}/.test(fecha) ? fecha.slice(0,7) : new Date().toISOString().slice(0,7);
+      $("btnGuardarGasto").disabled=true; m.textContent="Guardando…"; m.className="msg";
+      try {
+        await addDoc(collection(db,"gastos"), {
+          rolId, numeroRol: rol?rol.numeroRol:"",
+          categoria: $("gCategoria").value.trim() || "Sin categoría",
+          descripcion: $("gDescripcion").value.trim(),
+          monto, moneda: "CLP",
+          fecha: fecha || null, periodo,
+          proveedor: $("gProveedor").value.trim(),
+          fechaCreacion: serverTimestamp(),
+        });
+        m.textContent="✓ Gasto guardado."; m.className="msg ok";
+        ["gCategoria","gDescripcion","gMonto","gProveedor"].forEach((id)=>$(id).value="");
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; }
+      finally { $("btnGuardarGasto").disabled=false; }
+    });
+
+    $("gFiltroRol").addEventListener("change", renderGastos);
+
+    onSnapshot(query(collection(db,"gastos"), orderBy("fechaCreacion","desc")), (snap) => {
+      gastosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
+      // Autocompletado de categorías ya usadas
+      const cats = [...new Set(gastosCache.map((g)=>g.categoria).filter(Boolean))];
+      $("gCatList").innerHTML = cats.map((c)=>'<option value="'+esc(c)+'">').join("");
+      renderGastos();
+      renderTotales();
+    }, ()=>{});
+
+    function renderGastos(){
+      const filtro = $("gFiltroRol").value;
+      const lista = filtro ? gastosCache.filter((g)=>g.rolId===filtro) : gastosCache;
+      const t = $("tablaGastos");
+      if (!lista.length){ t.innerHTML = '<tr><td colspan="6" class="empty">Sin gastos'+(filtro?" para este rol":"")+'.</td></tr>'; return; }
+      t.innerHTML = lista.map((g)=>'<tr><td>'+esc(g.fecha||"—")+'</td><td><strong>'+esc(g.numeroRol)+'</strong></td><td>'+esc(g.categoria)+'</td><td>'+esc(g.descripcion)+'</td><td>'+esc(g.proveedor)+'</td><td class="num-cell">'+fmt(g.monto)+'</td></tr>').join("");
+    }
+
+    function renderTotales(){
+      const t = $("tablaTotales");
+      if (!gastosCache.length){ t.innerHTML = '<tr><td colspan="3" class="empty">Sin gastos aún.</td></tr>'; return; }
+      const porRol = {};
+      gastosCache.forEach((g)=>{
+        const k = g.numeroRol || "(sin rol)";
+        if (!porRol[k]) porRol[k] = { count:0, total:0 };
+        porRol[k].count++; porRol[k].total += (g.monto||0);
+      });
+      const filas = Object.entries(porRol).sort((a,b)=>b[1].total-a[1].total);
+      const granTotal = filas.reduce((a,[,v])=>a+v.total,0);
+      t.innerHTML = filas.map(([rol,v])=>'<tr><td><strong>'+esc(rol)+'</strong></td><td class="num-cell">'+v.count+'</td><td class="num-cell">'+fmt(v.total)+'</td></tr>').join("")
+        + '<tr style="border-top:2px solid var(--line)"><td><strong>Total general</strong></td><td class="num-cell"><strong>'+gastosCache.length+'</strong></td><td class="num-cell"><strong>'+fmt(granTotal)+'</strong></td></tr>';
+    }
+
+    // ================== GESTIÓN DE USUARIOS (admin) ==================
+    $("btnCrearUsuario").addEventListener("click", async () => {
+      if (!puede("usuarios")){ return; }
+      const email = $("uEmail").value.trim(), pass = $("uPass").value, nombre = $("uNombre").value.trim(), tipo = $("uTipo").value;
+      const m = $("usuarioMsg");
+      if (!email || !pass){ m.textContent="Correo y contraseña son obligatorios."; m.className="msg err"; return; }
+      if (pass.length<6){ m.textContent="La contraseña debe tener al menos 6 caracteres."; m.className="msg err"; return; }
+      $("btnCrearUsuario").disabled = true; m.textContent="Creando usuario…"; m.className="msg";
+      try {
+        // Usar app secundaria para NO perder la sesión del admin
+        const cred = await createUserWithEmailAndPassword(auth2, email, pass);
+        await setDoc(doc(db,"usuarios",cred.user.uid), {
+          uid: cred.user.uid, email, nombre: nombre || email, tipo, estado:"activo",
+          creadoPor: usuarioActual.uid, fechaCreacion: serverTimestamp(),
+        });
+        await signOut(auth2);   // cerrar la sesión secundaria
+        m.textContent="✓ Usuario creado."; m.className="msg ok";
+        ["uNombre","uEmail","uPass"].forEach((id)=>$(id).value="");
+      } catch(e){
+        const msgs = { "auth/email-already-in-use":"Ese correo ya está registrado.", "auth/weak-password":"Contraseña muy débil (mín. 6).", "auth/invalid-email":"Correo inválido." };
+        m.textContent = msgs[e.code] || ("Error: "+e.message); m.className="msg err";
+      } finally { $("btnCrearUsuario").disabled = !puede("usuarios"); }
+    });
+
+    onSnapshot(query(collection(db,"usuarios"), orderBy("fechaCreacion","desc")), (snap) => {
+      const t = $("tablaUsuarios");
+      if (snap.empty){ t.innerHTML = '<tr><td colspan="5" class="empty">Sin usuarios.</td></tr>'; return; }
+      t.innerHTML = snap.docs.map((d)=>{
+        const u = d.data();
+        const esYo = usuarioActual && u.uid===usuarioActual.uid;
+        const tipoSel = '<select data-uid="'+u.uid+'" class="u-tipo" '+(esYo?"disabled":"")+'>'
+          + ['consulta','operador','admin'].map((tp)=>'<option value="'+tp+'"'+(u.tipo===tp?" selected":"")+'>'+tp+'</option>').join("") + '</select>';
+        const estadoTag = u.estado==="inactivo" ? '<span class="tag completada">inactivo</span>' : '<span class="tag abierta">activo</span>';
+        const accion = esYo ? '<span class="hint">tú</span>'
+          : '<button class="mini" data-toggle="'+u.uid+'" data-estado="'+(u.estado||"activo")+'">'+(u.estado==="inactivo"?"Activar":"Desactivar")+'</button>';
+        return '<tr><td><strong>'+esc(u.nombre)+'</strong></td><td>'+esc(u.email)+'</td><td>'+tipoSel+'</td><td>'+estadoTag+'</td><td>'+accion+'</td></tr>';
+      }).join("");
+      // Listeners de cambio de tipo y estado
+      t.querySelectorAll(".u-tipo").forEach((s)=> s.addEventListener("change", async ()=>{
+        try { await updateDoc(doc(db,"usuarios",s.dataset.uid), { tipo: s.value }); } catch(e){ alert("Error: "+e.message); }
+      }));
+      t.querySelectorAll("[data-toggle]").forEach((b)=> b.addEventListener("click", async ()=>{
+        const nuevo = b.dataset.estado==="inactivo" ? "activo" : "inactivo";
+        try { await updateDoc(doc(db,"usuarios",b.dataset.toggle), { estado: nuevo }); } catch(e){ alert("Error: "+e.message); }
+      }));
+    }, ()=>{});
+  </script>
+</body>
+</html>
