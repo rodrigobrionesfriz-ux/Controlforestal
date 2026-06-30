@@ -90,6 +90,10 @@
     button.mini { font-family: inherit; font-weight: 600; border: none; cursor: pointer; background: var(--sap-blue); color: #fff; border-radius: 3px; }
     button.mini:disabled { opacity: .5; cursor: default; }
     button.mini.done { background: var(--ok); }
+    button.act { font-family: inherit; font-size: 12px; font-weight: 600; border: 1px solid var(--line-2); cursor: pointer; background: var(--surface); color: var(--ink); border-radius: 3px; padding: 4px 10px; margin-right: 4px; }
+    button.act:hover { background: var(--bg); }
+    button.act.del { color: var(--danger); border-color: #f0c0c0; }
+    button.act.del:hover { background: var(--danger-bg); }
 
     /* KPI cards del Resumen */
     .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
@@ -263,12 +267,14 @@
           <div><label>Largo (m)</label><input id="prodLargo" type="number" step="0.01" placeholder="2.44" /></div>
           <div><label>Diámetro mín. (cm)</label><input id="prodDiam" type="number" step="0.1" placeholder="18" /></div>
           <div><label>Calidad / grado</label><input id="prodCalidad" placeholder="Grado 1" /></div>
+          <div><label>Unidad de medida</label><select id="prodUM"><option value="MR">MR (metros ruma)</option><option value="M3">M3 (metros cúbicos)</option><option value="UN">UN (unidad)</option></select></div>
+          <div><label>Descripción</label><input id="prodDescripcion" placeholder="MR PINO PULPABLE 2.44 MTS C/C" /></div>
         </div>
-        <div class="actions"><button class="primary" id="btnGuardarProd" disabled>Guardar producto</button><span class="msg" id="prodMsg"></span></div>
+        <div class="actions"><button class="primary" id="btnGuardarProd" disabled>Guardar producto</button><button class="primary" id="btnCancelarProd" style="display:none; background:var(--muted); border-color:var(--muted)">Cancelar edición</button><span class="msg" id="prodMsg"></span></div>
       </section>
       <section class="card">
         <h2><span class="num">02</span> Catálogo de productos</h2>
-        <table><thead><tr><th>Código</th><th>Especie</th><th>Variedad</th><th>Tipo</th><th class="num-cell">Largo</th><th class="num-cell">Diám.</th><th>Calidad</th></tr></thead>
+        <table><thead><tr><th>Código</th><th>Descripción</th><th>Especie</th><th>Tipo</th><th class="num-cell">Largo</th><th>UM</th><th>Acciones</th></tr></thead>
         <tbody id="tablaProd"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
       </section>
     </div>
@@ -467,7 +473,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, increment, getDoc, getDocs, onSnapshot, query, orderBy, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, increment, getDoc, getDocs, onSnapshot, query, orderBy, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { initializeApp as initApp2 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 
@@ -712,21 +718,77 @@
     });
 
     // ---- PRODUCTOS ----
+    let editandoProdId = null;  // id del producto en edición, o null
+
     onSnapshot(query(collection(db,"productos"), orderBy("fechaCreacion","desc")), (snap) => {
       productosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       const t = $("tablaProd");
-      t.innerHTML = snap.empty ? '<tr><td colspan="6" class="empty">Aún no hay productos.</td></tr>' :
-        productosCache.map((p)=>'<tr><td><strong>'+esc(p.codigo)+'</strong></td><td>'+esc(p.especie)+'</td><td>'+esc(p.variedad)+'</td><td>'+esc(p.tipoProducto)+'</td><td class="num-cell">'+esc(p.largo)+'</td><td class="num-cell">'+esc(p.diametroMin)+'</td><td>'+esc(p.calidad)+'</td></tr>').join("");
+      const puedeEd = puede("editar"), puedeBo = puede("borrar");
+      t.innerHTML = snap.empty ? '<tr><td colspan="7" class="empty">Aún no hay productos.</td></tr>' :
+        productosCache.map((p)=>{
+          let acciones = "";
+          if (puedeEd) acciones += '<button class="act" data-edit-prod="'+p.id+'">Editar</button>';
+          if (puedeBo) acciones += '<button class="act del" data-del-prod="'+p.id+'">Eliminar</button>';
+          if (!acciones) acciones = '<span class="hint">—</span>';
+          return '<tr><td><strong>'+esc(p.codigo)+'</strong></td><td>'+esc(p.descripcion||"")+'</td><td>'+esc(p.especie)+'</td><td>'+esc(p.tipoProducto)+'</td><td class="num-cell">'+esc(p.largo)+'</td><td>'+esc(p.unidadMedida||"")+'</td><td style="white-space:nowrap">'+acciones+'</td></tr>';
+        }).join("");
+      // Listeners de editar / eliminar
+      t.querySelectorAll("[data-edit-prod]").forEach((b)=> b.addEventListener("click", ()=> iniciarEdicionProd(b.dataset.editProd)));
+      t.querySelectorAll("[data-del-prod]").forEach((b)=> b.addEventListener("click", ()=> eliminarProd(b.dataset.delProd)));
       setSelect($("ocProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodLabel(p))+'</option>', "— Selecciona producto —");
       setSelect($("rProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodLabel(p))+'</option>', "— Selecciona producto —");
     }, ()=>{});
 
+    function iniciarEdicionProd(id){
+      const p = productosCache.find((x)=>x.id===id); if (!p) return;
+      editandoProdId = id;
+      $("prodCodigo").value = p.codigo||""; $("prodEspecie").value = p.especie||"pino";
+      $("prodVariedad").value = p.variedad||""; $("prodTipo").value = p.tipoProducto||"";
+      $("prodLargo").value = p.largo??""; $("prodDiam").value = p.diametroMin??""; $("prodCalidad").value = p.calidad||"";
+      $("prodUM").value = p.unidadMedida||"MR"; $("prodDescripcion").value = p.descripcion||"";
+      $("btnGuardarProd").textContent = "Actualizar producto";
+      $("btnCancelarProd").style.display = "inline-block";
+      $("prodMsg").textContent = "Editando producto "+(p.codigo||""); $("prodMsg").className = "msg";
+      $("view-productos").scrollIntoView({ behavior:"smooth" });
+    }
+
+    function cancelarEdicionProd(){
+      editandoProdId = null;
+      ["prodCodigo","prodVariedad","prodTipo","prodLargo","prodDiam","prodCalidad","prodDescripcion"].forEach((id)=>$(id).value="");
+      $("prodUM").value = "MR";
+      $("btnGuardarProd").textContent = "Guardar producto";
+      $("btnCancelarProd").style.display = "none";
+      $("prodMsg").textContent = "";
+    }
+    $("btnCancelarProd").addEventListener("click", cancelarEdicionProd);
+
+    async function eliminarProd(id){
+      const p = productosCache.find((x)=>x.id===id); if (!p) return;
+      // Advertir si el producto está en uso en recepciones u OC
+      const usadoRec = recepcionesCache.some((r)=>r.productoId===id);
+      const usadoOC = ocCache.some((o)=>o.productoId===id);
+      let aviso = "¿Eliminar el producto \""+(p.codigo||"")+" · "+prodLabel(p)+"\"?";
+      if (usadoRec || usadoOC) aviso += "\n\n⚠️ Atención: este producto está usado en "+(usadoRec?"recepciones":"")+(usadoRec&&usadoOC?" y ":"")+(usadoOC?"órdenes de compra":"")+". Esos registros quedarán sin producto asociado, pero NO se borran.";
+      if (!confirm(aviso)) return;
+      try { await deleteDoc(doc(db,"productos",id)); }
+      catch(e){ alert("Error al eliminar: "+e.message); }
+    }
+
     $("btnGuardarProd").addEventListener("click", async () => {
       const m = $("prodMsg");
+      const datos = { codigo:$("prodCodigo").value.trim(), especie:$("prodEspecie").value, variedad:$("prodVariedad").value.trim(), tipoProducto:$("prodTipo").value.trim(), largo:parseFloat($("prodLargo").value)||null, diametroMin:parseFloat($("prodDiam").value)||null, calidad:$("prodCalidad").value.trim(), unidadMedida:$("prodUM").value, descripcion:$("prodDescripcion").value.trim() };
       $("btnGuardarProd").disabled=true; m.textContent="Guardando…"; m.className="msg";
-      try { await addDoc(collection(db,"productos"),{ codigo:$("prodCodigo").value.trim(), especie:$("prodEspecie").value, variedad:$("prodVariedad").value.trim(), tipoProducto:$("prodTipo").value.trim(), largo:parseFloat($("prodLargo").value)||null, diametroMin:parseFloat($("prodDiam").value)||null, calidad:$("prodCalidad").value.trim(), fechaCreacion:serverTimestamp() });
-        m.textContent="✓ Producto guardado."; m.className="msg ok"; ["prodCodigo","prodVariedad","prodTipo","prodLargo","prodDiam","prodCalidad"].forEach((id)=>$(id).value="");
-      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarProd").disabled=false; }
+      try {
+        if (editandoProdId){
+          await updateDoc(doc(db,"productos",editandoProdId), datos);
+          m.textContent="✓ Producto actualizado."; m.className="msg ok";
+          cancelarEdicionProd();
+        } else {
+          await addDoc(collection(db,"productos"), { ...datos, fechaCreacion:serverTimestamp() });
+          m.textContent="✓ Producto guardado."; m.className="msg ok";
+          ["prodCodigo","prodVariedad","prodTipo","prodLargo","prodDiam","prodCalidad","prodDescripcion"].forEach((id)=>$(id).value=""); $("prodUM").value="MR";
+        }
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarProd").disabled = !puede("editar"); }
     });
 
     // ---- NEGOCIOS ----
@@ -887,6 +949,44 @@
         const filas = await leerArchivo(file);
         if (!filas.length){ m.textContent = "El archivo no tiene filas."; m.className = "msg err"; return; }
 
+        // --- Verificación de columnas: detectar diferencias de formato ---
+        const columnasArchivo = Object.keys(filas[0]).map((k)=>k.toString().trim());
+        const columnasNorm = columnasArchivo.map(normHeader);
+        // Columnas que el sistema sabe interpretar (cualquiera de los formatos soportados)
+        const conocidas = new Set([
+          "numero_rol","rol_predio","centro_costo","centro_de_costo",
+          "codigo_producto","ee/pp","producto","cod_producto",
+          "metros_ruma","mr_recep.","cantidad","m3",
+          "nombre_bodega","nombre_destino","bodega",
+          "numero_guia","nºg/d","ng/d","guia_asociada",
+          "patente","camion/_carro","fecha","fecha_ing",
+          "descripcion","descripcion_producto","desc_producto",
+          "um","unidad","unidad_de_medida","unidad_medida",
+          "nºgmm","ngmm","gmm","comuna_ctto.","comuna","descrip._predio",
+          "tipo","motivo","factura","proveedor","transportista","costo_unitario","neto",
+        ]);
+        const noReconocidas = columnasArchivo.filter((c,idx)=> !conocidas.has(columnasNorm[idx]));
+        // Comparar con el último archivo cargado (guardado en sesión)
+        const ultimasCols = window._ultimasColumnas || null;
+        let avisoCols = "";
+        if (ultimasCols){
+          const nuevas = columnasArchivo.filter((c)=>!ultimasCols.includes(c));
+          const faltantes = ultimasCols.filter((c)=>!columnasArchivo.includes(c));
+          if (nuevas.length || faltantes.length){
+            avisoCols = '<div class="falt-box" style="margin-bottom:14px"><h4>📋 Cambios de columnas respecto al archivo anterior</h4>'
+              + (nuevas.length ? '<div style="font-size:13px"><strong>Nuevas:</strong> '+nuevas.map(esc).join(", ")+'</div>' : '')
+              + (faltantes.length ? '<div style="font-size:13px"><strong>Ya no están:</strong> '+faltantes.map(esc).join(", ")+'</div>' : '')
+              + '</div>';
+          }
+        }
+        if (noReconocidas.length){
+          avisoCols += '<div class="falt-box" style="margin-bottom:14px"><h4>⚠️ Columnas no reconocidas ('+noReconocidas.length+')</h4>'
+            + '<div style="font-size:13px">'+noReconocidas.map(esc).join(", ")+'</div>'
+            + '<div class="hint" style="margin-top:6px">Estas columnas se ignoran al importar. Si alguna debería usarse, avísame para mapearla.</div></div>';
+        }
+        window._ultimasColumnas = columnasArchivo;  // recordar para la próxima carga
+        window._avisoColumnas = avisoCols;
+
         // Mapear cada fila a campos normalizados.
         // Acepta dos formatos: la plantilla genérica y la "Base fletes" real.
         const pick = (row, claves) => { for (const k of claves){ if (row[k] !== undefined && row[k] !== "") return row[k]; } return ""; };
@@ -906,11 +1006,14 @@
           const guia    = pick(row, ["numero_guia","nºg/d","ng/d","guia_asociada"]).toString().trim();
           const patente = pick(row, ["patente","camion/_carro"]).toString().trim();
           const fecha   = pick(row, ["fecha","fecha_ing"]).toString().trim();
+          // Descripción y unidad de medida del PRODUCTO (columnas nuevas del archivo definitivo)
+          const descProducto = pick(row, ["descripcion","descripcion_producto","desc_producto"]).toString().trim();
+          const unidadMedida = pick(row, ["um","unidad","unidad_de_medida","unidad_medida"]).toString().trim();
           // Campos extra que se guardan como respaldo (de cualquiera de los formatos)
           const extra = {
             nroGMM: pick(row, ["nºgmm","ngmm","gmm"]).toString().trim(),
             comuna: pick(row, ["comuna_ctto.","comuna"]).toString().trim(),
-            descripPredio: pick(row, ["descrip._predio","descripcion"]).toString().trim(),
+            descripPredio: pick(row, ["descrip._predio"]).toString().trim(),
             tipo: pick(row, ["tipo","motivo"]).toString().trim(),
             factura: pick(row, ["factura"]).toString().trim(),
             proveedor: pick(row, ["proveedor","transportista"]).toString().trim(),
@@ -927,7 +1030,7 @@
           if (mr<=0 && m3<=0) errores.push("sin cantidades");
           // El código es opcional aquí: si viene vacío, la recepción se guarda igual (sin imputar a OC por producto)
           const gmm = (extra.nroGMM||"").toString().trim();
-          return { fila: i+2, numeroRol, codigoProd, bodega, mr, m3, guia, patente, fecha, extra, gmm, rol, prod, valida: errores.length===0, errores };
+          return { fila: i+2, numeroRol, codigoProd, descProducto, unidadMedida, bodega, mr, m3, guia, patente, fecha, extra, gmm, rol, prod, valida: errores.length===0, errores };
         });
 
         // Marcar duplicados: contra lo ya cargado (por GMM) y contra el propio archivo
@@ -967,10 +1070,24 @@
       const panel = $("faltantesPanel");
       // Roles que aparecen en el archivo pero no existen en el sistema
       const rolesFaltan = [...new Set(filasPreview.filter((f)=>f.numeroRol && !f.rol).map((f)=>f.numeroRol))];
-      // Códigos de producto que vienen en el archivo pero no existen en el catálogo
-      const prodsFaltan = [...new Set(filasPreview.filter((f)=>f.codigoProd && !f.prod).map((f)=>f.codigoProd))];
-      if (!rolesFaltan.length && !prodsFaltan.length){ panel.style.display="none"; panel.innerHTML=""; return; }
-      let html = "";
+      // Códigos de producto que vienen en el archivo pero no existen en el catálogo.
+      // Capturamos también descripción y unidad de medida de la primera fila donde aparece cada código.
+      const prodMap = {};
+      filasPreview.filter((f)=>f.codigoProd && !f.prod).forEach((f)=>{
+        if (!prodMap[f.codigoProd]) prodMap[f.codigoProd] = { codigo:f.codigoProd, descripcion:f.descProducto||"", unidadMedida:f.unidadMedida||"" };
+        else { // completar si la primera fila venía sin datos
+          if (!prodMap[f.codigoProd].descripcion && f.descProducto) prodMap[f.codigoProd].descripcion = f.descProducto;
+          if (!prodMap[f.codigoProd].unidadMedida && f.unidadMedida) prodMap[f.codigoProd].unidadMedida = f.unidadMedida;
+        }
+      });
+      const prodsFaltan = Object.values(prodMap);
+      if (!rolesFaltan.length && !prodsFaltan.length){
+        // Aunque no falten roles/productos, mostrar aviso de columnas si lo hay
+        const av = window._avisoColumnas || "";
+        if (av){ panel.innerHTML = av; panel.style.display="block"; } else { panel.style.display="none"; panel.innerHTML=""; }
+        return;
+      }
+      let html = window._avisoColumnas || "";
       if (rolesFaltan.length){
         html += '<div class="falt-box"><h4>⚠️ Roles que no existen ('+rolesFaltan.length+')</h4>'
           + rolesFaltan.map((r)=>'<span class="falt-chip">'+esc(r)+' <button class="mini" data-crear-rol="'+esc(r)+'">Crear rol</button></span>').join("")
@@ -978,15 +1095,22 @@
       }
       if (prodsFaltan.length){
         html += '<div class="falt-box"><h4>⚠️ Códigos de producto que no existen ('+prodsFaltan.length+')</h4>'
-          + prodsFaltan.map((c)=>'<span class="falt-chip">'+esc(c)+' <button class="mini" data-crear-prod="'+esc(c)+'">Crear producto</button></span>').join("")
-          + '<div class="hint" style="margin-top:6px">Se crean solo con el código. Completa especie, largo, etc. en la pestaña Productos.</div></div>';
+          + prodsFaltan.map((p)=>'<span class="falt-chip"><strong>'+esc(p.codigo)+'</strong>'+(p.descripcion?' · '+esc(p.descripcion.slice(0,30)):'')+(p.unidadMedida?' · '+esc(p.unidadMedida):'')+' <button class="mini" data-crear-prod="'+esc(p.codigo)+'">Crear producto</button></span>').join("")
+          + '<div class="hint" style="margin-top:6px">Se crean con código, descripción y unidad de medida del archivo. Completa especie, largo, etc. en la pestaña Productos.</div>'
+          + (prodsFaltan.length>1 ? '<button class="mini" id="btnCrearTodosProd" style="margin-top:8px">Crear todos los productos</button>' : '')
+          + '</div>';
       }
       html += '<button class="primary" id="btnReanalizar">Volver a analizar</button>';
       panel.innerHTML = html;
       panel.style.display = "block";
       // Listeners de cada botón
       panel.querySelectorAll("[data-crear-rol]").forEach((b)=> b.addEventListener("click", ()=>crearRolRapido(b.dataset.crearRol, b)));
-      panel.querySelectorAll("[data-crear-prod]").forEach((b)=> b.addEventListener("click", ()=>crearProductoRapido(b.dataset.crearProd, b)));
+      panel.querySelectorAll("[data-crear-prod]").forEach((b)=> b.addEventListener("click", ()=>{ const info=prodMap[b.dataset.crearProd]; crearProductoRapido(info, b); }));
+      if ($("btnCrearTodosProd")) $("btnCrearTodosProd").addEventListener("click", async (ev)=>{
+        ev.target.disabled = true; ev.target.textContent = "Creando todos…";
+        for (const b of panel.querySelectorAll("[data-crear-prod]")){ if (!b.classList.contains("done")){ await crearProductoRapido(prodMap[b.dataset.crearProd], b); } }
+        ev.target.textContent = "✓ Todos creados";
+      });
       $("btnReanalizar").addEventListener("click", ()=> $("btnPreview").click());
     }
 
@@ -998,10 +1122,14 @@
       } catch(e){ btn.disabled=false; btn.textContent="Reintentar"; }
     }
 
-    async function crearProductoRapido(codigo, btn){
+    // Crea un producto faltante capturando código, descripción y unidad de medida del archivo.
+    async function crearProductoRapido(info, btn){
+      const codigo = typeof info === "string" ? info : info.codigo;
+      const descripcion = typeof info === "object" ? (info.descripcion||"") : "";
+      const unidadMedida = typeof info === "object" ? (info.unidadMedida||"") : "";
       btn.disabled = true; btn.textContent = "Creando…";
       try {
-        await addDoc(collection(db,"productos"), { codigo, especie:"pino", variedad:"", tipoProducto:"", largo:null, diametroMin:null, calidad:"", origen:"creado_desde_importacion", fechaCreacion:serverTimestamp() });
+        await addDoc(collection(db,"productos"), { codigo, descripcion, unidadMedida, especie:"", variedad:"", tipoProducto:"", largo:null, diametroMin:null, calidad:"", origen:"creado_desde_importacion", fechaCreacion:serverTimestamp() });
         btn.textContent = "✓ Creado"; btn.classList.add("done");
       } catch(e){ btn.disabled=false; btn.textContent="Reintentar"; }
     }
@@ -1053,6 +1181,7 @@
               productoId: f.prod ? f.prod.id : null,
               productoLabel: f.prod ? prodLabel(f.prod) : null,
               codigoProducto: f.codigoProd || null,
+              descripcionProducto: f.descProducto || null, unidadMedida: f.unidadMedida || null,
               nombreBodega: f.bodega || null,
               metrosRuma: f.mr, m3: f.m3,
               numeroGuia: f.guia, patente: f.patente,
