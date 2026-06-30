@@ -6,85 +6,115 @@
   <title>Control de Gestión Área Forestal</title>
   <style>
     :root {
-      --bark: #2c2018; --moss: #4a5d3a; --moss-light: #6b8050; --sap: #c89b3c;
-      --paper: #f6f4ee; --paper-2: #ece8dd; --ink: #20180f; --muted: #7a7164;
-      --line: #d9d2c4; --danger: #a3432f; --ok: #4a5d3a; --warn: #b8791f;
+      /* Paleta estilo SAP Fiori */
+      --sap-blue: #0a6ed1; --sap-blue-dark: #0854a0; --sap-blue-light: #d1e8ff;
+      --sap-shell: #354a5f; --sap-shell-dark: #2b3d4f;
+      --bg: #f5f6f7; --surface: #ffffff; --line: #e5e5e5; --line-2: #d9d9d9;
+      --ink: #32363a; --muted: #6a6d70; --muted-2: #89919a;
+      --ok: #107e3e; --ok-bg: #ebf5eb; --warn: #e9730c; --warn-bg: #fef7f1;
+      --danger: #bb0000; --danger-bg: #ffebeb; --info-bg: #eaf6ff;
+      /* Compatibilidad con clases antiguas */
+      --bark: var(--sap-shell); --moss: var(--sap-blue); --moss-light: var(--sap-blue-dark);
+      --sap: var(--sap-blue); --paper: var(--bg); --paper-2: #eef0f1;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: "Inter", -apple-system, system-ui, sans-serif; background: var(--paper); color: var(--ink); line-height: 1.5; }
-    header { background: var(--bark); color: var(--paper); padding: 28px 32px 0; position: relative; overflow: hidden; }
-    header .rings { position: absolute; right: -120px; top: -120px; width: 320px; height: 320px; border-radius: 50%; background: repeating-radial-gradient(circle, transparent 0 9px, rgba(200,155,60,0.10) 9px 11px); pointer-events: none; }
-    header h1 { margin: 0; font-size: 26px; letter-spacing: -0.02em; font-weight: 700; }
-    header .eyebrow { text-transform: uppercase; letter-spacing: 0.18em; font-size: 11px; color: var(--sap); font-weight: 600; margin-bottom: 6px; }
-    header .status { margin-top: 10px; font-size: 13px; color: #cfc8ba; }
+    body { margin: 0; font-family: "72", "Inter", -apple-system, system-ui, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); line-height: 1.5; }
+
+    /* Layout general: shell superior + sidebar + contenido */
+    .shell { background: var(--sap-shell); color: #fff; padding: 0 20px; height: 48px; display: flex; align-items: center; gap: 14px; position: sticky; top: 0; z-index: 50; }
+    .shell img#headerLogo { width: 30px; height: 30px; border-radius: 4px; object-fit: cover; background: #fff; }
+    .shell .title { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+    .shell .razon { font-size: 12px; color: #b3c0cc; margin-left: 2px; }
+    .shell .spacer { flex: 1; }
+    .shell .status { font-size: 12px; color: #b3c0cc; }
+    .shell .userbar { display: none; align-items: center; gap: 10px; font-size: 12px; color: #cfd8e0; }
+    .shell .userbar .badge { background: var(--sap-blue); color: #fff; font-weight: 700; padding: 2px 9px; border-radius: 3px; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+    .shell .userbar button { background: transparent; border: 1px solid #5a6b7d; color: #cfd8e0; font-family: inherit; font-size: 12px; font-weight: 600; padding: 4px 11px; border-radius: 4px; cursor: pointer; }
+    .shell .userbar button:hover { background: #3f5468; }
     .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
-    .dot.ok { background: #8fb46a; } .dot.wait { background: var(--sap); } .dot.err { background: var(--danger); }
-    nav.tabs { display: flex; gap: 2px; margin-top: 20px; position: relative; z-index: 1; flex-wrap: wrap; }
-    nav.tabs button { background: transparent; border: none; color: #cfc8ba; font-family: inherit; font-size: 13px; font-weight: 600; padding: 11px 15px; cursor: pointer; border-radius: 8px 8px 0 0; border-bottom: 3px solid transparent; white-space: nowrap; }
-    nav.tabs button:hover { color: var(--paper); }
-    nav.tabs button.active { color: var(--ink); background: var(--paper); border-bottom-color: var(--sap); }
-    main { max-width: 1040px; margin: 0 auto; padding: 32px; }
+    .dot.ok { background: #6cd97e; } .dot.wait { background: #ffd47f; } .dot.err { background: #ff8a8a; }
+
+    .layout { display: flex; min-height: calc(100vh - 48px); }
+    /* Sidebar */
+    nav.sidebar { width: 230px; background: var(--surface); border-right: 1px solid var(--line); padding: 12px 0; flex-shrink: 0; }
+    nav.sidebar button { display: flex; align-items: center; gap: 10px; width: 100%; background: transparent; border: none; border-left: 3px solid transparent; color: var(--ink); font-family: inherit; font-size: 14px; font-weight: 500; padding: 11px 18px; cursor: pointer; text-align: left; }
+    nav.sidebar button:hover { background: var(--bg); }
+    nav.sidebar button.active { background: var(--sap-blue-light); border-left-color: var(--sap-blue); color: var(--sap-blue-dark); font-weight: 700; }
+    nav.sidebar button .ico { font-size: 16px; width: 20px; text-align: center; }
+    nav.sidebar .sep { height: 1px; background: var(--line); margin: 8px 14px; }
+
+    main { flex: 1; padding: 24px 28px; max-width: 1100px; }
     .view { display: none; } .view.active { display: block; }
-    .card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 24px; margin-bottom: 28px; }
-    .card h2 { margin: 0 0 4px; font-size: 17px; display: flex; align-items: baseline; gap: 10px; }
-    .card h2 .num { font-size: 12px; color: var(--sap); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 22px; margin-bottom: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .card h2 { margin: 0 0 4px; font-size: 16px; font-weight: 700; display: flex; align-items: baseline; gap: 10px; }
+    .card h2 .num { font-size: 11px; color: var(--sap-blue); font-weight: 700; font-variant-numeric: tabular-nums; }
     .card .sub { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
     .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
     .grid.g3 { grid-template-columns: repeat(3, 1fr); }
-    @media (max-width: 640px) { .grid, .grid.g3 { grid-template-columns: 1fr; } }
-    label { display: block; font-size: 12px; font-weight: 600; color: var(--bark); margin-bottom: 5px; }
-    input, select { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 7px; font-size: 14px; font-family: inherit; background: var(--paper); }
-    input:focus, select:focus { outline: 2px solid var(--moss-light); border-color: transparent; }
+    @media (max-width: 760px) { nav.sidebar { width: 56px; } nav.sidebar button .label { display: none; } main { padding: 16px; } .grid, .grid.g3 { grid-template-columns: 1fr; } }
+    label { display: block; font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 5px; }
+    input, select { width: 100%; padding: 9px 11px; border: 1px solid var(--line-2); border-radius: 4px; font-size: 14px; font-family: inherit; background: var(--surface); }
+    input:focus, select:focus { outline: 2px solid var(--sap-blue); border-color: transparent; }
     .actions { margin-top: 18px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    button.primary { font-family: inherit; font-size: 14px; font-weight: 600; padding: 10px 20px; border-radius: 7px; border: none; cursor: pointer; background: var(--moss); color: #fff; }
-    button.primary:hover { background: var(--moss-light); }
-    button.primary:disabled { opacity: 0.5; cursor: default; }
+    button.primary { font-family: inherit; font-size: 14px; font-weight: 600; padding: 9px 20px; border-radius: 4px; border: 1px solid var(--sap-blue); cursor: pointer; background: var(--sap-blue); color: #fff; }
+    button.primary:hover { background: var(--sap-blue-dark); border-color: var(--sap-blue-dark); }
+    button.primary:disabled { opacity: 0.45; cursor: default; }
     .msg { font-size: 13px; } .msg.ok { color: var(--ok); } .msg.err { color: var(--danger); } .msg.warn { color: var(--warn); }
     table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 10px 12px; border-bottom: 2px solid var(--line); }
-    td { padding: 11px 12px; border-bottom: 1px solid var(--paper-2); vertical-align: top; }
-    tr:hover td { background: var(--paper); }
-    .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; }
-    .tag.pie { background: #e8efe0; color: var(--moss); }
-    .tag.planta { background: #f3e6c8; color: #8a6a1e; }
-    .tag.abierta { background: #e0e9f0; color: #3a5a6b; }
-    .tag.completada { background: #e8e4dc; color: var(--muted); }
-    .tag.alerta { background: #f6e0cf; color: var(--danger); }
+    th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--line-2); background: var(--bg); }
+    td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    tr:hover td { background: var(--bg); }
+    .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 3px; }
+    .tag.pie { background: var(--ok-bg); color: var(--ok); }
+    .tag.planta { background: var(--info-bg); color: var(--sap-blue-dark); }
+    .tag.abierta { background: var(--info-bg); color: var(--sap-blue-dark); }
+    .tag.completada { background: #eee; color: var(--muted); }
+    .tag.alerta { background: var(--danger-bg); color: var(--danger); }
     .empty { text-align: center; color: var(--muted); padding: 28px; font-size: 14px; }
     .num-cell { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
-    .bar { height: 6px; background: var(--paper-2); border-radius: 4px; overflow: hidden; margin-top: 4px; }
-    .bar > span { display: block; height: 100%; background: var(--moss); }
+    .bar { height: 6px; background: var(--line); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+    .bar > span { display: block; height: 100%; background: var(--sap-blue); }
     .bar > span.warn { background: var(--warn); }
     .bar > span.full { background: var(--muted); }
-    .alert-panel { background: #fbf3ea; border: 1px solid #ecd3b3; border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; }
-    .alert-panel h3 { margin: 0 0 8px; font-size: 14px; color: var(--danger); }
+    .alert-panel { background: var(--warn-bg); border: 1px solid #f3c9a3; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+    .alert-panel h3 { margin: 0 0 8px; font-size: 14px; color: var(--warn); }
     .alert-panel ul { margin: 0; padding-left: 18px; font-size: 13px; }
     .alert-panel.hidden { display: none; }
     .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
-    .oc-pick { margin-top: 12px; padding: 14px; background: #fbf3ea; border: 1px solid #ecd3b3; border-radius: 8px; display: none; }
+    .oc-pick { margin-top: 12px; padding: 14px; background: var(--warn-bg); border: 1px solid #f3c9a3; border-radius: 6px; display: none; }
     .oc-pick.show { display: block; }
-    .falt-box { background: #fbf3ea; border: 1px solid #ecd3b3; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; }
+    .falt-box { background: var(--warn-bg); border: 1px solid #f3c9a3; border-radius: 6px; padding: 14px 16px; margin-bottom: 12px; }
     .falt-box h4 { margin: 0 0 8px; font-size: 13px; color: var(--warn); }
-    .falt-chip { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 4px 10px; margin: 3px; font-size: 13px; }
-    .falt-chip button { font-size: 11px; padding: 3px 10px; border-radius: 14px; }
-    button.mini { font-family: inherit; font-weight: 600; border: none; cursor: pointer; background: var(--moss); color: #fff; }
+    .falt-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--line-2); border-radius: 4px; padding: 4px 10px; margin: 3px; font-size: 13px; }
+    .falt-chip button { font-size: 11px; padding: 3px 10px; border-radius: 3px; }
+    button.mini { font-family: inherit; font-weight: 600; border: none; cursor: pointer; background: var(--sap-blue); color: #fff; border-radius: 3px; }
     button.mini:disabled { opacity: .5; cursor: default; }
     button.mini.done { background: var(--ok); }
+
+    /* KPI cards del Resumen */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+    @media (max-width: 860px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+    .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .kpi .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+    .kpi .value { font-size: 28px; font-weight: 700; color: var(--sap-blue-dark); margin-top: 6px; font-variant-numeric: tabular-nums; }
+    .kpi .unit { font-size: 13px; color: var(--muted-2); font-weight: 500; }
+    .chart-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    @media (max-width: 860px) { .chart-grid { grid-template-columns: 1fr; } }
+    .chart-box { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .chart-box h3 { margin: 0 0 14px; font-size: 14px; font-weight: 700; }
+    .chart-box canvas { max-height: 260px; }
+
     /* Login */
-    #loginScreen { position: fixed; inset: 0; background: var(--bark); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
-    #loginScreen .box { background: #fff; border-radius: 14px; padding: 36px 32px; width: 100%; max-width: 380px; }
-    #loginScreen .rings2 { width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 16px; background: repeating-radial-gradient(circle, var(--bark) 0 4px, var(--sap) 4px 6px); }
+    #loginScreen { position: fixed; inset: 0; background: var(--sap-shell); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+    #loginScreen .box { background: #fff; border-radius: 10px; padding: 36px 32px; width: 100%; max-width: 380px; box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
+    #loginScreen .rings2 { width: 56px; height: 56px; border-radius: 10px; margin: 0 auto 16px; background: var(--sap-blue); display:flex; align-items:center; justify-content:center; color:#fff; font-size:26px; font-weight:700; }
     #loginScreen h2 { margin: 0 0 4px; text-align: center; font-size: 20px; }
     #loginScreen p.sub2 { text-align: center; color: var(--muted); font-size: 13px; margin: 0 0 22px; }
     #loginScreen label { margin-top: 12px; }
     #loginScreen button { width: 100%; margin-top: 18px; }
-    #loginScreen .toggle { text-align: center; margin-top: 14px; font-size: 13px; color: var(--moss); cursor: pointer; }
-    #loginScreen .firstHint { background: #f3e6c8; color: #8a6a1e; font-size: 12px; padding: 8px 10px; border-radius: 7px; margin-top: 14px; text-align: center; display: none; }
+    #loginScreen .toggle { text-align: center; margin-top: 14px; font-size: 13px; color: var(--sap-blue); cursor: pointer; }
+    #loginScreen .firstHint { background: var(--info-bg); color: var(--sap-blue-dark); font-size: 12px; padding: 8px 10px; border-radius: 5px; margin-top: 14px; text-align: center; display: none; }
     .app-hidden { display: none !important; }
-    .userbar { display: flex; align-items: center; gap: 12px; margin-top: 12px; font-size: 13px; color: #cfc8ba; }
-    .userbar .badge { background: var(--sap); color: var(--bark); font-weight: 700; padding: 2px 10px; border-radius: 20px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
-    .userbar button { background: transparent; border: 1px solid #5a4a3a; color: #cfc8ba; font-family: inherit; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px; cursor: pointer; }
-    .userbar button:hover { background: #3a2c20; }
     .tab-hidden { display: none !important; }
   </style>
 </head>
@@ -108,39 +138,61 @@
     </div>
   </div>
 
-  <header>
-    <div class="rings"></div>
-    <div style="display:flex; align-items:center; gap:14px">
-      <img id="headerLogo" style="display:none; width:48px; height:48px; border-radius:8px; object-fit:cover; background:#fff" />
-      <div>
-        <div class="eyebrow">Negocio de la madera</div>
-        <h1 id="headerTitulo">Control de Gestión Área Forestal</h1>
-        <div id="headerRazon" style="font-size:13px; color:var(--sap); font-weight:600; margin-top:2px;"></div>
-      </div>
-    </div>
-    <div class="status" id="status"><span class="dot wait"></span>Conectando con Firebase&hellip;</div>
-    <div class="userbar" id="userbar" style="display:none">
+  <div class="shell">
+    <img id="headerLogo" style="display:none" />
+    <span class="title" id="headerTitulo">Control de Gestión Negocio Forestal</span>
+    <span class="razon" id="headerRazon"></span>
+    <span class="spacer"></span>
+    <span class="status" id="status"><span class="dot wait"></span>Conectando&hellip;</span>
+    <div class="userbar" id="userbar">
       <span id="userInfo"></span>
       <span class="badge" id="userBadge"></span>
       <button id="btnLogout">Cerrar sesión</button>
     </div>
-    <nav class="tabs">
-      <button data-tab="roles" class="active">Roles</button>
-      <button data-tab="plantas">Plantas / Clientes</button>
-      <button data-tab="productos">Productos</button>
-      <button data-tab="negocios">Negocios</button>
-      <button data-tab="oc">Órdenes de compra</button>
-      <button data-tab="recepciones">Recepciones</button>
-      <button data-tab="importar">Importar Excel</button>
-      <button data-tab="gastos">Gastos</button>
-      <button data-tab="usuarios" data-admin="1">Usuarios</button>
-      <button data-tab="empresa" data-admin="1">Empresa</button>
+  </div>
+
+  <div class="layout">
+    <nav class="sidebar">
+      <button data-tab="resumen" class="active"><span class="ico">📊</span><span class="label">Resumen</span></button>
+      <div class="sep"></div>
+      <button data-tab="roles"><span class="ico">🌲</span><span class="label">Roles</span></button>
+      <button data-tab="plantas"><span class="ico">🏭</span><span class="label">Plantas / Clientes</span></button>
+      <button data-tab="productos"><span class="ico">📦</span><span class="label">Productos</span></button>
+      <button data-tab="negocios"><span class="ico">🤝</span><span class="label">Negocios</span></button>
+      <button data-tab="oc"><span class="ico">📋</span><span class="label">Órdenes de compra</span></button>
+      <button data-tab="recepciones"><span class="ico">🚚</span><span class="label">Recepciones</span></button>
+      <button data-tab="importar"><span class="ico">📥</span><span class="label">Importar Excel</span></button>
+      <button data-tab="gastos"><span class="ico">💰</span><span class="label">Gastos</span></button>
+      <div class="sep"></div>
+      <button data-tab="usuarios" data-admin="1"><span class="ico">👥</span><span class="label">Usuarios</span></button>
+      <button data-tab="empresa" data-admin="1"><span class="ico">🏢</span><span class="label">Empresa</span></button>
     </nav>
-  </header>
 
   <main>
-    <!-- ROLES -->
-    <div class="view active" id="view-roles">
+    <!-- RESUMEN / DASHBOARD -->
+    <div class="view active" id="view-resumen">
+      <div class="card" style="margin-bottom:20px"><h2 style="margin:0">Resumen general</h2><p class="sub" style="margin:4px 0 0">Vista consolidada del negocio forestal.</p></div>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="label">Roles</div><div class="value" id="kpiRoles">0</div></div>
+        <div class="kpi"><div class="label">Recepciones</div><div class="value" id="kpiRecep">0</div></div>
+        <div class="kpi"><div class="label">Metros ruma</div><div class="value" id="kpiMr">0 <span class="unit">mr</span></div></div>
+        <div class="kpi"><div class="label">Gastos totales</div><div class="value" id="kpiGastos">0 <span class="unit">$</span></div></div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="label">Plantas / Clientes</div><div class="value" id="kpiPlantas">0</div></div>
+        <div class="kpi"><div class="label">Productos</div><div class="value" id="kpiProd">0</div></div>
+        <div class="kpi"><div class="label">Órdenes de compra</div><div class="value" id="kpiOC">0</div></div>
+        <div class="kpi"><div class="label">OC por completar</div><div class="value" id="kpiOCAlerta" style="color:var(--warn)">0</div></div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-box"><h3>Recepciones por planta (mr)</h3><canvas id="chartPlanta"></canvas></div>
+        <div class="chart-box"><h3>Avance de OC (recibido vs solicitado)</h3><canvas id="chartOC"></canvas></div>
+        <div class="chart-box"><h3>Gastos por categoría</h3><canvas id="chartGastos"></canvas></div>
+        <div class="chart-box"><h3>Metros ruma por mes</h3><canvas id="chartMes"></canvas></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-roles">
       <section class="card">
         <h2><span class="num">01</span> Registrar rol de predio</h2>
         <p class="sub">El rol de predio es el eje del sistema.</p>
@@ -411,6 +463,7 @@
       </section>
     </div>
   </main>
+  </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -418,6 +471,7 @@
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { initializeApp as initApp2 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import * as XLSX from "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm";
+    import Chart from "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/+esm";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAfacX-Nsg-syuRoBVuKrSX0qrUB9Hjaz0",
@@ -459,7 +513,7 @@
     // Aplica permisos a la interfaz: oculta pestaña usuarios si no es admin, deshabilita botones de guardar si no puede editar.
     function aplicarPermisos(){
       const esAdmin = puede("usuarios");
-      document.querySelectorAll('nav.tabs button[data-admin]').forEach((b)=> b.classList.toggle("tab-hidden", !esAdmin));
+      document.querySelectorAll('nav.sidebar button[data-admin]').forEach((b)=> b.classList.toggle("tab-hidden", !esAdmin));
       const editar = puede("editar");
       const botonesEditar = ["btnGuardar","btnGuardarPlanta","btnGuardarProd","btnGuardarNeg","btnGuardarOC","btnGuardarRec","btnGuardarGasto","btnImportar","btnPreview"];
       botonesEditar.forEach((id)=>{ const el=$(id); if(el){ el.disabled = !editar; el.title = editar?"":"No tienes permiso para editar"; } });
@@ -559,9 +613,9 @@
     });
 
     // Pestañas
-    document.querySelectorAll("nav.tabs button").forEach((b) => {
+    document.querySelectorAll("nav.sidebar button").forEach((b) => {
       b.addEventListener("click", () => {
-        document.querySelectorAll("nav.tabs button").forEach((x) => x.classList.remove("active"));
+        document.querySelectorAll("nav.sidebar button").forEach((x) => x.classList.remove("active"));
         document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
         b.classList.add("active");
         $("view-" + b.dataset.tab).classList.add("active");
@@ -1194,6 +1248,84 @@
       if (e.logo){ $("headerLogo").src = e.logo; $("headerLogo").style.display = "block";
         $("logoPreview").innerHTML = '<img src="'+e.logo+'" style="width:100%;height:100%;object-fit:cover" />'; }
     }, ()=>{});
+
+    // ================== RESUMEN / DASHBOARD ==================
+    const SAP_COLORS = ["#0a6ed1","#107e3e","#e9730c","#bb0000","#6b3fa0","#0892a5","#925ace","#1c4c98","#5b738b","#d04a02"];
+    let charts = {};  // referencias a los Chart para destruir antes de redibujar
+
+    function dibujarChart(id, config){
+      const ctx = $(id); if (!ctx) return;
+      if (charts[id]) charts[id].destroy();
+      charts[id] = new Chart(ctx, config);
+    }
+
+    let resumenTimer = null;
+    function programarResumen(){ clearTimeout(resumenTimer); resumenTimer = setTimeout(actualizarResumen, 400); }
+
+    function actualizarResumen(){
+      // --- KPIs ---
+      $("kpiRoles").textContent = fmt(rolesCache.length);
+      $("kpiRecep").textContent = fmt(recepcionesCache.length);
+      $("kpiPlantas").textContent = fmt(plantasCache.length);
+      $("kpiProd").textContent = fmt(productosCache.length);
+      $("kpiOC").textContent = fmt(ocCache.length);
+      const totalMr = recepcionesCache.reduce((a,r)=>a+(r.metrosRuma||0),0);
+      $("kpiMr").innerHTML = fmt(Math.round(totalMr)) + ' <span class="unit">mr</span>';
+      const totalGastos = gastosCache.reduce((a,g)=>a+(g.monto||0),0);
+      $("kpiGastos").innerHTML = fmt(totalGastos) + ' <span class="unit">$</span>';
+      const ocAlerta = ocCache.filter((o)=>{ const rm=(o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0); const r3=(o.solicitado?.m3||0)-(o.recibido?.m3||0); const u=o.umbralAlerta??300; return (rm>0||r3>0)&&(rm<=u||r3<=u); }).length;
+      $("kpiOCAlerta").textContent = fmt(ocAlerta);
+
+      // --- Gráfico 1: recepciones por planta (mr) [barras] ---
+      const porPlanta = {};
+      recepcionesCache.forEach((r)=>{ const k=r.nombreBodega||r.numeroRol||"(s/d)"; porPlanta[k]=(porPlanta[k]||0)+(r.metrosRuma||0); });
+      const plantaTop = Object.entries(porPlanta).sort((a,b)=>b[1]-a[1]).slice(0,8);
+      dibujarChart("chartPlanta", {
+        type:"bar",
+        data:{ labels:plantaTop.map((e)=>e[0]), datasets:[{ label:"mr", data:plantaTop.map((e)=>Math.round(e[1])), backgroundColor:"#0a6ed1" }] },
+        options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true} } }
+      });
+
+      // --- Gráfico 2: avance de OC (recibido vs solicitado) [barras agrupadas] ---
+      const ocTop = ocCache.slice(0,8);
+      dibujarChart("chartOC", {
+        type:"bar",
+        data:{ labels:ocTop.map((o)=>o.numero||o.numeroRol||""),
+          datasets:[
+            { label:"Solicitado", data:ocTop.map((o)=>o.solicitado?.metrosRuma||0), backgroundColor:"#c9d9ea" },
+            { label:"Recibido", data:ocTop.map((o)=>o.recibido?.metrosRuma||0), backgroundColor:"#0a6ed1" },
+          ] },
+        options:{ responsive:true, plugins:{legend:{position:"bottom"}}, scales:{ y:{beginAtZero:true} } }
+      });
+
+      // --- Gráfico 3: gastos por categoría [circular] ---
+      const porCat = {};
+      gastosCache.forEach((g)=>{ const k=g.categoria||"Sin categoría"; porCat[k]=(porCat[k]||0)+(g.monto||0); });
+      const catE = Object.entries(porCat).sort((a,b)=>b[1]-a[1]);
+      dibujarChart("chartGastos", {
+        type:"doughnut",
+        data:{ labels:catE.map((e)=>e[0]), datasets:[{ data:catE.map((e)=>e[1]), backgroundColor:SAP_COLORS }] },
+        options:{ responsive:true, plugins:{legend:{position:"right"}} }
+      });
+
+      // --- Gráfico 4: metros ruma por mes [barras] ---
+      const porMes = {};
+      recepcionesCache.forEach((r)=>{ const k=r.periodo||"s/f"; porMes[k]=(porMes[k]||0)+(r.metrosRuma||0); });
+      const mesE = Object.entries(porMes).sort((a,b)=>a[0].localeCompare(b[0]));
+      dibujarChart("chartMes", {
+        type:"bar",
+        data:{ labels:mesE.map((e)=>e[0]), datasets:[{ label:"mr", data:mesE.map((e)=>Math.round(e[1])), backgroundColor:"#107e3e" }] },
+        options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true} } }
+      });
+    }
+
+    // Recalcular el resumen cuando cualquiera de los datasets cambie.
+    // Enganchamos a los snapshots existentes vía un observador simple por intervalo de cambios.
+    let _lastSig = "";
+    setInterval(() => {
+      const sig = [rolesCache.length, recepcionesCache.length, plantasCache.length, productosCache.length, ocCache.length, gastosCache.length].join("-");
+      if (sig !== _lastSig){ _lastSig = sig; programarResumen(); }
+    }, 800);
   </script>
 </body>
 </html>
