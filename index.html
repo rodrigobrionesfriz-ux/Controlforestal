@@ -170,6 +170,7 @@
       <div class="sep"></div>
       <button data-tab="usuarios" data-admin="1"><span class="ico">👥</span><span class="label">Usuarios</span></button>
       <button data-tab="empresa" data-admin="1"><span class="ico">🏢</span><span class="label">Empresa</span></button>
+      <button data-tab="mantenimiento" data-admin="1"><span class="ico">🛠️</span><span class="label">Mantenimiento</span></button>
     </nav>
 
   <main>
@@ -475,12 +476,37 @@
         <div class="actions"><button class="primary" id="btnGuardarEmpresa" disabled>Guardar datos</button><span class="msg" id="empresaMsg"></span></div>
       </section>
     </div>
+
+    <!-- MANTENIMIENTO (solo admin) -->
+    <div class="view" id="view-mantenimiento">
+      <section class="card">
+        <h2><span class="num">01</span> Pre-cargar datos desde Excel</h2>
+        <p class="sub">Carga roles y plantas/bodegas directamente desde el archivo de recepciones (hoja principal y hoja Param). Los productos NO se tocan.</p>
+        <div class="actions">
+          <input type="file" id="precargaFile" accept=".xlsx,.xls" style="max-width:340px" />
+          <button class="primary" id="btnPrecargar" disabled>Pre-cargar roles y plantas</button>
+        </div>
+        <p class="msg" id="precargaMsg" style="margin-top:12px"></p>
+        <div class="hint">Roles: se toman número de rol, nombre del predio, coordenadas origen y comuna. Plantas/bodegas: desde la hoja Param. Si un rol o planta ya existe (mismo número/nombre), se omite.</div>
+      </section>
+
+      <section class="card" style="border-color:#f0c0c0">
+        <h2><span class="num">02</span> ⚠️ Borrado masivo</h2>
+        <p class="sub">Elimina permanentemente todos los registros de una colección. Esta acción NO se puede deshacer.</p>
+        <div class="actions">
+          <button class="primary" id="btnBorrarRecep" style="background:var(--danger); border-color:var(--danger)">Borrar TODAS las recepciones</button>
+          <button class="primary" id="btnBorrarRoles" style="background:var(--danger); border-color:var(--danger)">Borrar TODOS los roles</button>
+        </div>
+        <p class="msg" id="borradoMsg" style="margin-top:12px"></p>
+        <div class="hint">Los productos, plantas, negocios, OC y gastos no se ven afectados por estos botones.</div>
+      </section>
+    </div>
   </main>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, increment, getDoc, getDocs, onSnapshot, query, orderBy, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, increment, getDoc, getDocs, onSnapshot, query, orderBy, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { initializeApp as initApp2 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 
@@ -1101,6 +1127,8 @@
           // Descripción y unidad de medida del PRODUCTO (columnas nuevas del archivo definitivo)
           const descProducto = pick(row, ["descripcion","descripcion_producto","desc_producto"]).toString().trim();
           const unidadMedida = pick(row, ["um","unidad","unidad_de_medida","unidad_medida"]).toString().trim();
+          const especieRow = pick(row, ["especie"]).toString().trim();
+          const plantaRow = pick(row, ["planta"]).toString().trim();
           // Campos extra que se guardan como respaldo (de cualquiera de los formatos)
           const extra = {
             nroGMM: pick(row, ["nºgmm","ngmm","gmm"]).toString().trim(),
@@ -1122,7 +1150,7 @@
           if (mr<=0 && m3<=0) errores.push("sin cantidades");
           // El código es opcional aquí: si viene vacío, la recepción se guarda igual (sin imputar a OC por producto)
           const gmm = (extra.nroGMM||"").toString().trim();
-          return { fila: i+2, numeroRol, codigoProd, descProducto, unidadMedida, bodega, mr, m3, guia, patente, fecha, extra, gmm, rol, prod, valida: errores.length===0, errores };
+          return { fila: i+2, numeroRol, codigoProd, descProducto, unidadMedida, especieRow, plantaRow, bodega, mr, m3, guia, patente, fecha, extra, gmm, rol, prod, valida: errores.length===0, errores };
         });
 
         // Marcar duplicados: contra lo ya cargado (por GMM) y contra el propio archivo
@@ -1274,6 +1302,7 @@
               productoLabel: f.prod ? prodLabel(f.prod) : null,
               codigoProducto: f.codigoProd || null,
               descripcionProducto: f.descProducto || null, unidadMedida: f.unidadMedida || null,
+              especie: f.especieRow || null, planta: f.plantaRow || null,
               nombreBodega: f.bodega || null,
               metrosRuma: f.mr, m3: f.m3,
               numeroGuia: f.guia, patente: f.patente,
@@ -1555,6 +1584,133 @@
       const sig = [rolesCache.length, recepcionesCache.length, plantasCache.length, productosCache.length, ocCache.length, gastosCache.length].join("-");
       if (sig !== _lastSig){ _lastSig = sig; programarResumen(); }
     }, 800);
+
+    // ================== MANTENIMIENTO (admin) ==================
+    // Parsea coordenadas "lat; lng" (acepta ; y coma decimal) -> {lat,lng} o null
+    function parseCoordSemi(txt){
+      if (!txt || txt.toString().trim()==="") return null;
+      const s = txt.toString().trim().replace(/,/g, ".");
+      const parts = s.split(";").map((x)=>parseFloat(x.trim()));
+      return (parts.length===2 && !isNaN(parts[0]) && !isNaN(parts[1])) ? { lat:parts[0], lng:parts[1] } : null;
+    }
+
+    // Borra todos los documentos de una colección en lotes de 400.
+    async function borrarColeccion(nombre, msgEl){
+      const snap = await getDocs(collection(db, nombre));
+      const docs = snap.docs;
+      if (!docs.length){ msgEl.textContent = "No hay "+nombre+" para borrar."; msgEl.className="msg warn"; return 0; }
+      let borrados = 0;
+      for (let i=0; i<docs.length; i+=400){
+        const batch = writeBatch(db);
+        docs.slice(i, i+400).forEach((d)=> batch.delete(d.ref));
+        await batch.commit();
+        borrados += Math.min(400, docs.length-i);
+        msgEl.textContent = "Borrando "+nombre+"… "+borrados+" de "+docs.length;
+      }
+      return borrados;
+    }
+
+    $("btnBorrarRecep").addEventListener("click", async () => {
+      if (!puede("usuarios")) return;
+      if (!confirm("⚠️ ¿Borrar TODAS las recepciones? Esta acción es PERMANENTE y no se puede deshacer.")) return;
+      if (!confirm("Confirma una vez más: se eliminarán TODAS las recepciones de la base de datos.")) return;
+      const m = $("borradoMsg"); m.className="msg";
+      $("btnBorrarRecep").disabled = true;
+      try { const n = await borrarColeccion("recepciones", m); m.textContent = "✓ "+n+" recepciones eliminadas."; m.className="msg ok"; }
+      catch(e){ m.textContent = "Error: "+e.message; m.className="msg err"; }
+      finally { $("btnBorrarRecep").disabled = false; }
+    });
+
+    $("btnBorrarRoles").addEventListener("click", async () => {
+      if (!puede("usuarios")) return;
+      if (!confirm("⚠️ ¿Borrar TODOS los roles? Esta acción es PERMANENTE. Los negocios, recepciones y gastos quedarán sin rol asociado.")) return;
+      if (!confirm("Confirma una vez más: se eliminarán TODOS los roles de la base de datos.")) return;
+      const m = $("borradoMsg"); m.className="msg";
+      $("btnBorrarRoles").disabled = true;
+      try { const n = await borrarColeccion("roles", m); m.textContent = "✓ "+n+" roles eliminados."; m.className="msg ok"; }
+      catch(e){ m.textContent = "Error: "+e.message; m.className="msg err"; }
+      finally { $("btnBorrarRoles").disabled = false; }
+    });
+
+    // Pre-carga de roles y plantas desde el Excel
+    $("precargaFile").addEventListener("change", () => { $("btnPrecargar").disabled = !$("precargaFile").files.length || !puede("usuarios"); });
+
+    $("btnPrecargar").addEventListener("click", async () => {
+      if (!puede("usuarios")) return;
+      const file = $("precargaFile").files[0]; const m = $("precargaMsg");
+      if (!file) return;
+      $("btnPrecargar").disabled = true; m.textContent = "Leyendo archivo…"; m.className="msg";
+      try {
+        await cargarXLSX();
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: "array" });
+
+        // --- ROLES desde la hoja principal ---
+        const hojaRec = wb.SheetNames.find((n)=>/recep/i.test(n)) || wb.SheetNames[0];
+        const filasRec = XLSX.utils.sheet_to_json(wb.Sheets[hojaRec], { defval:"", raw:false });
+        const rolesExistentes = new Set(rolesCache.map((r)=>(r.numeroRol||"").toString().trim()));
+        const rolesVistos = new Set();
+        const rolesNuevos = [];
+        const pick = (row, claves) => { for (const k of claves){ const kk=Object.keys(row).find((x)=>normHeader(x)===k); if (kk!==undefined && row[kk]!=="") return row[kk]; } return ""; };
+        filasRec.forEach((row)=>{
+          const numeroRol = pick(row, ["rol_predio","numero_rol"]).toString().trim();
+          if (!numeroRol || rolesVistos.has(numeroRol) || rolesExistentes.has(numeroRol)) return;
+          rolesVistos.add(numeroRol);
+          rolesNuevos.push({
+            numeroRol,
+            nombrePredio: pick(row, ["descrip._predio","nombre_predio"]).toString().trim(),
+            comuna: pick(row, ["comuna_ctto.","comuna"]).toString().trim(),
+            georeferencia: parseCoordSemi(pick(row, ["coordenadas_origen","coordenadas"])),
+            especiePredominante: (pick(row, ["especie"]).toString().trim().toLowerCase()) || "pino",
+            tipoNegocio: "bosque_en_pie", estado: "activo", origen: "precarga_excel",
+          });
+        });
+
+        // --- PLANTAS/BODEGAS desde la hoja Param ---
+        const hojaParam = wb.SheetNames.find((n)=>/param/i.test(n));
+        let plantasNuevas = 0, bodegasTotal = 0;
+        const plantasExistentes = new Set(plantasCache.map((p)=>(p.nombre||"").toString().trim().toUpperCase()));
+        const plantasMap = {};  // nombre -> {bodegas:[]}
+        if (hojaParam){
+          const filasParam = XLSX.utils.sheet_to_json(wb.Sheets[hojaParam], { defval:"", raw:false });
+          filasParam.forEach((row)=>{
+            const planta = pick(row, ["planta"]).toString().trim();
+            const bodega = pick(row, ["bodega"]).toString().trim();
+            if (!planta || !bodega) return;
+            if (!plantasMap[planta]) plantasMap[planta] = { nombre:planta, bodegas:[] };
+            plantasMap[planta].bodegas.push({
+              bodegaId: (Date.now().toString(36)+Math.random().toString(36).slice(2,6)),
+              nombre: bodega,
+              destino: pick(row, ["destino"]).toString().trim(),
+              comuna: pick(row, ["comuna.1","comuna"]).toString().trim(),
+              georeferencia: parseCoordSemi(pick(row, ["coordenadas.1","coordenadas"])),
+            });
+          });
+        }
+
+        // --- Escribir en lotes ---
+        m.textContent = "Cargando "+rolesNuevos.length+" roles…"; 
+        let batch = writeBatch(db); let cont = 0;
+        for (const r of rolesNuevos){
+          batch.set(doc(collection(db,"roles")), { ...r, fechaCreacion: serverTimestamp() });
+          if (++cont % 400 === 0){ await batch.commit(); batch = writeBatch(db); }
+        }
+        // Plantas (solo las que no existan por nombre)
+        for (const p of Object.values(plantasMap)){
+          if (plantasExistentes.has(p.nombre.toUpperCase())) continue;
+          batch.set(doc(collection(db,"clientes")), {
+            nombre: p.nombre, esPlantaDestino: true, bodegas: p.bodegas,
+            estado: "activo", origen: "precarga_excel", fechaCreacion: serverTimestamp(),
+          });
+          plantasNuevas++; bodegasTotal += p.bodegas.length; cont++;
+        }
+        if (cont % 400 !== 0) await batch.commit();
+
+        m.innerHTML = "✓ Pre-carga completa: <strong>"+rolesNuevos.length+"</strong> roles nuevos, <strong>"+plantasNuevas+"</strong> plantas ("+bodegasTotal+" bodegas). Los roles/plantas ya existentes se omitieron.";
+        m.className = "msg ok";
+      } catch(e){ m.textContent = "Error: "+e.message; m.className="msg err"; }
+      finally { $("btnPrecargar").disabled = false; }
+    });
   </script>
 </body>
 </html>
