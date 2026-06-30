@@ -470,8 +470,12 @@
     import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, increment, getDoc, getDocs, onSnapshot, query, orderBy, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { initializeApp as initApp2 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import * as XLSX from "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm";
-    import Chart from "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/+esm";
+
+    // XLSX y Chart.js se cargan de forma diferida (no bloquean el login si su CDN falla)
+    let XLSX = null, Chart = null;
+    async function cargarXLSX(){ if (!XLSX){ XLSX = await import("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm"); } return XLSX; }
+    async function cargarChart(){ if (!Chart){ const mod = await import("https://cdn.jsdelivr.net/npm/chart.js@4.4.1/+esm"); Chart = mod.default; } return Chart; }
+
 
     const firebaseConfig = {
       apiKey: "AIzaSyAfacX-Nsg-syuRoBVuKrSX0qrUB9Hjaz0",
@@ -858,7 +862,8 @@
     // Normaliza encabezados: minúsculas, sin acentos, espacios->_
     function normHeader(h){ return (h??"").toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_"); }
 
-    function leerArchivo(file){
+    async function leerArchivo(file){
+      await cargarXLSX();
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -1262,8 +1267,8 @@
     let resumenTimer = null;
     function programarResumen(){ clearTimeout(resumenTimer); resumenTimer = setTimeout(actualizarResumen, 400); }
 
-    function actualizarResumen(){
-      // --- KPIs ---
+    async function actualizarResumen(){
+      // --- KPIs (siempre, aunque Chart.js no cargue) ---
       $("kpiRoles").textContent = fmt(rolesCache.length);
       $("kpiRecep").textContent = fmt(recepcionesCache.length);
       $("kpiPlantas").textContent = fmt(plantasCache.length);
@@ -1275,6 +1280,9 @@
       $("kpiGastos").innerHTML = fmt(totalGastos) + ' <span class="unit">$</span>';
       const ocAlerta = ocCache.filter((o)=>{ const rm=(o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0); const r3=(o.solicitado?.m3||0)-(o.recibido?.m3||0); const u=o.umbralAlerta??300; return (rm>0||r3>0)&&(rm<=u||r3<=u); }).length;
       $("kpiOCAlerta").textContent = fmt(ocAlerta);
+
+      // Cargar Chart.js de forma diferida; si falla, los KPIs ya se mostraron
+      try { await cargarChart(); } catch(e){ return; }
 
       // --- Gráfico 1: recepciones por planta (mr) [barras] ---
       const porPlanta = {};
