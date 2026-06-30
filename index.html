@@ -206,7 +206,7 @@
           <div><label>Nombre del predio</label><input id="nombrePredio" placeholder="Fundo El Roble" /></div>
           <div><label>Propietario</label><input id="propietario" placeholder="Juan Pérez" /></div>
           <div><label>Comuna</label><input id="comuna" placeholder="Los Ángeles" /></div>
-          <div><label>Especie predominante</label><select id="especie"><option value="pino">Pino</option><option value="eucalipto">Eucalipto</option><option value="nativo">Nativo</option><option value="otro">Otro</option></select></div>
+          <div><label>Especie predominante</label><select id="especie"><option value="PINO">PINO</option><option value="EUCALYPTUS">EUCALYPTUS</option><option value="NATIVO">NATIVO</option><option value="OTRO">OTRO</option></select></div>
           <div><label>Tipo de negocio</label><select id="tipoNegocio"><option value="bosque_en_pie">Bosque en pie</option><option value="madera_puesta_planta">Madera puesta en planta</option></select></div>
           <div><label>Georreferenciación (lat, lng)</label><input id="rolGeo" placeholder="-37.4689, -72.3534" /><div class="hint">Coordenadas del predio para trazabilidad.</div></div>
         </div>
@@ -269,7 +269,7 @@
         <p class="sub">Catálogo de productos que se solicitan en las órdenes de compra.</p>
         <div class="grid g3">
           <div><label>Código de producto</label><input id="prodCodigo" placeholder="P244" /><div class="hint">Debe coincidir con el código del Excel de recepciones.</div></div>
-          <div><label>Especie</label><select id="prodEspecie"><option value="pino">Pino</option><option value="eucalipto">Eucalipto</option><option value="nativo">Nativo</option><option value="otro">Otro</option></select></div>
+          <div><label>Especie</label><select id="prodEspecie"><option value="PINO">PINO</option><option value="EUCALYPTUS">EUCALYPTUS</option><option value="NATIVO">NATIVO</option><option value="OTRO">OTRO</option></select></div>
           <div><label>Variedad</label><input id="prodVariedad" placeholder="Radiata" /></div>
           <div><label>Tipo de producto</label><input id="prodTipo" placeholder="Trozo aserrable / Pulpable" /></div>
           <div><label>Largo (m)</label><input id="prodLargo" type="number" step="0.01" placeholder="2.44" /></div>
@@ -295,7 +295,7 @@
         <div class="grid">
           <div><label>Rol de predio</label><select id="nRol"><option value="">— Selecciona un rol —</option></select></div>
           <div><label>Proveedor</label><input id="nProveedor" placeholder="Aserradero Sur" /></div>
-          <div><label>Especie</label><select id="nEspecie"><option value="pino">Pino</option><option value="eucalipto">Eucalipto</option><option value="nativo">Nativo</option><option value="otro">Otro</option></select></div>
+          <div><label>Especie</label><select id="nEspecie"><option value="PINO">PINO</option><option value="EUCALYPTUS">EUCALYPTUS</option><option value="NATIVO">NATIVO</option><option value="OTRO">OTRO</option></select></div>
           <div><label>Volumen estimado (m³)</label><input id="nVolumen" type="number" step="0.01" placeholder="1200" /></div>
           <div><label>Precio compra</label><input id="nPrecio" type="number" step="1" placeholder="35000" /></div>
           <div><label>Planta de destino</label><select id="nPlanta"><option value="">— Sin asignar —</option></select></div>
@@ -537,6 +537,8 @@
     // Parsea "lat, lng" -> {lat,lng} o null
     const parseGeo = (raw) => { const v=(raw||"").trim(); if(!v) return null; const p=v.split(",").map((s)=>parseFloat(s.trim())); return (p.length===2 && !isNaN(p[0]) && !isNaN(p[1])) ? {lat:p[0],lng:p[1]} : null; };
     const geoTxt = (g) => g && g.lat!=null ? (g.lat+", "+g.lng) : "—";
+    // Normaliza texto descriptivo a MAYÚSCULAS (no usar en emails, coordenadas ni contraseñas)
+    const up = (s) => (s||"").toString().trim().toUpperCase();
     const statusEl = $("status");
 
     let rolesCache = [], plantasCache = [], productosCache = [], negociosCache = [], ocCache = [], recepcionesCache = [];
@@ -719,7 +721,7 @@
       editandoRolId = id;
       $("numeroRol").value = r.numeroRol||""; $("nombrePredio").value = r.nombrePredio||"";
       $("propietario").value = r.propietario||""; $("comuna").value = r.comuna||"";
-      $("especie").value = r.especiePredominante||"pino"; $("tipoNegocio").value = r.tipoNegocio||"bosque_en_pie";
+      $("especie").value = up(r.especiePredominante)||"PINO"; $("tipoNegocio").value = r.tipoNegocio||"bosque_en_pie";
       $("rolGeo").value = r.georeferencia ? geoTxt(r.georeferencia) : "";
       $("btnGuardar").textContent = "Actualizar rol";
       $("btnCancelarRol").style.display = "inline-block";
@@ -761,7 +763,7 @@
     $("btnGuardar").addEventListener("click", async () => {
       const numeroRol = $("numeroRol").value.trim(); const m = $("formMsg");
       if (!numeroRol) { m.textContent="El número de rol es obligatorio."; m.className="msg err"; return; }
-      const datos = { numeroRol, nombrePredio:$("nombrePredio").value.trim(), propietario:$("propietario").value.trim(), comuna:$("comuna").value.trim(), especiePredominante:$("especie").value, tipoNegocio:$("tipoNegocio").value, georeferencia: parseGeo($("rolGeo").value) };
+      const datos = { numeroRol, nombrePredio:up($("nombrePredio").value), propietario:up($("propietario").value), comuna:up($("comuna").value), especiePredominante:$("especie").value, tipoNegocio:$("tipoNegocio").value, georeferencia: parseGeo($("rolGeo").value) };
       $("btnGuardar").disabled=true; m.textContent="Guardando…"; m.className="msg";
       try {
         if (editandoRolId){
@@ -804,9 +806,9 @@
       if (!nombre){ $("plantaMsg").textContent="La bodega necesita un nombre."; $("plantaMsg").className="msg err"; return; }
       bodegasTemp.push({
         bodegaId: Date.now().toString(36),
-        nombre,
-        direccion: $("bDireccion").value.trim(),
-        comuna: $("bComuna").value.trim(),
+        nombre: up(nombre),
+        direccion: up($("bDireccion").value),
+        comuna: up($("bComuna").value),
         georeferencia: parseGeo($("bGeo").value),
       });
       ["bNombre","bDireccion","bComuna","bGeo"].forEach((id)=>$(id).value="");
@@ -819,10 +821,10 @@
       // Si quedó una bodega escrita sin agregar, la incluimos automáticamente
       const bodegas = [...bodegasTemp];
       if ($("bNombre").value.trim()){
-        bodegas.push({ bodegaId: Date.now().toString(36), nombre:$("bNombre").value.trim(), direccion:$("bDireccion").value.trim(), comuna:$("bComuna").value.trim(), georeferencia:parseGeo($("bGeo").value) });
+        bodegas.push({ bodegaId: Date.now().toString(36), nombre:up($("bNombre").value), direccion:up($("bDireccion").value), comuna:up($("bComuna").value), georeferencia:parseGeo($("bGeo").value) });
       }
       $("btnGuardarPlanta").disabled=true; m.textContent="Guardando…"; m.className="msg";
-      try { await addDoc(collection(db,"clientes"),{ nombre, rut:$("pRut").value.trim(), contactoNombre:$("pContacto").value.trim(), contactoTelefono:$("pTel").value.trim(), comuna:$("pComuna").value.trim(), esPlantaDestino: $("pEsPlanta").value==="true", bodegas, estado:"activo", fechaCreacion:serverTimestamp() });
+      try { await addDoc(collection(db,"clientes"),{ nombre:up(nombre), rut:$("pRut").value.trim(), contactoNombre:up($("pContacto").value), contactoTelefono:$("pTel").value.trim(), comuna:up($("pComuna").value), esPlantaDestino: $("pEsPlanta").value==="true", bodegas, estado:"activo", fechaCreacion:serverTimestamp() });
         m.textContent="✓ Ficha guardada con "+bodegas.length+" bodega(s)."; m.className="msg ok";
         ["pNombre","pRut","pContacto","pTel","pComuna","bNombre","bDireccion","bComuna","bGeo"].forEach((id)=>$(id).value="");
         bodegasTemp = []; renderBodegasTemp();
@@ -854,7 +856,7 @@
     function iniciarEdicionProd(id){
       const p = productosCache.find((x)=>x.id===id); if (!p) return;
       editandoProdId = id;
-      $("prodCodigo").value = p.codigo||""; $("prodEspecie").value = p.especie||"pino";
+      $("prodCodigo").value = p.codigo||""; $("prodEspecie").value = up(p.especie)||"PINO";
       $("prodVariedad").value = p.variedad||""; $("prodTipo").value = p.tipoProducto||"";
       $("prodLargo").value = p.largo??""; $("prodDiam").value = p.diametroMin??""; $("prodCalidad").value = p.calidad||"";
       $("prodUM").value = p.unidadMedida||"MR"; $("prodDescripcion").value = p.descripcion||"";
@@ -894,7 +896,7 @@
 
     $("btnGuardarProd").addEventListener("click", async () => {
       const m = $("prodMsg");
-      const datos = { codigo:$("prodCodigo").value.trim(), especie:$("prodEspecie").value, variedad:$("prodVariedad").value.trim(), tipoProducto:$("prodTipo").value.trim(), largo:parseFloat($("prodLargo").value)||null, diametroMin:parseFloat($("prodDiam").value)||null, calidad:$("prodCalidad").value.trim(), unidadMedida:$("prodUM").value, descripcion:$("prodDescripcion").value.trim() };
+      const datos = { codigo:up($("prodCodigo").value), especie:$("prodEspecie").value, variedad:up($("prodVariedad").value), tipoProducto:up($("prodTipo").value), largo:parseFloat($("prodLargo").value)||null, diametroMin:parseFloat($("prodDiam").value)||null, calidad:up($("prodCalidad").value), unidadMedida:$("prodUM").value, descripcion:up($("prodDescripcion").value) };
       $("btnGuardarProd").disabled=true; m.textContent="Guardando…"; m.className="msg";
       try {
         if (editandoProdId){
@@ -924,7 +926,7 @@
       if (!rolId) { m.textContent="Debes seleccionar un rol."; m.className="msg err"; return; }
       const rol = rolesCache.find((r)=>r.id===rolId); const planta = plantasCache.find((p)=>p.id===$("nPlanta").value);
       $("btnGuardarNeg").disabled=true; m.textContent="Guardando…"; m.className="msg";
-      try { await addDoc(collection(db,"negocios"),{ rolId, numeroRol: rol?rol.numeroRol:"", proveedor:$("nProveedor").value.trim(), especie:$("nEspecie").value, volumenEstimadoM3:parseFloat($("nVolumen").value)||0, precioCompra:parseFloat($("nPrecio").value)||0, plantaDestinoId:$("nPlanta").value||null, plantaDestinoNombre: planta?planta.nombre:null, tipoNegocio:$("nTipo").value, incluyeCosecha:$("nTipo").value==="bosque_en_pie", incluyeFlete:$("nTipo").value==="bosque_en_pie", estado:"en_curso", fechaCreacion:serverTimestamp() });
+      try { await addDoc(collection(db,"negocios"),{ rolId, numeroRol: rol?rol.numeroRol:"", proveedor:up($("nProveedor").value), especie:$("nEspecie").value, volumenEstimadoM3:parseFloat($("nVolumen").value)||0, precioCompra:parseFloat($("nPrecio").value)||0, plantaDestinoId:$("nPlanta").value||null, plantaDestinoNombre: planta?planta.nombre:null, tipoNegocio:$("nTipo").value, incluyeCosecha:$("nTipo").value==="bosque_en_pie", incluyeFlete:$("nTipo").value==="bosque_en_pie", estado:"en_curso", fechaCreacion:serverTimestamp() });
         m.textContent="✓ Negocio guardado."; m.className="msg ok"; ["nProveedor","nVolumen","nPrecio"].forEach((id)=>$(id).value=""); $("nRol").value=""; $("nPlanta").value="";
       } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarNeg").disabled=false; }
     });
@@ -1237,7 +1239,7 @@
     async function crearRolRapido(numeroRol, btn){
       btn.disabled = true; btn.textContent = "Creando…";
       try {
-        await addDoc(collection(db,"roles"), { numeroRol, nombrePredio:"", propietario:"", comuna:"", especiePredominante:"pino", tipoNegocio:"bosque_en_pie", estado:"activo", origen:"creado_desde_importacion", fechaCreacion:serverTimestamp() });
+        await addDoc(collection(db,"roles"), { numeroRol, nombrePredio:"", propietario:"", comuna:"", especiePredominante:"PINO", tipoNegocio:"bosque_en_pie", estado:"activo", origen:"creado_desde_importacion", fechaCreacion:serverTimestamp() });
         btn.textContent = "✓ Creado"; btn.classList.add("done");
       } catch(e){ btn.disabled=false; btn.textContent="Reintentar"; }
     }
@@ -1350,11 +1352,11 @@
       try {
         await addDoc(collection(db,"gastos"), {
           rolId, numeroRol: rol?rol.numeroRol:"",
-          categoria: $("gCategoria").value.trim() || "Sin categoría",
-          descripcion: $("gDescripcion").value.trim(),
+          categoria: up($("gCategoria").value) || "SIN CATEGORÍA",
+          descripcion: up($("gDescripcion").value),
           monto, moneda: "CLP",
           fecha: fecha || null, periodo,
-          proveedor: $("gProveedor").value.trim(),
+          proveedor: up($("gProveedor").value),
           fechaCreacion: serverTimestamp(),
         });
         m.textContent="✓ Gasto guardado."; m.className="msg ok";
@@ -1661,7 +1663,7 @@
             nombrePredio: pick(row, ["descrip._predio","nombre_predio"]).toString().trim(),
             comuna: pick(row, ["comuna_ctto.","comuna"]).toString().trim(),
             georeferencia: parseCoordSemi(pick(row, ["coordenadas_origen","coordenadas"])),
-            especiePredominante: (pick(row, ["especie"]).toString().trim().toLowerCase()) || "pino",
+            especiePredominante: up(pick(row, ["especie"])) || "PINO",
             tipoNegocio: "bosque_en_pie", estado: "activo", origen: "precarga_excel",
           });
         });
