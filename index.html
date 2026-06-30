@@ -655,7 +655,23 @@
       $("userInfo").textContent = usuarioActual.nombre || usuarioActual.email;
       $("userBadge").textContent = usuarioActual.tipo;
       aplicarPermisos();
+      iniciarListeners();   // arranca las consultas a Firestore SOLO con sesión confirmada
     });
+
+    // Registra los listeners de Firestore una sola vez, ya con sesión activa.
+    let _listenersIniciados = false;
+    const _colaSnap = [];
+    // regSnap: encola un listener si aún no hay sesión; lo ejecuta cuando la haya.
+    function regSnap(...args){
+      if (_listenersIniciados){ try { onSnapshot(...args); } catch(e){} }
+      else { _colaSnap.push(args); }
+    }
+    function iniciarListeners(){
+      if (_listenersIniciados) return;
+      _listenersIniciados = true;
+      _colaSnap.forEach((args)=>{ try { onSnapshot(...args); } catch(e){} });
+      _colaSnap.length = 0;
+    }
 
     // Pestañas
     document.querySelectorAll("nav.sidebar button").forEach((b) => {
@@ -677,7 +693,7 @@
     let editandoRolId = null;
     let rolesListadosVisible = false;  // si la tabla está mostrando algo
 
-    onSnapshot(query(collection(db, "roles"), orderBy("fechaCreacion", "desc")), (snap) => {
+    regSnap(query(collection(db, "roles"), orderBy("fechaCreacion", "desc")), (snap) => {
       statusEl.innerHTML = '<span class="dot ok"></span>Conectado &middot; controlgestionforestal';
       if (usuarioActual) aplicarPermisos();
       rolesCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -777,7 +793,7 @@
     });
 
     // ---- PLANTAS ----
-    onSnapshot(query(collection(db,"clientes"), orderBy("fechaCreacion","desc")), (snap) => {
+    regSnap(query(collection(db,"clientes"), orderBy("fechaCreacion","desc")), (snap) => {
       plantasCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       const t = $("tablaPlantas");
       t.innerHTML = snap.empty ? '<tr><td colspan="6" class="empty">Aún no hay plantas ni clientes.</td></tr>' :
@@ -834,7 +850,7 @@
     // ---- PRODUCTOS ----
     let editandoProdId = null;  // id del producto en edición, o null
 
-    onSnapshot(query(collection(db,"productos"), orderBy("fechaCreacion","desc")), (snap) => {
+    regSnap(query(collection(db,"productos"), orderBy("fechaCreacion","desc")), (snap) => {
       productosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       const t = $("tablaProd");
       const puedeEd = puede("editar"), puedeBo = puede("borrar");
@@ -912,7 +928,7 @@
     });
 
     // ---- NEGOCIOS ----
-    onSnapshot(query(collection(db,"negocios"), orderBy("fechaCreacion","desc")), (snap) => {
+    regSnap(query(collection(db,"negocios"), orderBy("fechaCreacion","desc")), (snap) => {
       negociosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       const t = $("tablaNeg");
       t.innerHTML = snap.empty ? '<tr><td colspan="6" class="empty">Aún no hay negocios.</td></tr>' :
@@ -932,7 +948,7 @@
     });
 
     // ---- ÓRDENES DE COMPRA ----
-    onSnapshot(query(collection(db,"ordenesCompra"), orderBy("fechaCreacion","desc")), (snap) => {
+    regSnap(query(collection(db,"ordenesCompra"), orderBy("fechaCreacion","desc")), (snap) => {
       ocCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       const t = $("tablaOC");
       t.innerHTML = snap.empty ? '<tr><td colspan="7" class="empty">Aún no hay órdenes de compra.</td></tr>' :
@@ -988,7 +1004,7 @@
     $("rRol").addEventListener("change", actualizarPickOC);
     $("rProducto").addEventListener("change", actualizarPickOC);
 
-    onSnapshot(query(collection(db,"recepciones"), orderBy("fechaCreacion","desc")), (snap) => {
+    regSnap(query(collection(db,"recepciones"), orderBy("fechaCreacion","desc")), (snap) => {
       recepcionesCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       const t=$("tablaRec");
       t.innerHTML = snap.empty ? '<tr><td colspan="7" class="empty">Aún no hay recepciones.</td></tr>' :
@@ -1367,7 +1383,7 @@
 
     $("gFiltroRol").addEventListener("change", renderGastos);
 
-    onSnapshot(query(collection(db,"gastos"), orderBy("fechaCreacion","desc")), (snap) => {
+    regSnap(query(collection(db,"gastos"), orderBy("fechaCreacion","desc")), (snap) => {
       gastosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       // Autocompletado de categorías ya usadas
       const cats = [...new Set(gastosCache.map((g)=>g.categoria).filter(Boolean))];
@@ -1423,7 +1439,7 @@
       } finally { $("btnCrearUsuario").disabled = !puede("usuarios"); }
     });
 
-    onSnapshot(query(collection(db,"usuarios"), orderBy("fechaCreacion","desc")), (snap) => {
+    regSnap(query(collection(db,"usuarios"), orderBy("fechaCreacion","desc")), (snap) => {
       const t = $("tablaUsuarios");
       if (snap.empty){ t.innerHTML = '<tr><td colspan="5" class="empty">Sin usuarios.</td></tr>'; return; }
       t.innerHTML = snap.docs.map((d)=>{
@@ -1492,7 +1508,7 @@
     });
 
     // Escuchar datos de empresa y aplicarlos (header + formulario)
-    onSnapshot(doc(db,"config","empresa"), (snap) => {
+    regSnap(doc(db,"config","empresa"), (snap) => {
       if (!snap.exists()) return;
       const e = snap.data();
       // Rellenar formulario
