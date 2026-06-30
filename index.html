@@ -209,12 +209,19 @@
           <div><label>Tipo de negocio</label><select id="tipoNegocio"><option value="bosque_en_pie">Bosque en pie</option><option value="madera_puesta_planta">Madera puesta en planta</option></select></div>
           <div><label>Georreferenciación (lat, lng)</label><input id="rolGeo" placeholder="-37.4689, -72.3534" /><div class="hint">Coordenadas del predio para trazabilidad.</div></div>
         </div>
-        <div class="actions"><button class="primary" id="btnGuardar" disabled>Guardar rol</button><span class="msg" id="formMsg"></span></div>
+        <div class="actions"><button class="primary" id="btnGuardar" disabled>Guardar rol</button><button class="primary" id="btnCancelarRol" style="display:none; background:var(--muted); border-color:var(--muted)">Cancelar edición</button><span class="msg" id="formMsg"></span></div>
       </section>
       <section class="card">
         <h2><span class="num">02</span> Roles registrados</h2>
-        <table><thead><tr><th>Rol</th><th>Predio</th><th>Propietario</th><th>Comuna</th><th>Especie</th><th>Geo</th><th>Negocio</th></tr></thead>
-        <tbody id="tablaRoles"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
+        <p class="sub">Busca un rol específico o carga el listado completo.</p>
+        <div class="actions" style="margin-top:0; margin-bottom:16px">
+          <input id="rolBuscar" placeholder="Buscar por rol, predio o propietario…" style="max-width:340px" />
+          <button class="primary" id="btnBuscarRol">Buscar</button>
+          <button class="primary" id="btnVerTodosRoles" style="background:var(--muted); border-color:var(--muted)">Ver todos</button>
+          <span class="hint" id="rolesCount"></span>
+        </div>
+        <table><thead><tr><th>Rol</th><th>Predio</th><th>Propietario</th><th>Comuna</th><th>Especie</th><th>Geo</th><th>Acciones</th></tr></thead>
+        <tbody id="tablaRoles"><tr><td colspan="7" class="empty">Usa el buscador o pulsa "Ver todos" para listar los roles.</td></tr></tbody></table>
       </section>
     </div>
 
@@ -639,27 +646,106 @@
     }
 
     // ---- ROLES ----
+    let editandoRolId = null;
+    let rolesListadosVisible = false;  // si la tabla está mostrando algo
+
     onSnapshot(query(collection(db, "roles"), orderBy("fechaCreacion", "desc")), (snap) => {
       statusEl.innerHTML = '<span class="dot ok"></span>Conectado &middot; controlgestionforestal';
       if (usuarioActual) aplicarPermisos();
       rolesCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const t = $("tablaRoles");
-      t.innerHTML = snap.empty ? '<tr><td colspan="7" class="empty">Aún no hay roles.</td></tr>' :
-        rolesCache.map((r) => { const c = r.tipoNegocio==="bosque_en_pie"?"pie":"planta"; const x=r.tipoNegocio==="bosque_en_pie"?"Bosque en pie":"Puesta en planta";
-          return '<tr><td><strong>'+esc(r.numeroRol)+'</strong></td><td>'+esc(r.nombrePredio)+'</td><td>'+esc(r.propietario)+'</td><td>'+esc(r.comuna)+'</td><td>'+esc(r.especiePredominante)+'</td><td>'+esc(geoTxt(r.georeferencia))+'</td><td><span class="tag '+c+'">'+x+'</span></td></tr>'; }).join("");
+      // No pintamos la tabla automáticamente. Solo refrescamos si ya hay un listado visible.
+      if (rolesListadosVisible) renderRolesTabla(rolesFiltroActual());
+      // Selectores sí se actualizan siempre (los usan otros módulos)
       setSelect($("nRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona un rol —");
       setSelect($("rRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona rol —");
       setSelect($("gRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona rol —");
       setSelect($("gFiltroRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "Todos los roles");
     }, (e)=>{ statusEl.innerHTML='<span class="dot err"></span>Error: '+e.message; });
 
+    let _rolFiltro = null;  // null = todos; string = término de búsqueda
+    function rolesFiltroActual(){
+      if (_rolFiltro === null) return rolesCache;
+      const q = _rolFiltro.toLowerCase();
+      return rolesCache.filter((r)=> (r.numeroRol||"").toLowerCase().includes(q) || (r.nombrePredio||"").toLowerCase().includes(q) || (r.propietario||"").toLowerCase().includes(q));
+    }
+
+    function renderRolesTabla(lista){
+      rolesListadosVisible = true;
+      const t = $("tablaRoles");
+      const puedeEd = puede("editar"), puedeBo = puede("borrar");
+      if (!lista.length){ t.innerHTML = '<tr><td colspan="7" class="empty">No se encontraron roles.</td></tr>'; $("rolesCount").textContent=""; return; }
+      $("rolesCount").textContent = lista.length + " rol(es)";
+      t.innerHTML = lista.map((r)=>{
+        let acc = "";
+        if (puedeEd) acc += '<button class="act" data-edit-rol="'+r.id+'">Editar</button>';
+        if (!acc) acc = '<span class="hint">—</span>';
+        return '<tr><td><strong>'+esc(r.numeroRol)+'</strong></td><td>'+esc(r.nombrePredio)+'</td><td>'+esc(r.propietario)+'</td><td>'+esc(r.comuna)+'</td><td>'+esc(r.especiePredominante)+'</td><td>'+esc(geoTxt(r.georeferencia))+'</td><td style="white-space:nowrap">'+acc+'</td></tr>';
+      }).join("");
+      t.querySelectorAll("[data-edit-rol]").forEach((b)=> b.addEventListener("click", ()=> iniciarEdicionRol(b.dataset.editRol)));
+    }
+
+    $("btnVerTodosRoles").addEventListener("click", ()=>{ _rolFiltro = null; renderRolesTabla(rolesCache); });
+    $("btnBuscarRol").addEventListener("click", ()=>{ _rolFiltro = $("rolBuscar").value.trim(); renderRolesTabla(rolesFiltroActual()); });
+    $("rolBuscar").addEventListener("keydown", (e)=>{ if (e.key==="Enter"){ _rolFiltro = $("rolBuscar").value.trim(); renderRolesTabla(rolesFiltroActual()); } });
+
+    function iniciarEdicionRol(id){
+      const r = rolesCache.find((x)=>x.id===id); if (!r) return;
+      editandoRolId = id;
+      $("numeroRol").value = r.numeroRol||""; $("nombrePredio").value = r.nombrePredio||"";
+      $("propietario").value = r.propietario||""; $("comuna").value = r.comuna||"";
+      $("especie").value = r.especiePredominante||"pino"; $("tipoNegocio").value = r.tipoNegocio||"bosque_en_pie";
+      $("rolGeo").value = r.georeferencia ? geoTxt(r.georeferencia) : "";
+      $("btnGuardar").textContent = "Actualizar rol";
+      $("btnCancelarRol").style.display = "inline-block";
+      // Si es admin, ofrecer eliminar dentro de la edición
+      if (puede("borrar")){
+        $("formMsg").innerHTML = 'Editando rol '+esc(r.numeroRol)+' · <button class="act del" id="btnEliminarRol">Eliminar este rol</button>';
+        $("formMsg").className = "msg";
+        $("btnEliminarRol").addEventListener("click", ()=> eliminarRol(id));
+      } else {
+        $("formMsg").textContent = "Editando rol "+r.numeroRol; $("formMsg").className = "msg";
+      }
+      $("view-roles").scrollIntoView({ behavior:"smooth" });
+    }
+
+    function cancelarEdicionRol(){
+      editandoRolId = null;
+      ["numeroRol","nombrePredio","propietario","comuna","rolGeo"].forEach((id)=>$(id).value="");
+      $("especie").value="pino"; $("tipoNegocio").value="bosque_en_pie";
+      $("btnGuardar").textContent = "Guardar rol";
+      $("btnCancelarRol").style.display = "none";
+      $("formMsg").textContent = "";
+    }
+    $("btnCancelarRol").addEventListener("click", cancelarEdicionRol);
+
+    async function eliminarRol(id){
+      const r = rolesCache.find((x)=>x.id===id); if (!r) return;
+      const usadoNeg = negociosCache.some((n)=>n.rolId===id);
+      const usadoRec = recepcionesCache.some((x)=>x.rolId===id);
+      const usadoOC = ocCache.some((o)=>o.rolId===id);
+      const usadoGas = gastosCache.some((g)=>g.rolId===id);
+      let aviso = "¿Eliminar el rol \""+(r.numeroRol||"")+" · "+(r.nombrePredio||"")+"\"?";
+      const usos = [usadoNeg&&"negocios", usadoRec&&"recepciones", usadoOC&&"órdenes de compra", usadoGas&&"gastos"].filter(Boolean);
+      if (usos.length) aviso += "\n\n⚠️ Atención: este rol tiene "+usos.join(", ")+" asociados. Esos registros quedarán sin rol asociado, pero NO se borran.";
+      if (!confirm(aviso)) return;
+      try { await deleteDoc(doc(db,"roles",id)); cancelarEdicionRol(); if (rolesListadosVisible) renderRolesTabla(rolesFiltroActual()); }
+      catch(e){ alert("Error al eliminar: "+e.message); }
+    }
+
     $("btnGuardar").addEventListener("click", async () => {
       const numeroRol = $("numeroRol").value.trim(); const m = $("formMsg");
       if (!numeroRol) { m.textContent="El número de rol es obligatorio."; m.className="msg err"; return; }
+      const datos = { numeroRol, nombrePredio:$("nombrePredio").value.trim(), propietario:$("propietario").value.trim(), comuna:$("comuna").value.trim(), especiePredominante:$("especie").value, tipoNegocio:$("tipoNegocio").value, georeferencia: parseGeo($("rolGeo").value) };
       $("btnGuardar").disabled=true; m.textContent="Guardando…"; m.className="msg";
-      try { await addDoc(collection(db,"roles"),{ numeroRol, nombrePredio:$("nombrePredio").value.trim(), propietario:$("propietario").value.trim(), comuna:$("comuna").value.trim(), especiePredominante:$("especie").value, tipoNegocio:$("tipoNegocio").value, georeferencia: parseGeo($("rolGeo").value), estado:"activo", fechaCreacion:serverTimestamp() });
-        m.textContent="✓ Rol guardado."; m.className="msg ok"; ["numeroRol","nombrePredio","propietario","comuna","rolGeo"].forEach((id)=>$(id).value="");
-      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardar").disabled=false; }
+      try {
+        if (editandoRolId){
+          await updateDoc(doc(db,"roles",editandoRolId), datos);
+          m.textContent="✓ Rol actualizado."; m.className="msg ok"; cancelarEdicionRol();
+        } else {
+          await addDoc(collection(db,"roles"), { ...datos, estado:"activo", fechaCreacion:serverTimestamp() });
+          m.textContent="✓ Rol guardado."; m.className="msg ok"; ["numeroRol","nombrePredio","propietario","comuna","rolGeo"].forEach((id)=>$(id).value="");
+        }
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardar").disabled = !puede("editar"); }
     });
 
     // ---- PLANTAS ----
@@ -748,7 +834,13 @@
       $("prodUM").value = p.unidadMedida||"MR"; $("prodDescripcion").value = p.descripcion||"";
       $("btnGuardarProd").textContent = "Actualizar producto";
       $("btnCancelarProd").style.display = "inline-block";
-      $("prodMsg").textContent = "Editando producto "+(p.codigo||""); $("prodMsg").className = "msg";
+      if (puede("borrar")){
+        $("prodMsg").innerHTML = 'Editando producto '+esc(p.codigo||"")+' · <button class="act del" id="btnEliminarProdEdit">Eliminar este producto</button>';
+        $("prodMsg").className = "msg";
+        $("btnEliminarProdEdit").addEventListener("click", ()=> eliminarProd(id));
+      } else {
+        $("prodMsg").textContent = "Editando producto "+(p.codigo||""); $("prodMsg").className = "msg";
+      }
       $("view-productos").scrollIntoView({ behavior:"smooth" });
     }
 
