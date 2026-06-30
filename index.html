@@ -253,12 +253,12 @@
           <div id="bodegasLista" style="margin-top:12px"></div>
         </div>
 
-        <div class="actions"><button class="primary" id="btnGuardarPlanta" disabled>Guardar ficha</button><span class="msg" id="plantaMsg"></span></div>
+        <div class="actions"><button class="primary" id="btnGuardarPlanta" disabled>Guardar ficha</button><button class="primary" id="btnCancelarPlanta" style="display:none; background:var(--muted); border-color:var(--muted)">Cancelar edición</button><span class="msg" id="plantaMsg"></span></div>
       </section>
       <section class="card">
         <h2><span class="num">02</span> Plantas y clientes</h2>
-        <table><thead><tr><th>Nombre</th><th>RUT</th><th>Contacto</th><th>Comuna</th><th class="num-cell">Bodegas</th><th>Tipo</th></tr></thead>
-        <tbody id="tablaPlantas"><tr><td colspan="6" class="empty">Cargando&hellip;</td></tr></tbody></table>
+        <table><thead><tr><th>Nombre</th><th>RUT</th><th>Contacto</th><th>Comuna</th><th class="num-cell">Bodegas</th><th>Tipo</th><th>Acciones</th></tr></thead>
+        <tbody id="tablaPlantas"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
       </section>
     </div>
 
@@ -301,12 +301,12 @@
           <div><label>Planta de destino</label><select id="nPlanta"><option value="">— Sin asignar —</option></select></div>
           <div><label>Tipo de negocio</label><select id="nTipo"><option value="bosque_en_pie">Bosque en pie (cosecha + flete)</option><option value="madera_puesta_planta">Madera puesta en planta</option></select></div>
         </div>
-        <div class="actions"><button class="primary" id="btnGuardarNeg" disabled>Guardar negocio</button><span class="msg" id="negMsg"></span></div>
+        <div class="actions"><button class="primary" id="btnGuardarNeg" disabled>Guardar negocio</button><button class="primary" id="btnCancelarNeg" style="display:none; background:var(--muted); border-color:var(--muted)">Cancelar edición</button><span class="msg" id="negMsg"></span></div>
       </section>
       <section class="card">
         <h2><span class="num">02</span> Negocios registrados</h2>
-        <table><thead><tr><th>Rol</th><th>Proveedor</th><th>Especie</th><th class="num-cell">Vol. m³</th><th>Planta</th><th>Tipo</th></tr></thead>
-        <tbody id="tablaNeg"><tr><td colspan="6" class="empty">Cargando&hellip;</td></tr></tbody></table>
+        <table><thead><tr><th>Rol</th><th>Proveedor</th><th>Especie</th><th class="num-cell">Vol. m³</th><th>Planta</th><th>Tipo</th><th>Acciones</th></tr></thead>
+        <tbody id="tablaNeg"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
       </section>
     </div>
 
@@ -796,10 +796,13 @@
     regSnap(query(collection(db,"clientes"), orderBy("fechaCreacion","desc")), (snap) => {
       plantasCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       const t = $("tablaPlantas");
-      t.innerHTML = snap.empty ? '<tr><td colspan="6" class="empty">Aún no hay plantas ni clientes.</td></tr>' :
+      const puedeEd = puede("editar"), puedeBo = puede("borrar");
+      t.innerHTML = snap.empty ? '<tr><td colspan="7" class="empty">Aún no hay plantas ni clientes.</td></tr>' :
         plantasCache.map((p)=>{ const c=p.esPlantaDestino?"planta":"abierta"; const x=p.esPlantaDestino?"Planta destino":"Cliente";
           const nBod=(p.bodegas||[]).length; const nombresBod=(p.bodegas||[]).map((b)=>b.nombre).join(", ");
-          return '<tr><td><strong>'+esc(p.nombre)+'</strong></td><td>'+esc(p.rut)+'</td><td>'+esc(p.contactoNombre)+'</td><td>'+esc(p.comuna)+'</td><td class="num-cell" title="'+esc(nombresBod)+'">'+nBod+'</td><td><span class="tag '+c+'">'+x+'</span></td></tr>'; }).join("");
+          let acc=""; if (puedeEd) acc+='<button class="act" data-edit-planta="'+p.id+'">Editar</button>'; if (!acc) acc='<span class="hint">—</span>';
+          return '<tr><td><strong>'+esc(p.nombre)+'</strong></td><td>'+esc(p.rut)+'</td><td>'+esc(p.contactoNombre)+'</td><td>'+esc(p.comuna)+'</td><td class="num-cell" title="'+esc(nombresBod)+'">'+nBod+'</td><td><span class="tag '+c+'">'+x+'</span></td><td style="white-space:nowrap">'+acc+'</td></tr>'; }).join("");
+      t.querySelectorAll("[data-edit-planta]").forEach((b)=> b.addEventListener("click", ()=> iniciarEdicionPlanta(b.dataset.editPlanta)));
       const plantasDestino = plantasCache.filter((p)=>p.esPlantaDestino);
       setSelect($("nPlanta"), plantasDestino, (p)=>'<option value="'+p.id+'">'+esc(p.nombre)+'</option>', "— Sin asignar —");
       setSelect($("ocPlanta"), plantasCache, (p)=>'<option value="'+p.id+'">'+esc(p.nombre)+'</option>', "— Selecciona planta —");
@@ -831,20 +834,67 @@
       $("plantaMsg").textContent=""; renderBodegasTemp();
     });
 
+    let editandoPlantaId = null;
+
+    function iniciarEdicionPlanta(id){
+      const p = plantasCache.find((x)=>x.id===id); if (!p) return;
+      editandoPlantaId = id;
+      $("pNombre").value = p.nombre||""; $("pRut").value = p.rut||"";
+      $("pContacto").value = p.contactoNombre||""; $("pTel").value = p.contactoTelefono||"";
+      $("pComuna").value = p.comuna||""; $("pEsPlanta").value = p.esPlantaDestino ? "true":"false";
+      bodegasTemp = (p.bodegas||[]).map((b)=>({ ...b })); renderBodegasTemp();
+      $("btnGuardarPlanta").textContent = "Actualizar ficha";
+      $("btnCancelarPlanta").style.display = "inline-block";
+      if (puede("borrar")){
+        $("plantaMsg").innerHTML = 'Editando '+esc(p.nombre)+' · <button class="act del" id="btnEliminarPlanta">Eliminar esta ficha</button>';
+        $("plantaMsg").className="msg";
+        $("btnEliminarPlanta").addEventListener("click", ()=> eliminarPlanta(id));
+      } else { $("plantaMsg").textContent = "Editando "+p.nombre; $("plantaMsg").className="msg"; }
+      $("view-plantas").scrollIntoView({ behavior:"smooth" });
+    }
+
+    function cancelarEdicionPlanta(){
+      editandoPlantaId = null;
+      ["pNombre","pRut","pContacto","pTel","pComuna","bNombre","bDireccion","bComuna","bGeo"].forEach((id)=>$(id).value="");
+      $("pEsPlanta").value="true"; bodegasTemp=[]; renderBodegasTemp();
+      $("btnGuardarPlanta").textContent = "Guardar ficha";
+      $("btnCancelarPlanta").style.display = "none";
+      $("plantaMsg").textContent = "";
+    }
+    $("btnCancelarPlanta").addEventListener("click", cancelarEdicionPlanta);
+
+    async function eliminarPlanta(id){
+      const p = plantasCache.find((x)=>x.id===id); if (!p) return;
+      const usadaNeg = negociosCache.some((n)=>n.plantaDestinoId===id);
+      const usadaOC = ocCache.some((o)=>o.plantaId===id);
+      let aviso = "¿Eliminar la ficha \""+(p.nombre||"")+"\"?";
+      const usos = [usadaNeg&&"negocios", usadaOC&&"órdenes de compra"].filter(Boolean);
+      if (usos.length) aviso += "\n\n⚠️ Atención: está usada en "+usos.join(" y ")+". Esos registros quedarán sin planta asociada, pero NO se borran.";
+      if (!confirm(aviso)) return;
+      try { await deleteDoc(doc(db,"clientes",id)); cancelarEdicionPlanta(); }
+      catch(e){ alert("Error al eliminar: "+e.message); }
+    }
+
     $("btnGuardarPlanta").addEventListener("click", async () => {
       const nombre = $("pNombre").value.trim(); const m = $("plantaMsg");
       if (!nombre) { m.textContent="El nombre es obligatorio."; m.className="msg err"; return; }
-      // Si quedó una bodega escrita sin agregar, la incluimos automáticamente
       const bodegas = [...bodegasTemp];
       if ($("bNombre").value.trim()){
         bodegas.push({ bodegaId: Date.now().toString(36), nombre:up($("bNombre").value), direccion:up($("bDireccion").value), comuna:up($("bComuna").value), georeferencia:parseGeo($("bGeo").value) });
       }
+      const datos = { nombre:up(nombre), rut:$("pRut").value.trim(), contactoNombre:up($("pContacto").value), contactoTelefono:$("pTel").value.trim(), comuna:up($("pComuna").value), esPlantaDestino: $("pEsPlanta").value==="true", bodegas };
       $("btnGuardarPlanta").disabled=true; m.textContent="Guardando…"; m.className="msg";
-      try { await addDoc(collection(db,"clientes"),{ nombre:up(nombre), rut:$("pRut").value.trim(), contactoNombre:up($("pContacto").value), contactoTelefono:$("pTel").value.trim(), comuna:up($("pComuna").value), esPlantaDestino: $("pEsPlanta").value==="true", bodegas, estado:"activo", fechaCreacion:serverTimestamp() });
-        m.textContent="✓ Ficha guardada con "+bodegas.length+" bodega(s)."; m.className="msg ok";
-        ["pNombre","pRut","pContacto","pTel","pComuna","bNombre","bDireccion","bComuna","bGeo"].forEach((id)=>$(id).value="");
-        bodegasTemp = []; renderBodegasTemp();
-      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarPlanta").disabled=false; }
+      try {
+        if (editandoPlantaId){
+          await updateDoc(doc(db,"clientes",editandoPlantaId), datos);
+          m.textContent="✓ Ficha actualizada ("+bodegas.length+" bodega/s)."; m.className="msg ok"; cancelarEdicionPlanta();
+        } else {
+          await addDoc(collection(db,"clientes"), { ...datos, estado:"activo", fechaCreacion:serverTimestamp() });
+          m.textContent="✓ Ficha guardada con "+bodegas.length+" bodega(s)."; m.className="msg ok";
+          ["pNombre","pRut","pContacto","pTel","pComuna","bNombre","bDireccion","bComuna","bGeo"].forEach((id)=>$(id).value="");
+          bodegasTemp = []; renderBodegasTemp();
+        }
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarPlanta").disabled = !puede("editar"); }
     });
 
     // ---- PRODUCTOS ----
@@ -931,20 +981,68 @@
     regSnap(query(collection(db,"negocios"), orderBy("fechaCreacion","desc")), (snap) => {
       negociosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       const t = $("tablaNeg");
-      t.innerHTML = snap.empty ? '<tr><td colspan="6" class="empty">Aún no hay negocios.</td></tr>' :
+      const puedeEd = puede("editar"), puedeBo = puede("borrar");
+      t.innerHTML = snap.empty ? '<tr><td colspan="7" class="empty">Aún no hay negocios.</td></tr>' :
         negociosCache.map((n)=>{ const c=n.tipoNegocio==="bosque_en_pie"?"pie":"planta"; const x=n.tipoNegocio==="bosque_en_pie"?"Bosque en pie":"Puesta en planta";
-          return '<tr><td><strong>'+esc(n.numeroRol)+'</strong></td><td>'+esc(n.proveedor)+'</td><td>'+esc(n.especie)+'</td><td class="num-cell">'+fmt(n.volumenEstimadoM3)+'</td><td>'+esc(n.plantaDestinoNombre||"—")+'</td><td><span class="tag '+c+'">'+x+'</span></td></tr>'; }).join("");
+          let acc=""; if (puedeEd) acc+='<button class="act" data-edit-neg="'+n.id+'">Editar</button>'; if (!acc) acc='<span class="hint">—</span>';
+          return '<tr><td><strong>'+esc(n.numeroRol)+'</strong></td><td>'+esc(n.proveedor)+'</td><td>'+esc(n.especie)+'</td><td class="num-cell">'+fmt(n.volumenEstimadoM3)+'</td><td>'+esc(n.plantaDestinoNombre||"—")+'</td><td><span class="tag '+c+'">'+x+'</span></td><td style="white-space:nowrap">'+acc+'</td></tr>'; }).join("");
+      t.querySelectorAll("[data-edit-neg]").forEach((b)=> b.addEventListener("click", ()=> iniciarEdicionNeg(b.dataset.editNeg)));
       setSelect($("ocNegocio"), negociosCache, (n)=>'<option value="'+n.id+'">'+esc(n.numeroRol)+' · '+esc(n.proveedor||"")+'</option>', "— Selecciona negocio —");
     }, ()=>{});
+
+    let editandoNegId = null;
+
+    function iniciarEdicionNeg(id){
+      const n = negociosCache.find((x)=>x.id===id); if (!n) return;
+      editandoNegId = id;
+      $("nRol").value = n.rolId||""; $("nProveedor").value = n.proveedor||"";
+      $("nEspecie").value = up(n.especie)||"PINO"; $("nVolumen").value = n.volumenEstimadoM3??"";
+      $("nPrecio").value = n.precioCompra??""; $("nPlanta").value = n.plantaDestinoId||""; $("nTipo").value = n.tipoNegocio||"bosque_en_pie";
+      $("btnGuardarNeg").textContent = "Actualizar negocio";
+      $("btnCancelarNeg").style.display = "inline-block";
+      if (puede("borrar")){
+        $("negMsg").innerHTML = 'Editando negocio de '+esc(n.numeroRol)+' · <button class="act del" id="btnEliminarNeg">Eliminar este negocio</button>';
+        $("negMsg").className="msg";
+        $("btnEliminarNeg").addEventListener("click", ()=> eliminarNeg(id));
+      } else { $("negMsg").textContent = "Editando negocio de "+n.numeroRol; $("negMsg").className="msg"; }
+      $("view-negocios").scrollIntoView({ behavior:"smooth" });
+    }
+
+    function cancelarEdicionNeg(){
+      editandoNegId = null;
+      ["nProveedor","nVolumen","nPrecio"].forEach((id)=>$(id).value=""); $("nRol").value=""; $("nPlanta").value="";
+      $("nEspecie").value="PINO"; $("nTipo").value="bosque_en_pie";
+      $("btnGuardarNeg").textContent = "Guardar negocio";
+      $("btnCancelarNeg").style.display = "none";
+      $("negMsg").textContent = "";
+    }
+    $("btnCancelarNeg").addEventListener("click", cancelarEdicionNeg);
+
+    async function eliminarNeg(id){
+      const n = negociosCache.find((x)=>x.id===id); if (!n) return;
+      const usadoOC = ocCache.some((o)=>o.negocioId===id);
+      let aviso = "¿Eliminar el negocio del rol \""+(n.numeroRol||"")+"\"?";
+      if (usadoOC) aviso += "\n\n⚠️ Atención: tiene órdenes de compra asociadas. Esas quedarán sin negocio asociado, pero NO se borran.";
+      if (!confirm(aviso)) return;
+      try { await deleteDoc(doc(db,"negocios",id)); cancelarEdicionNeg(); }
+      catch(e){ alert("Error al eliminar: "+e.message); }
+    }
 
     $("btnGuardarNeg").addEventListener("click", async () => {
       const rolId = $("nRol").value; const m = $("negMsg");
       if (!rolId) { m.textContent="Debes seleccionar un rol."; m.className="msg err"; return; }
       const rol = rolesCache.find((r)=>r.id===rolId); const planta = plantasCache.find((p)=>p.id===$("nPlanta").value);
+      const datos = { rolId, numeroRol: rol?rol.numeroRol:"", proveedor:up($("nProveedor").value), especie:$("nEspecie").value, volumenEstimadoM3:parseFloat($("nVolumen").value)||0, precioCompra:parseFloat($("nPrecio").value)||0, plantaDestinoId:$("nPlanta").value||null, plantaDestinoNombre: planta?planta.nombre:null, tipoNegocio:$("nTipo").value, incluyeCosecha:$("nTipo").value==="bosque_en_pie", incluyeFlete:$("nTipo").value==="bosque_en_pie" };
       $("btnGuardarNeg").disabled=true; m.textContent="Guardando…"; m.className="msg";
-      try { await addDoc(collection(db,"negocios"),{ rolId, numeroRol: rol?rol.numeroRol:"", proveedor:up($("nProveedor").value), especie:$("nEspecie").value, volumenEstimadoM3:parseFloat($("nVolumen").value)||0, precioCompra:parseFloat($("nPrecio").value)||0, plantaDestinoId:$("nPlanta").value||null, plantaDestinoNombre: planta?planta.nombre:null, tipoNegocio:$("nTipo").value, incluyeCosecha:$("nTipo").value==="bosque_en_pie", incluyeFlete:$("nTipo").value==="bosque_en_pie", estado:"en_curso", fechaCreacion:serverTimestamp() });
-        m.textContent="✓ Negocio guardado."; m.className="msg ok"; ["nProveedor","nVolumen","nPrecio"].forEach((id)=>$(id).value=""); $("nRol").value=""; $("nPlanta").value="";
-      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarNeg").disabled=false; }
+      try {
+        if (editandoNegId){
+          await updateDoc(doc(db,"negocios",editandoNegId), datos);
+          m.textContent="✓ Negocio actualizado."; m.className="msg ok"; cancelarEdicionNeg();
+        } else {
+          await addDoc(collection(db,"negocios"), { ...datos, estado:"en_curso", fechaCreacion:serverTimestamp() });
+          m.textContent="✓ Negocio guardado."; m.className="msg ok"; ["nProveedor","nVolumen","nPrecio"].forEach((id)=>$(id).value=""); $("nRol").value=""; $("nPlanta").value="";
+        }
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarNeg").disabled = !puede("editar"); }
     });
 
     // ---- ÓRDENES DE COMPRA ----
