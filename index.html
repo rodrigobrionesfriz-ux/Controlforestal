@@ -1322,9 +1322,16 @@
           if (!numeroRol){ const cc = pick(row, ["centro_costo","centro_de_costo"]); if (cc) numeroRol = extraerRol(cc); }
           // Código de producto: EE/PP (fletes) · producto (BASE_PROF) · codigo_producto (plantilla)
           const codigoProd = pick(row, ["codigo_producto","ee/pp","producto","cod_producto"]).toString().trim();
-          // Cantidad en metros ruma: mr_recep (fletes) · cantidad (BASE_PROF) · metros_ruma (plantilla)
-          const mr = parseFloat(pick(row, ["metros_ruma","mr_recep.","cantidad"])) || 0;
-          const m3 = parseFloat(pick(row, ["m3"])) || 0;
+          // Unidad de medida: define si la cantidad es MR o M3
+          const unidadMedida = pick(row, ["um","unidad","unidad_de_medida","unidad_medida"]).toString().trim().toUpperCase();
+          // La cantidad viene en UNA columna ("MR Recep." / "cantidad" / "metros_ruma").
+          // Si UM = M3, esa cantidad es metros cúbicos; si no, metros ruma.
+          // (Se mantiene compatibilidad si el archivo trae una columna "m3" separada.)
+          const cantidad = parseFloat(pick(row, ["metros_ruma","mr_recep.","cantidad"])) || 0;
+          const m3Directo = parseFloat(pick(row, ["m3"])) || 0;
+          let mr, m3;
+          if (unidadMedida === "M3"){ m3 = cantidad || m3Directo; mr = 0; }
+          else { mr = cantidad; m3 = m3Directo; }
           const bodega  = pick(row, ["nombre_bodega","nombre_destino","bodega"]).toString().trim();
           const guia    = pick(row, ["numero_guia","nºg/d","ng/d","guia_asociada"]).toString().trim();
           const camion  = pick(row, ["camion/_carro","camion","carro"]).toString().trim();
@@ -1332,9 +1339,8 @@
           const nombreDestino = pick(row, ["nombre_destino","destino"]).toString().trim() || bodega;
           const fecha   = pick(row, ["fecha","fecha_ing"]).toString().trim();
           const coordOrigen = pick(row, ["coordenadas_origen","coordenadas"]).toString().trim();
-          // Descripción y unidad de medida del PRODUCTO (columnas nuevas del archivo definitivo)
+          // Descripción del PRODUCTO
           const descProducto = pick(row, ["descripcion","descripcion_producto","desc_producto"]).toString().trim();
-          const unidadMedida = pick(row, ["um","unidad","unidad_de_medida","unidad_medida"]).toString().trim();
           const especieRow = pick(row, ["especie"]).toString().trim();
           const plantaRow = pick(row, ["planta"]).toString().trim();
           // Campos extra que se guardan como respaldo (de cualquiera de los formatos)
@@ -1490,11 +1496,31 @@
       // Convierte fecha DD/MM/YYYY o YYYY-MM-DD a periodo YYYY-MM
       const periodoDe = (f) => {
         const v = (f.fecha||"").toString().trim();
-        let mDMY = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-        if (mDMY) return mDMY[3] + "-" + mDMY[2].padStart(2,"0");
-        let mYMD = v.match(/^(\d{4})-(\d{2})/);
-        if (mYMD) return mYMD[1] + "-" + mYMD[2];
-        return new Date().toISOString().slice(0,7);
+        if (!v) return "sin-fecha";
+        // Formato YYYY-MM-DD o YYYY/MM/DD (con o sin hora): 2026-02-04 00:00:00
+        let mYMD = v.match(/^(\d{4})[\/\-](\d{1,2})/);
+        if (mYMD) return mYMD[1] + "-" + mYMD[2].padStart(2,"0");
+        // Formato con año de 4 dígitos DD/MM/YYYY o MM/DD/YYYY
+        let m4 = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+        if (m4){
+          // Los archivos vienen en formato USA M/D/YYYY -> el primer número es el MES
+          return m4[3] + "-" + m4[1].padStart(2,"0");
+        }
+        // Formato con año de 2 dígitos M/D/YY (ej "2/4/26" = feb 2026, formato USA mes/día/año)
+        let m2 = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})(?!\d)/);
+        if (m2){
+          const anio = 2000 + parseInt(m2[3]);
+          return anio + "-" + m2[1].padStart(2,"0");  // m2[1] = mes
+        }
+        // Número serial de Excel
+        const num = parseFloat(v);
+        if (!isNaN(num) && num > 30000 && num < 60000){
+          const d = new Date(Math.round((num - 25569) * 86400 * 1000));
+          if (!isNaN(d)) return d.getUTCFullYear() + "-" + String(d.getUTCMonth()+1).padStart(2,"0");
+        }
+        const d = new Date(v);
+        if (!isNaN(d)) return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+        return "sin-fecha";
       };
       // ID de documento seguro a partir del GMM (o autogenerado si no hay GMM)
       const docIdDe = (f) => f.gmm ? ("gmm_" + f.gmm.replace(/[^a-zA-Z0-9_\-]/g,"_")) : ("rec_" + Date.now() + "_" + Math.random().toString(36).slice(2,8));
