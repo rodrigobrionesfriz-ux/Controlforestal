@@ -538,7 +538,20 @@
     // XLSX y Chart.js se cargan de forma diferida (no bloquean el login si su CDN falla)
     let XLSX = null, Chart = null;
     async function cargarXLSX(){ if (!XLSX){ XLSX = await import("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm"); } return XLSX; }
-    async function cargarChart(){ if (!Chart){ const mod = await import("https://cdn.jsdelivr.net/npm/chart.js@4.4.1/+esm"); Chart = mod.default; } return Chart; }
+    async function cargarChart(){
+      if (Chart) return Chart;
+      if (window.Chart){ Chart = window.Chart; return Chart; }
+      // Carga la versión UMD por <script> (más confiable que el import ESM y sin problemas de CORS)
+      await new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
+        s.onload = resolve;
+        s.onerror = () => reject(new Error("No se pudo cargar Chart.js"));
+        document.head.appendChild(s);
+      });
+      Chart = window.Chart;
+      return Chart;
+    }
 
 
     const firebaseConfig = {
@@ -1746,8 +1759,10 @@
 
     function dibujarChart(id, config){
       const ctx = $(id); if (!ctx) return;
-      if (charts[id]) charts[id].destroy();
-      charts[id] = new Chart(ctx, config);
+      try {
+        if (charts[id]) charts[id].destroy();
+        charts[id] = new Chart(ctx, config);
+      } catch(e){ console.error("Error al dibujar gráfico "+id+":", e); }
     }
 
     let resumenTimer = null;
@@ -1770,7 +1785,7 @@
       $("kpiOCAlerta").textContent = fmt(ocAlerta);
 
       // Cargar Chart.js de forma diferida; si falla, los KPIs ya se mostraron
-      try { await cargarChart(); } catch(e){ return; }
+      try { await cargarChart(); } catch(e){ console.error("Chart.js no se pudo cargar:", e); return; }
 
       // Helper: nombre de planta de una recepción (usa campo planta; si no, la bodega o el rol)
       const plantaDe = (r) => (r.planta || r.nombreBodega || "(SIN PLANTA)").toString().trim().toUpperCase();
