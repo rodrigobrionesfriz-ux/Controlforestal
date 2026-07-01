@@ -94,6 +94,18 @@
     button.act:hover { background: var(--bg); }
     button.act.del { color: var(--danger); border-color: #f0c0c0; }
     button.act.del:hover { background: var(--danger-bg); }
+    /* Meses desplegables de recepciones */
+    .mes-group { border: 1px solid var(--line); border-radius: 6px; margin-bottom: 10px; overflow: hidden; }
+    .mes-header { background: var(--bg); padding: 12px 16px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
+    .mes-header:hover { background: var(--paper-2); }
+    .mes-header .mes-titulo { font-weight: 700; font-size: 14px; }
+    .mes-header .mes-stats { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .mes-header .mes-flecha { transition: transform .2s; color: var(--muted); margin-left: 10px; }
+    .mes-group.abierto .mes-flecha { transform: rotate(90deg); }
+    .mes-body { display: none; overflow-x: auto; }
+    .mes-group.abierto .mes-body { display: block; }
+    .mes-body table { font-size: 13px; min-width: 900px; }
+    .mes-body th { position: sticky; top: 0; }
 
     /* KPI cards del Resumen */
     .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
@@ -366,8 +378,14 @@
       </section>
       <section class="card">
         <h2><span class="num">02</span> Recepciones registradas</h2>
-        <table><thead><tr><th>Fecha</th><th>Rol</th><th>Producto</th><th class="num-cell">Mr</th><th class="num-cell">m³</th><th>Guía</th><th>OC</th></tr></thead>
-        <tbody id="tablaRec"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
+        <p class="sub">Agrupadas por mes. Pulsa un mes para desplegar sus recepciones.</p>
+        <div class="actions" style="margin-top:0; margin-bottom:14px">
+          <input id="recBuscar" placeholder="Filtrar por rol, predio, planta, guía…" style="max-width:320px" />
+          <button class="primary" id="btnBuscarRec">Filtrar</button>
+          <button class="primary" id="btnLimpiarRec" style="background:var(--muted); border-color:var(--muted)">Limpiar</button>
+          <span class="hint" id="recCount"></span>
+        </div>
+        <div id="recMeses"><p class="empty">Cargando…</p></div>
       </section>
     </div>
 
@@ -1109,13 +1127,77 @@
     $("rRol").addEventListener("change", actualizarPickOC);
     $("rProducto").addEventListener("change", actualizarPickOC);
 
+    let _recFiltro = "";
     regSnap(query(collection(db,"recepciones"), orderBy("fechaCreacion","desc")), (snap) => {
       recepcionesCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
-      const t=$("tablaRec");
-      t.innerHTML = snap.empty ? '<tr><td colspan="7" class="empty">Aún no hay recepciones.</td></tr>' :
-        snap.docs.map((d)=>{ const r=d.data(); const fecha = r.fechaCreacion?.toDate ? r.fechaCreacion.toDate().toLocaleDateString("es-CL") : "—";
-          return '<tr><td>'+fecha+'</td><td><strong>'+esc(r.numeroRol)+'</strong></td><td>'+esc(r.productoLabel)+'</td><td class="num-cell">'+fmt(r.metrosRuma)+'</td><td class="num-cell">'+fmt(r.m3)+'</td><td>'+esc(r.numeroGuia)+'</td><td>'+esc(r.ocNumero||"sin OC")+'</td></tr>'; }).join("");
+      renderRecepcionesPorMes();
     }, ()=>{});
+
+    const MESES_NOMBRE = ["","Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+    function nombreMes(periodo){
+      // periodo = "YYYY-MM"
+      const mm = periodo.match(/^(\d{4})-(\d{2})/);
+      if (!mm) return periodo || "Sin fecha";
+      return MESES_NOMBRE[parseInt(mm[2])] + " " + mm[1];
+    }
+
+    function renderRecepcionesPorMes(){
+      const cont = $("recMeses");
+      let lista = recepcionesCache;
+      // Filtro de texto
+      if (_recFiltro){
+        const q = _recFiltro.toLowerCase();
+        lista = lista.filter((r)=> [r.numeroRol,r.descripPredio,r.planta,r.nombreDestino,r.numeroGuia,r.descripcionProducto,r.especie,r.comuna].some((v)=> (v||"").toString().toLowerCase().includes(q)));
+      }
+      $("recCount").textContent = lista.length + " recepción(es)";
+      if (!lista.length){ cont.innerHTML = '<p class="empty">No hay recepciones'+(_recFiltro?" para ese filtro":"")+'.</p>'; return; }
+
+      // Agrupar por periodo (mes)
+      const grupos = {};
+      lista.forEach((r)=>{ const p = r.periodo || "0000-00"; (grupos[p] = grupos[p] || []).push(r); });
+      const periodos = Object.keys(grupos).sort((a,b)=>b.localeCompare(a));  // más reciente primero
+
+      cont.innerHTML = periodos.map((p, idx)=>{
+        const recs = grupos[p];
+        const totalMr = recs.reduce((a,r)=>a+(r.metrosRuma||0),0);
+        const totalM3 = recs.reduce((a,r)=>a+(r.m3||0),0);
+        const abierto = (idx===0 && !_recFiltro) ? "" : "";  // todos cerrados por defecto
+        const filas = recs.map((r)=>{
+          return '<tr>'
+            + '<td>'+esc(r.nroGMM||"")+'</td>'
+            + '<td>'+esc(r.fechaIngreso||"")+'</td>'
+            + '<td>'+esc(r.numeroGuia||"")+'</td>'
+            + '<td>'+esc(r.camion||r.patente||"")+'</td>'
+            + '<td class="num-cell">'+fmt(r.metrosRuma||0)+'</td>'
+            + '<td>'+esc(r.comuna||"")+'</td>'
+            + '<td>'+esc(r.nombreDestino||r.nombreBodega||"")+'</td>'
+            + '<td><strong>'+esc(r.numeroRol||"")+'</strong></td>'
+            + '<td>'+esc(r.descripPredio||"")+'</td>'
+            + '<td>'+esc(r.descripcionProducto||r.productoLabel||"")+'</td>'
+            + '<td>'+esc(r.unidadMedida||"")+'</td>'
+            + '<td>'+esc(r.especie||"")+'</td>'
+            + '<td>'+esc(r.planta||"")+'</td>'
+            + '<td>'+esc(r.coordenadasOrigen||"")+'</td>'
+            + '</tr>';
+        }).join("");
+        return '<div class="mes-group'+abierto+'">'
+          + '<div class="mes-header" data-mes-toggle>'
+          +   '<span class="mes-titulo">'+esc(nombreMes(p))+' <span class="hint">('+recs.length+')</span></span>'
+          +   '<span class="mes-stats">'+fmt(Math.round(totalMr))+' mr · '+fmt(Math.round(totalM3))+' m³ <span class="mes-flecha">▶</span></span>'
+          + '</div>'
+          + '<div class="mes-body"><table><thead><tr>'
+          +   '<th>NºGMM</th><th>Fecha Ing</th><th>NºG/D</th><th>Camión</th><th class="num-cell">MR</th><th>Comuna</th><th>Destino</th><th>Rol</th><th>Predio</th><th>Descripción</th><th>UM</th><th>Especie</th><th>Planta</th><th>Coord. origen</th>'
+          + '</tr></thead><tbody>'+filas+'</tbody></table></div>'
+          + '</div>';
+      }).join("");
+
+      // Listeners de despliegue
+      cont.querySelectorAll("[data-mes-toggle]").forEach((h)=> h.addEventListener("click", ()=> h.parentElement.classList.toggle("abierto")));
+    }
+
+    $("btnBuscarRec").addEventListener("click", ()=>{ _recFiltro = $("recBuscar").value.trim(); renderRecepcionesPorMes(); });
+    $("recBuscar").addEventListener("keydown", (e)=>{ if (e.key==="Enter"){ _recFiltro = $("recBuscar").value.trim(); renderRecepcionesPorMes(); } });
+    $("btnLimpiarRec").addEventListener("click", ()=>{ _recFiltro=""; $("recBuscar").value=""; renderRecepcionesPorMes(); });
 
     $("btnGuardarRec").addEventListener("click", async () => {
       const rolId=$("rRol").value, prodId=$("rProducto").value; const m=$("recMsg");
@@ -1245,8 +1327,11 @@
           const m3 = parseFloat(pick(row, ["m3"])) || 0;
           const bodega  = pick(row, ["nombre_bodega","nombre_destino","bodega"]).toString().trim();
           const guia    = pick(row, ["numero_guia","nºg/d","ng/d","guia_asociada"]).toString().trim();
-          const patente = pick(row, ["patente","camion/_carro"]).toString().trim();
+          const camion  = pick(row, ["camion/_carro","camion","carro"]).toString().trim();
+          const patente = pick(row, ["patente"]).toString().trim() || camion;
+          const nombreDestino = pick(row, ["nombre_destino","destino"]).toString().trim() || bodega;
           const fecha   = pick(row, ["fecha","fecha_ing"]).toString().trim();
+          const coordOrigen = pick(row, ["coordenadas_origen","coordenadas"]).toString().trim();
           // Descripción y unidad de medida del PRODUCTO (columnas nuevas del archivo definitivo)
           const descProducto = pick(row, ["descripcion","descripcion_producto","desc_producto"]).toString().trim();
           const unidadMedida = pick(row, ["um","unidad","unidad_de_medida","unidad_medida"]).toString().trim();
@@ -1273,7 +1358,7 @@
           if (mr<=0 && m3<=0) errores.push("sin cantidades");
           // El código es opcional aquí: si viene vacío, la recepción se guarda igual (sin imputar a OC por producto)
           const gmm = (extra.nroGMM||"").toString().trim();
-          return { fila: i+2, numeroRol, codigoProd, descProducto, unidadMedida, especieRow, plantaRow, bodega, mr, m3, guia, patente, fecha, extra, gmm, rol, prod, valida: errores.length===0, errores };
+          return { fila: i+2, numeroRol, codigoProd, descProducto, unidadMedida, especieRow, plantaRow, bodega, camion, nombreDestino, coordOrigen, mr, m3, guia, patente, fecha, extra, gmm, rol, prod, valida: errores.length===0, errores };
         });
 
         // Marcar duplicados: contra lo ya cargado (por GMM) y contra el propio archivo
@@ -1427,6 +1512,8 @@
               descripcionProducto: f.descProducto || null, unidadMedida: f.unidadMedida || null,
               especie: f.especieRow || null, planta: f.plantaRow || null,
               nombreBodega: f.bodega || null,
+              nombreDestino: f.nombreDestino || null, camion: f.camion || null,
+              fechaIngreso: f.fecha || null, coordenadasOrigen: f.coordOrigen || null,
               metrosRuma: f.mr, m3: f.m3,
               numeroGuia: f.guia, patente: f.patente,
               ordenCompraId: null, ocNumero: null,
