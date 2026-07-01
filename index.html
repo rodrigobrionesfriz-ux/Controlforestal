@@ -181,12 +181,15 @@
         <div class="kpi"><div class="label">Roles</div><div class="value" id="kpiRoles">0</div></div>
         <div class="kpi"><div class="label">Recepciones</div><div class="value" id="kpiRecep">0</div></div>
         <div class="kpi"><div class="label">Metros ruma</div><div class="value" id="kpiMr">0 <span class="unit">mr</span></div></div>
-        <div class="kpi"><div class="label">Gastos totales</div><div class="value" id="kpiGastos">0 <span class="unit">$</span></div></div>
+        <div class="kpi"><div class="label">Metros cúbicos</div><div class="value" id="kpiM3">0 <span class="unit">m³</span></div></div>
       </div>
       <div class="kpi-grid">
+        <div class="kpi"><div class="label">Gastos totales</div><div class="value" id="kpiGastos">0 <span class="unit">$</span></div></div>
         <div class="kpi"><div class="label">Plantas / Clientes</div><div class="value" id="kpiPlantas">0</div></div>
         <div class="kpi"><div class="label">Productos</div><div class="value" id="kpiProd">0</div></div>
         <div class="kpi"><div class="label">Órdenes de compra</div><div class="value" id="kpiOC">0</div></div>
+      </div>
+      <div class="kpi-grid">
         <div class="kpi"><div class="label">OC por completar</div><div class="value" id="kpiOCAlerta" style="color:var(--warn)">0</div></div>
       </div>
       <div class="chart-grid">
@@ -194,6 +197,10 @@
         <div class="chart-box"><h3>Avance de OC (recibido vs solicitado)</h3><canvas id="chartOC"></canvas></div>
         <div class="chart-box"><h3>Gastos por categoría</h3><canvas id="chartGastos"></canvas></div>
         <div class="chart-box"><h3>Metros ruma por mes</h3><canvas id="chartMes"></canvas></div>
+      </div>
+      <div class="chart-grid" style="margin-top:18px">
+        <div class="chart-box"><h3>Evolución mensual MR por planta</h3><canvas id="chartLineaMR"></canvas></div>
+        <div class="chart-box"><h3>Evolución mensual M³ por planta</h3><canvas id="chartLineaM3"></canvas></div>
       </div>
     </div>
 
@@ -1642,6 +1649,8 @@
       $("kpiOC").textContent = fmt(ocCache.length);
       const totalMr = recepcionesCache.reduce((a,r)=>a+(r.metrosRuma||0),0);
       $("kpiMr").innerHTML = fmt(Math.round(totalMr)) + ' <span class="unit">mr</span>';
+      const totalM3 = recepcionesCache.reduce((a,r)=>a+(r.m3||0),0);
+      $("kpiM3").innerHTML = fmt(Math.round(totalM3)) + ' <span class="unit">m³</span>';
       const totalGastos = gastosCache.reduce((a,g)=>a+(g.monto||0),0);
       $("kpiGastos").innerHTML = fmt(totalGastos) + ' <span class="unit">$</span>';
       const ocAlerta = ocCache.filter((o)=>{ const rm=(o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0); const r3=(o.solicitado?.m3||0)-(o.recibido?.m3||0); const u=o.umbralAlerta??300; return (rm>0||r3>0)&&(rm<=u||r3<=u); }).length;
@@ -1650,9 +1659,12 @@
       // Cargar Chart.js de forma diferida; si falla, los KPIs ya se mostraron
       try { await cargarChart(); } catch(e){ return; }
 
+      // Helper: nombre de planta de una recepción (usa campo planta; si no, la bodega o el rol)
+      const plantaDe = (r) => (r.planta || r.nombreBodega || "(SIN PLANTA)").toString().trim().toUpperCase();
+
       // --- Gráfico 1: recepciones por planta (mr) [barras] ---
       const porPlanta = {};
-      recepcionesCache.forEach((r)=>{ const k=r.nombreBodega||r.numeroRol||"(s/d)"; porPlanta[k]=(porPlanta[k]||0)+(r.metrosRuma||0); });
+      recepcionesCache.forEach((r)=>{ const k=plantaDe(r); porPlanta[k]=(porPlanta[k]||0)+(r.metrosRuma||0); });
       const plantaTop = Object.entries(porPlanta).sort((a,b)=>b[1]-a[1]).slice(0,8);
       dibujarChart("chartPlanta", {
         type:"bar",
@@ -1674,7 +1686,7 @@
 
       // --- Gráfico 3: gastos por categoría [circular] ---
       const porCat = {};
-      gastosCache.forEach((g)=>{ const k=g.categoria||"Sin categoría"; porCat[k]=(porCat[k]||0)+(g.monto||0); });
+      gastosCache.forEach((g)=>{ const k=g.categoria||"SIN CATEGORÍA"; porCat[k]=(porCat[k]||0)+(g.monto||0); });
       const catE = Object.entries(porCat).sort((a,b)=>b[1]-a[1]);
       dibujarChart("chartGastos", {
         type:"doughnut",
@@ -1690,6 +1702,44 @@
         type:"bar",
         data:{ labels:mesE.map((e)=>e[0]), datasets:[{ label:"mr", data:mesE.map((e)=>Math.round(e[1])), backgroundColor:"#107e3e" }] },
         options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true} } }
+      });
+
+      // --- Gráficos 5 y 6: evolución mensual por planta (líneas), uno MR y otro M3 ---
+      // Estructura: { planta: { mes: volumen } }, y lista de meses ordenada (eje X común)
+      function construirLineas(campo){
+        const mesesSet = new Set();
+        const porPlantaMes = {};
+        recepcionesCache.forEach((r)=>{
+          const mes = r.periodo || "s/f"; const planta = plantaDe(r); const val = r[campo]||0;
+          if (val<=0) return;
+          mesesSet.add(mes);
+          if (!porPlantaMes[planta]) porPlantaMes[planta] = {};
+          porPlantaMes[planta][mes] = (porPlantaMes[planta][mes]||0) + val;
+        });
+        const meses = [...mesesSet].sort((a,b)=>a.localeCompare(b));
+        const plantas = Object.keys(porPlantaMes).sort();
+        const datasets = plantas.map((p, i)=>({
+          label: p,
+          data: meses.map((mes)=> Math.round(porPlantaMes[p][mes]||0)),
+          borderColor: SAP_COLORS[i % SAP_COLORS.length],
+          backgroundColor: SAP_COLORS[i % SAP_COLORS.length],
+          tension: 0.3, fill: false, spanGaps: true,
+        }));
+        return { meses, datasets };
+      }
+
+      const lineasMR = construirLineas("metrosRuma");
+      dibujarChart("chartLineaMR", {
+        type:"line",
+        data:{ labels: lineasMR.meses, datasets: lineasMR.datasets },
+        options:{ responsive:true, plugins:{legend:{position:"bottom", labels:{boxWidth:12, font:{size:10}}}}, scales:{ y:{beginAtZero:true, title:{display:true, text:"MR"}} } }
+      });
+
+      const lineasM3 = construirLineas("m3");
+      dibujarChart("chartLineaM3", {
+        type:"line",
+        data:{ labels: lineasM3.meses, datasets: lineasM3.datasets },
+        options:{ responsive:true, plugins:{legend:{position:"bottom", labels:{boxWidth:12, font:{size:10}}}}, scales:{ y:{beginAtZero:true, title:{display:true, text:"M³"}} } }
       });
     }
 
