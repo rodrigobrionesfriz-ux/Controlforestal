@@ -106,6 +106,22 @@
     .mes-group.abierto .mes-body { display: block; }
     .mes-body table { font-size: 13px; min-width: 900px; }
     .mes-body th { position: sticky; top: 0; }
+    /* Modales */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: flex-start; justify-content: center; z-index: 200; padding: 30px 16px; overflow-y: auto; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: var(--surface); border-radius: 10px; width: 100%; max-width: 720px; box-shadow: 0 10px 40px rgba(0,0,0,0.25); margin: auto; }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--line); }
+    .modal-head h3 { margin: 0; font-size: 17px; }
+    .modal-close { background: transparent; border: none; font-size: 22px; cursor: pointer; color: var(--muted); line-height: 1; padding: 0 4px; }
+    .modal-close:hover { color: var(--ink); }
+    .modal-body { padding: 22px; }
+    .modal-foot { padding: 16px 22px; border-top: 1px solid var(--line); display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+    /* Ficha de detalle (solo lectura) */
+    .detalle-row { display: flex; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+    .detalle-row .k { width: 160px; color: var(--muted); font-weight: 600; flex-shrink: 0; }
+    .detalle-row .v { color: var(--ink); }
+    .clickable-row { cursor: pointer; }
+    .clickable-row:hover td { background: var(--sap-blue-light); }
 
     /* KPI cards del Resumen */
     .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
@@ -248,37 +264,68 @@
     <!-- PLANTAS / CLIENTES -->
     <div class="view" id="view-plantas">
       <section class="card">
-        <h2><span class="num">01</span> Ficha de planta / cliente</h2>
-        <p class="sub">Las plantas de destino se tratan como clientes, con bodegas georreferenciadas para trazabilidad.</p>
-        <div class="grid">
-          <div><label>Nombre</label><input id="pNombre" placeholder="Planta CMPC Mininco" /></div>
-          <div><label>RUT</label><input id="pRut" placeholder="33.333.333-3" /></div>
-          <div><label>Contacto</label><input id="pContacto" placeholder="María López" /></div>
-          <div><label>Teléfono</label><input id="pTel" placeholder="+56 9 1234 5678" /></div>
-          <div><label>Comuna</label><input id="pComuna" placeholder="Mininco" /></div>
-          <div><label>¿Es planta de destino?</label><select id="pEsPlanta"><option value="true">Sí — planta de destino</option><option value="false">No — solo cliente</option></select></div>
-        </div>
-
-        <div style="margin-top:20px; padding-top:18px; border-top:1px solid var(--line)">
-          <label style="font-size:13px">Bodegas de entrega</label>
-          <p class="hint" style="margin-top:0; margin-bottom:12px">Agrega una o varias bodegas con su dirección, comuna y georreferenciación.</p>
-          <div class="grid">
-            <div><label>Nombre bodega</label><input id="bNombre" placeholder="Bodega Norte" /></div>
-            <div><label>Dirección</label><input id="bDireccion" placeholder="Camino Industrial 100" /></div>
-            <div><label>Comuna</label><input id="bComuna" placeholder="Mininco" /></div>
-            <div><label>Georreferenciación (lat, lng)</label><input id="bGeo" placeholder="-37.45, -72.40" /></div>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px">
+          <div>
+            <h2 style="margin:0"><span class="num">01</span> Plantas y clientes</h2>
+            <p class="sub" style="margin:4px 0 0">Pulsa una planta para ver su ficha. Usa el botón para agregar una nueva.</p>
           </div>
-          <div class="actions" style="margin-top:12px"><button class="mini" id="btnAddBodega" type="button">+ Agregar bodega</button></div>
-          <div id="bodegasLista" style="margin-top:12px"></div>
+          <button class="primary" id="btnNuevaPlanta">+ Agregar planta / cliente</button>
         </div>
+        <table style="margin-top:18px"><thead><tr><th>Nombre</th><th>RUT</th><th>Contacto</th><th>Comuna</th><th class="num-cell">Bodegas</th><th>Tipo</th></tr></thead>
+        <tbody id="tablaPlantas"><tr><td colspan="6" class="empty">Cargando&hellip;</td></tr></tbody></table>
+      </section>
+    </div>
 
-        <div class="actions"><button class="primary" id="btnGuardarPlanta" disabled>Guardar ficha</button><button class="primary" id="btnCancelarPlanta" style="display:none; background:var(--muted); border-color:var(--muted)">Cancelar edición</button><span class="msg" id="plantaMsg"></span></div>
-      </section>
-      <section class="card">
-        <h2><span class="num">02</span> Plantas y clientes</h2>
-        <table><thead><tr><th>Nombre</th><th>RUT</th><th>Contacto</th><th>Comuna</th><th class="num-cell">Bodegas</th><th>Tipo</th><th>Acciones</th></tr></thead>
-        <tbody id="tablaPlantas"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
-      </section>
+    <!-- MODAL: formulario de planta (agregar / editar) -->
+    <div class="modal-overlay" id="modalPlantaForm">
+      <div class="modal">
+        <div class="modal-head">
+          <h3 id="modalPlantaTitulo">Nueva planta / cliente</h3>
+          <button class="modal-close" data-close-modal="modalPlantaForm">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="grid">
+            <div><label>Nombre</label><input id="pNombre" placeholder="Planta CMPC Mininco" /></div>
+            <div><label>RUT</label><input id="pRut" placeholder="33.333.333-3" /></div>
+            <div><label>Contacto</label><input id="pContacto" placeholder="María López" /></div>
+            <div><label>Teléfono</label><input id="pTel" placeholder="+56 9 1234 5678" /></div>
+            <div><label>Comuna</label><input id="pComuna" placeholder="Mininco" /></div>
+            <div><label>¿Es planta de destino?</label><select id="pEsPlanta"><option value="true">Sí — planta de destino</option><option value="false">No — solo cliente</option></select></div>
+          </div>
+          <div style="margin-top:20px; padding-top:18px; border-top:1px solid var(--line)">
+            <label style="font-size:13px">Bodegas de entrega</label>
+            <p class="hint" style="margin-top:0; margin-bottom:12px">Agrega una o varias bodegas con su dirección, comuna y georreferenciación.</p>
+            <div class="grid">
+              <div><label>Nombre bodega</label><input id="bNombre" placeholder="Bodega Norte" /></div>
+              <div><label>Dirección</label><input id="bDireccion" placeholder="Camino Industrial 100" /></div>
+              <div><label>Comuna</label><input id="bComuna" placeholder="Mininco" /></div>
+              <div><label>Georreferenciación (lat, lng)</label><input id="bGeo" placeholder="-37.45, -72.40" /></div>
+            </div>
+            <div class="actions" style="margin-top:12px"><button class="mini" id="btnAddBodega" type="button">+ Agregar bodega</button></div>
+            <div id="bodegasLista" style="margin-top:12px"></div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <span class="msg" id="plantaMsg" style="margin-right:auto"></span>
+          <button class="primary" id="btnCancelarPlanta" style="background:var(--muted); border-color:var(--muted)">Cancelar</button>
+          <button class="primary" id="btnGuardarPlanta" disabled>Guardar ficha</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: detalle de planta (solo lectura) -->
+    <div class="modal-overlay" id="modalPlantaDetalle">
+      <div class="modal">
+        <div class="modal-head">
+          <h3 id="detallePlantaTitulo">Ficha</h3>
+          <button class="modal-close" data-close-modal="modalPlantaDetalle">&times;</button>
+        </div>
+        <div class="modal-body" id="detallePlantaBody"></div>
+        <div class="modal-foot">
+          <button class="primary" id="btnEditarDesdeDetalle">Editar</button>
+          <button class="primary act del" id="btnEliminarDesdeDetalle" style="display:none">Eliminar</button>
+        </div>
+      </div>
     </div>
 
     <!-- PRODUCTOS -->
@@ -831,20 +878,70 @@
     });
 
     // ---- PLANTAS ----
+    // Helpers de modal
+    function abrirModal(id){ $(id).classList.add("show"); }
+    function cerrarModal(id){ $(id).classList.remove("show"); }
+    document.querySelectorAll("[data-close-modal]").forEach((b)=> b.addEventListener("click", ()=> cerrarModal(b.dataset.closeModal)));
+    // Cerrar al hacer clic fuera del cuadro
+    document.querySelectorAll(".modal-overlay").forEach((ov)=> ov.addEventListener("click", (e)=>{ if (e.target===ov) ov.classList.remove("show"); }));
+
+    let plantaDetalleId = null;  // planta actualmente mostrada en el modal de detalle
+
     regSnap(query(collection(db,"clientes"), orderBy("fechaCreacion","desc")), (snap) => {
       plantasCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       const t = $("tablaPlantas");
-      const puedeEd = puede("editar"), puedeBo = puede("borrar");
-      t.innerHTML = snap.empty ? '<tr><td colspan="7" class="empty">Aún no hay plantas ni clientes.</td></tr>' :
+      t.innerHTML = snap.empty ? '<tr><td colspan="6" class="empty">Aún no hay plantas ni clientes. Pulsa "Agregar" para crear una.</td></tr>' :
         plantasCache.map((p)=>{ const c=p.esPlantaDestino?"planta":"abierta"; const x=p.esPlantaDestino?"Planta destino":"Cliente";
           const nBod=(p.bodegas||[]).length; const nombresBod=(p.bodegas||[]).map((b)=>b.nombre).join(", ");
-          let acc=""; if (puedeEd) acc+='<button class="act" data-edit-planta="'+p.id+'">Editar</button>'; if (!acc) acc='<span class="hint">—</span>';
-          return '<tr><td><strong>'+esc(p.nombre)+'</strong></td><td>'+esc(p.rut)+'</td><td>'+esc(p.contactoNombre)+'</td><td>'+esc(p.comuna)+'</td><td class="num-cell" title="'+esc(nombresBod)+'">'+nBod+'</td><td><span class="tag '+c+'">'+x+'</span></td><td style="white-space:nowrap">'+acc+'</td></tr>'; }).join("");
-      t.querySelectorAll("[data-edit-planta]").forEach((b)=> b.addEventListener("click", ()=> iniciarEdicionPlanta(b.dataset.editPlanta)));
+          return '<tr class="clickable-row" data-ver-planta="'+p.id+'"><td><strong>'+esc(p.nombre)+'</strong></td><td>'+esc(p.rut)+'</td><td>'+esc(p.contactoNombre)+'</td><td>'+esc(p.comuna)+'</td><td class="num-cell" title="'+esc(nombresBod)+'">'+nBod+'</td><td><span class="tag '+c+'">'+x+'</span></td></tr>'; }).join("");
+      t.querySelectorAll("[data-ver-planta]").forEach((row)=> row.addEventListener("click", ()=> verDetallePlanta(row.dataset.verPlanta)));
+      // Si el detalle abierto sigue existiendo, refrescarlo
+      if (plantaDetalleId && $("modalPlantaDetalle").classList.contains("show")){ const p=plantasCache.find((x)=>x.id===plantaDetalleId); if (p) verDetallePlanta(plantaDetalleId); }
       const plantasDestino = plantasCache.filter((p)=>p.esPlantaDestino);
       setSelect($("nPlanta"), plantasDestino, (p)=>'<option value="'+p.id+'">'+esc(p.nombre)+'</option>', "— Sin asignar —");
       setSelect($("ocPlanta"), plantasCache, (p)=>'<option value="'+p.id+'">'+esc(p.nombre)+'</option>', "— Selecciona planta —");
     }, ()=>{});
+
+    // Muestra la ficha de una planta en modo solo lectura
+    function verDetallePlanta(id){
+      const p = plantasCache.find((x)=>x.id===id); if (!p) return;
+      plantaDetalleId = id;
+      $("detallePlantaTitulo").textContent = p.nombre || "Ficha";
+      const row = (k,v)=> v ? '<div class="detalle-row"><div class="k">'+k+'</div><div class="v">'+esc(v)+'</div></div>' : "";
+      const bodegas = (p.bodegas||[]);
+      let bodHtml = "";
+      if (bodegas.length){
+        bodHtml = '<div style="margin-top:16px"><div class="k" style="font-weight:700; color:var(--ink); margin-bottom:8px">Bodegas ('+bodegas.length+')</div>'
+          + bodegas.map((b)=>'<div style="padding:8px 12px; background:var(--bg); border-radius:6px; margin-bottom:6px; font-size:13px"><strong>'+esc(b.nombre)+'</strong>'
+              + (b.direccion?' · '+esc(b.direccion):'') + (b.comuna?' · '+esc(b.comuna):'')
+              + (b.georeferencia&&b.georeferencia.lat!=null?' · 📍 '+esc(b.georeferencia.lat+", "+b.georeferencia.lng):'') + '</div>').join("")
+          + '</div>';
+      }
+      $("detallePlantaBody").innerHTML =
+          row("Tipo", p.esPlantaDestino?"Planta de destino":"Cliente")
+        + row("RUT", p.rut) + row("Contacto", p.contactoNombre) + row("Teléfono", p.contactoTelefono)
+        + row("Comuna", p.comuna) + bodHtml;
+      // Botón eliminar solo admin
+      $("btnEliminarDesdeDetalle").style.display = puede("borrar") ? "inline-block" : "none";
+      $("btnEditarDesdeDetalle").style.display = puede("editar") ? "inline-block" : "none";
+      abrirModal("modalPlantaDetalle");
+    }
+
+    // Botones del modal de detalle
+    $("btnEditarDesdeDetalle").addEventListener("click", ()=>{ cerrarModal("modalPlantaDetalle"); iniciarEdicionPlanta(plantaDetalleId); });
+    $("btnEliminarDesdeDetalle").addEventListener("click", ()=>{ const id=plantaDetalleId; cerrarModal("modalPlantaDetalle"); eliminarPlanta(id); });
+
+    // Botón agregar nueva planta
+    $("btnNuevaPlanta").addEventListener("click", ()=>{
+      editandoPlantaId = null;
+      ["pNombre","pRut","pContacto","pTel","pComuna","bNombre","bDireccion","bComuna","bGeo"].forEach((id)=>$(id).value="");
+      $("pEsPlanta").value="true"; bodegasTemp=[]; renderBodegasTemp();
+      $("modalPlantaTitulo").textContent = "Nueva planta / cliente";
+      $("btnGuardarPlanta").textContent = "Guardar ficha";
+      $("btnGuardarPlanta").disabled = !puede("editar");
+      $("plantaMsg").textContent="";
+      abrirModal("modalPlantaForm");
+    });
 
     // ---- Bodegas dinámicas (en el formulario de planta) ----
     let bodegasTemp = [];
@@ -881,14 +978,11 @@
       $("pContacto").value = p.contactoNombre||""; $("pTel").value = p.contactoTelefono||"";
       $("pComuna").value = p.comuna||""; $("pEsPlanta").value = p.esPlantaDestino ? "true":"false";
       bodegasTemp = (p.bodegas||[]).map((b)=>({ ...b })); renderBodegasTemp();
+      $("modalPlantaTitulo").textContent = "Editar: " + (p.nombre||"");
       $("btnGuardarPlanta").textContent = "Actualizar ficha";
-      $("btnCancelarPlanta").style.display = "inline-block";
-      if (puede("borrar")){
-        $("plantaMsg").innerHTML = 'Editando '+esc(p.nombre)+' · <button class="act del" id="btnEliminarPlanta">Eliminar esta ficha</button>';
-        $("plantaMsg").className="msg";
-        $("btnEliminarPlanta").addEventListener("click", ()=> eliminarPlanta(id));
-      } else { $("plantaMsg").textContent = "Editando "+p.nombre; $("plantaMsg").className="msg"; }
-      $("view-plantas").scrollIntoView({ behavior:"smooth" });
+      $("btnGuardarPlanta").disabled = !puede("editar");
+      $("plantaMsg").textContent = "";
+      abrirModal("modalPlantaForm");
     }
 
     function cancelarEdicionPlanta(){
@@ -896,8 +990,8 @@
       ["pNombre","pRut","pContacto","pTel","pComuna","bNombre","bDireccion","bComuna","bGeo"].forEach((id)=>$(id).value="");
       $("pEsPlanta").value="true"; bodegasTemp=[]; renderBodegasTemp();
       $("btnGuardarPlanta").textContent = "Guardar ficha";
-      $("btnCancelarPlanta").style.display = "none";
       $("plantaMsg").textContent = "";
+      cerrarModal("modalPlantaForm");
     }
     $("btnCancelarPlanta").addEventListener("click", cancelarEdicionPlanta);
 
@@ -929,8 +1023,8 @@
         } else {
           await addDoc(collection(db,"clientes"), { ...datos, estado:"activo", fechaCreacion:serverTimestamp() });
           m.textContent="✓ Ficha guardada con "+bodegas.length+" bodega(s)."; m.className="msg ok";
-          ["pNombre","pRut","pContacto","pTel","pComuna","bNombre","bDireccion","bComuna","bGeo"].forEach((id)=>$(id).value="");
           bodegasTemp = []; renderBodegasTemp();
+          setTimeout(()=> cerrarModal("modalPlantaForm"), 700);  // cerrar tras confirmar
         }
       } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarPlanta").disabled = !puede("editar"); }
     });
