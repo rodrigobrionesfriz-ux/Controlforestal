@@ -828,6 +828,7 @@
     onAuthStateChanged(auth, async (user) => {
       if (!user){
         usuarioActual = null;
+        detenerListeners();   // detener consultas a Firestore al cerrar sesión
         $("loginScreen").classList.remove("app-hidden");
         $("userbar").style.display = "none";
         $("btnAuth").disabled = false;
@@ -865,18 +866,34 @@
       iniciarListeners();   // arranca las consultas a Firestore SOLO con sesión y token confirmados
     });
 
-    // Registra los listeners de Firestore una sola vez, ya con sesión activa.
+    // Registra los listeners de Firestore. Las DEFINICIONES se guardan permanentemente
+    // (para re-registrar en cada login); las desuscripciones se guardan para poder detenerlos.
     let _listenersIniciados = false;
-    const _colaSnap = [];
-    // regSnap: encola un listener si aún no hay sesión; lo ejecuta cuando la haya.
+    const _defsSnap = [];   // definiciones permanentes de todos los listeners
+    const _unsubs = [];     // funciones de desuscripción de los onSnapshot activos
     function regSnap(...args){
-      if (_listenersIniciados){ try { onSnapshot(...args); } catch(e){} }
-      else { _colaSnap.push(args); }
+      _defsSnap.push(args);   // se guarda siempre (permanente)
+      if (_listenersIniciados){ try { const u = onSnapshot(...args); if (typeof u==="function") _unsubs.push(u); } catch(e){} }
     }
     function iniciarListeners(){
       if (_listenersIniciados) return;
       _listenersIniciados = true;
-      _colaSnap.forEach((args)=>{ try { onSnapshot(...args); } catch(e){} });
+      _defsSnap.forEach((args)=>{ try { const u = onSnapshot(...args); if (typeof u==="function") _unsubs.push(u); } catch(e){} });
+    }
+    // Detener todos los listeners al cerrar sesión (evita el error "insufficient permissions"
+    // por listeners que siguen consultando Firestore sin sesión).
+    function detenerListeners(){
+      _unsubs.forEach((u)=>{ try { u(); } catch(e){} });
+      _unsubs.length = 0;
+      _listenersIniciados = false;
+    }
+    // Detener todos los listeners: se llama al cerrar sesión para evitar que sigan
+    // consultando Firestore sin permisos (causa del error "insufficient permissions").
+    function detenerListeners(){
+      _unsubs.forEach((u)=>{ try { u(); } catch(e){} });
+      _unsubs.length = 0;
+      _listenersIniciados = false;
+      // Los listeners quedan encolados de nuevo para el próximo login
       _colaSnap.length = 0;
     }
 
