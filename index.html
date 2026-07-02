@@ -94,34 +94,6 @@
     button.act:hover { background: var(--bg); }
     button.act.del { color: var(--danger); border-color: #f0c0c0; }
     button.act.del:hover { background: var(--danger-bg); }
-    /* Meses desplegables de recepciones */
-    .mes-group { border: 1px solid var(--line); border-radius: 6px; margin-bottom: 10px; overflow: hidden; }
-    .mes-header { background: var(--bg); padding: 12px 16px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
-    .mes-header:hover { background: var(--paper-2); }
-    .mes-header .mes-titulo { font-weight: 700; font-size: 14px; }
-    .mes-header .mes-stats { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-    .mes-header .mes-flecha { transition: transform .2s; color: var(--muted); margin-left: 10px; }
-    .mes-group.abierto .mes-flecha { transform: rotate(90deg); }
-    .mes-body { display: none; overflow-x: auto; }
-    .mes-group.abierto .mes-body { display: block; }
-    .mes-body table { font-size: 13px; min-width: 900px; }
-    .mes-body th { position: sticky; top: 0; }
-    /* Modales */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: flex-start; justify-content: center; z-index: 200; padding: 30px 16px; overflow-y: auto; }
-    .modal-overlay.show { display: flex; }
-    .modal { background: var(--surface); border-radius: 10px; width: 100%; max-width: 720px; box-shadow: 0 10px 40px rgba(0,0,0,0.25); margin: auto; }
-    .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--line); }
-    .modal-head h3 { margin: 0; font-size: 17px; }
-    .modal-close { background: transparent; border: none; font-size: 22px; cursor: pointer; color: var(--muted); line-height: 1; padding: 0 4px; }
-    .modal-close:hover { color: var(--ink); }
-    .modal-body { padding: 22px; }
-    .modal-foot { padding: 16px 22px; border-top: 1px solid var(--line); display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
-    /* Ficha de detalle (solo lectura) */
-    .detalle-row { display: flex; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
-    .detalle-row .k { width: 160px; color: var(--muted); font-weight: 600; flex-shrink: 0; }
-    .detalle-row .v { color: var(--ink); }
-    .clickable-row { cursor: pointer; }
-    .clickable-row:hover td { background: var(--sap-blue-light); }
 
     /* KPI cards del Resumen */
     .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
@@ -209,15 +181,12 @@
         <div class="kpi"><div class="label">Roles</div><div class="value" id="kpiRoles">0</div></div>
         <div class="kpi"><div class="label">Recepciones</div><div class="value" id="kpiRecep">0</div></div>
         <div class="kpi"><div class="label">Metros ruma</div><div class="value" id="kpiMr">0 <span class="unit">mr</span></div></div>
-        <div class="kpi"><div class="label">Metros cúbicos</div><div class="value" id="kpiM3">0 <span class="unit">m³</span></div></div>
+        <div class="kpi"><div class="label">Gastos totales</div><div class="value" id="kpiGastos">0 <span class="unit">$</span></div></div>
       </div>
       <div class="kpi-grid">
-        <div class="kpi"><div class="label">Gastos totales</div><div class="value" id="kpiGastos">0 <span class="unit">$</span></div></div>
         <div class="kpi"><div class="label">Plantas / Clientes</div><div class="value" id="kpiPlantas">0</div></div>
         <div class="kpi"><div class="label">Productos</div><div class="value" id="kpiProd">0</div></div>
         <div class="kpi"><div class="label">Órdenes de compra</div><div class="value" id="kpiOC">0</div></div>
-      </div>
-      <div class="kpi-grid">
         <div class="kpi"><div class="label">OC por completar</div><div class="value" id="kpiOCAlerta" style="color:var(--warn)">0</div></div>
       </div>
       <div class="chart-grid">
@@ -226,184 +195,96 @@
         <div class="chart-box"><h3>Gastos por categoría</h3><canvas id="chartGastos"></canvas></div>
         <div class="chart-box"><h3>Metros ruma por mes</h3><canvas id="chartMes"></canvas></div>
       </div>
-      <div class="chart-grid" style="margin-top:18px">
-        <div class="chart-box"><h3>Evolución mensual MR por planta</h3><canvas id="chartLineaMR"></canvas></div>
-        <div class="chart-box"><h3>Evolución mensual M³ por planta</h3><canvas id="chartLineaM3"></canvas></div>
-      </div>
     </div>
 
     <div class="view" id="view-roles">
       <section class="card">
-        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px">
-          <div>
-            <h2 style="margin:0"><span class="num">01</span> Roles de predio</h2>
-            <p class="sub" style="margin:4px 0 0">Busca un rol o pulsa "Ver todos". Haz clic en un rol para ver su ficha.</p>
-          </div>
-          <button class="primary" id="btnNuevoRol">+ Agregar rol</button>
+        <h2><span class="num">01</span> Registrar rol de predio</h2>
+        <p class="sub">El rol de predio es el eje del sistema.</p>
+        <div class="grid">
+          <div><label>Número de rol</label><input id="numeroRol" placeholder="12345-67" /></div>
+          <div><label>Nombre del predio</label><input id="nombrePredio" placeholder="Fundo El Roble" /></div>
+          <div><label>Propietario</label><input id="propietario" placeholder="Juan Pérez" /></div>
+          <div><label>Comuna</label><input id="comuna" placeholder="Los Ángeles" /></div>
+          <div><label>Especie predominante</label><select id="especie"><option value="PINO">PINO</option><option value="EUCALYPTUS">EUCALYPTUS</option><option value="NATIVO">NATIVO</option><option value="OTRO">OTRO</option></select></div>
+          <div><label>Tipo de negocio</label><select id="tipoNegocio"><option value="bosque_en_pie">Bosque en pie</option><option value="madera_puesta_planta">Madera puesta en planta</option></select></div>
+          <div><label>Georreferenciación (lat, lng)</label><input id="rolGeo" placeholder="-37.4689, -72.3534" /><div class="hint">Coordenadas del predio para trazabilidad.</div></div>
         </div>
-        <div class="actions" style="margin-top:16px; margin-bottom:16px">
+        <div class="actions"><button class="primary" id="btnGuardar" disabled>Guardar rol</button><button class="primary" id="btnCancelarRol" style="display:none; background:var(--muted); border-color:var(--muted)">Cancelar edición</button><span class="msg" id="formMsg"></span></div>
+      </section>
+      <section class="card">
+        <h2><span class="num">02</span> Roles registrados</h2>
+        <p class="sub">Busca un rol específico o carga el listado completo.</p>
+        <div class="actions" style="margin-top:0; margin-bottom:16px">
           <input id="rolBuscar" placeholder="Buscar por rol, predio o propietario…" style="max-width:340px" />
           <button class="primary" id="btnBuscarRol">Buscar</button>
           <button class="primary" id="btnVerTodosRoles" style="background:var(--muted); border-color:var(--muted)">Ver todos</button>
           <span class="hint" id="rolesCount"></span>
         </div>
-        <table><thead><tr><th>Rol</th><th>Predio</th><th>Propietario</th><th>Comuna</th><th>Especie</th><th>Geo</th></tr></thead>
-        <tbody id="tablaRoles"><tr><td colspan="6" class="empty">Usa el buscador o pulsa "Ver todos" para listar los roles.</td></tr></tbody></table>
+        <table><thead><tr><th>Rol</th><th>Predio</th><th>Propietario</th><th>Comuna</th><th>Especie</th><th>Geo</th><th>Acciones</th></tr></thead>
+        <tbody id="tablaRoles"><tr><td colspan="7" class="empty">Usa el buscador o pulsa "Ver todos" para listar los roles.</td></tr></tbody></table>
       </section>
-    </div>
-
-    <!-- MODAL: formulario de rol -->
-    <div class="modal-overlay" id="modalRolForm">
-      <div class="modal">
-        <div class="modal-head"><h3 id="modalRolTitulo">Nuevo rol de predio</h3><button class="modal-close" data-close-modal="modalRolForm">&times;</button></div>
-        <div class="modal-body">
-          <div class="grid">
-            <div><label>Número de rol</label><input id="numeroRol" placeholder="12345-67" /></div>
-            <div><label>Nombre del predio</label><input id="nombrePredio" placeholder="Fundo El Roble" /></div>
-            <div><label>Propietario</label><input id="propietario" placeholder="Juan Pérez" /></div>
-            <div><label>Comuna</label><input id="comuna" placeholder="Los Ángeles" /></div>
-            <div><label>Especie predominante</label><select id="especie"><option value="PINO">PINO</option><option value="EUCALYPTUS">EUCALYPTUS</option><option value="NATIVO">NATIVO</option><option value="OTRO">OTRO</option></select></div>
-            <div><label>Tipo de negocio</label><select id="tipoNegocio"><option value="bosque_en_pie">Bosque en pie</option><option value="madera_puesta_planta">Madera puesta en planta</option></select></div>
-            <div><label>Georreferenciación (lat, lng)</label><input id="rolGeo" placeholder="-37.4689, -72.3534" /></div>
-          </div>
-        </div>
-        <div class="modal-foot">
-          <span class="msg" id="formMsg" style="margin-right:auto"></span>
-          <button class="primary" id="btnCancelarRol" style="background:var(--muted); border-color:var(--muted)">Cancelar</button>
-          <button class="primary" id="btnGuardar" disabled>Guardar rol</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODAL: detalle de rol -->
-    <div class="modal-overlay" id="modalRolDetalle">
-      <div class="modal">
-        <div class="modal-head"><h3 id="detalleRolTitulo">Ficha de rol</h3><button class="modal-close" data-close-modal="modalRolDetalle">&times;</button></div>
-        <div class="modal-body" id="detalleRolBody"></div>
-        <div class="modal-foot">
-          <button class="primary" id="btnEditarRolDetalle">Editar</button>
-          <button class="primary act del" id="btnEliminarRolDetalle" style="display:none">Eliminar</button>
-        </div>
-      </div>
     </div>
 
     <!-- PLANTAS / CLIENTES -->
     <div class="view" id="view-plantas">
       <section class="card">
-        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px">
-          <div>
-            <h2 style="margin:0"><span class="num">01</span> Plantas y clientes</h2>
-            <p class="sub" style="margin:4px 0 0">Pulsa una planta para ver su ficha. Usa el botón para agregar una nueva.</p>
-          </div>
-          <button class="primary" id="btnNuevaPlanta">+ Agregar planta / cliente</button>
+        <h2><span class="num">01</span> Ficha de planta / cliente</h2>
+        <p class="sub">Las plantas de destino se tratan como clientes, con bodegas georreferenciadas para trazabilidad.</p>
+        <div class="grid">
+          <div><label>Nombre</label><input id="pNombre" placeholder="Planta CMPC Mininco" /></div>
+          <div><label>RUT</label><input id="pRut" placeholder="33.333.333-3" /></div>
+          <div><label>Contacto</label><input id="pContacto" placeholder="María López" /></div>
+          <div><label>Teléfono</label><input id="pTel" placeholder="+56 9 1234 5678" /></div>
+          <div><label>Comuna</label><input id="pComuna" placeholder="Mininco" /></div>
+          <div><label>¿Es planta de destino?</label><select id="pEsPlanta"><option value="true">Sí — planta de destino</option><option value="false">No — solo cliente</option></select></div>
         </div>
-        <table style="margin-top:18px"><thead><tr><th>Nombre</th><th>RUT</th><th>Contacto</th><th>Comuna</th><th class="num-cell">Bodegas</th><th>Tipo</th></tr></thead>
+
+        <div style="margin-top:20px; padding-top:18px; border-top:1px solid var(--line)">
+          <label style="font-size:13px">Bodegas de entrega</label>
+          <p class="hint" style="margin-top:0; margin-bottom:12px">Agrega una o varias bodegas con su dirección, comuna y georreferenciación.</p>
+          <div class="grid">
+            <div><label>Nombre bodega</label><input id="bNombre" placeholder="Bodega Norte" /></div>
+            <div><label>Dirección</label><input id="bDireccion" placeholder="Camino Industrial 100" /></div>
+            <div><label>Comuna</label><input id="bComuna" placeholder="Mininco" /></div>
+            <div><label>Georreferenciación (lat, lng)</label><input id="bGeo" placeholder="-37.45, -72.40" /></div>
+          </div>
+          <div class="actions" style="margin-top:12px"><button class="mini" id="btnAddBodega" type="button">+ Agregar bodega</button></div>
+          <div id="bodegasLista" style="margin-top:12px"></div>
+        </div>
+
+        <div class="actions"><button class="primary" id="btnGuardarPlanta" disabled>Guardar ficha</button><span class="msg" id="plantaMsg"></span></div>
+      </section>
+      <section class="card">
+        <h2><span class="num">02</span> Plantas y clientes</h2>
+        <table><thead><tr><th>Nombre</th><th>RUT</th><th>Contacto</th><th>Comuna</th><th class="num-cell">Bodegas</th><th>Tipo</th></tr></thead>
         <tbody id="tablaPlantas"><tr><td colspan="6" class="empty">Cargando&hellip;</td></tr></tbody></table>
       </section>
-    </div>
-
-    <!-- MODAL: formulario de planta (agregar / editar) -->
-    <div class="modal-overlay" id="modalPlantaForm">
-      <div class="modal">
-        <div class="modal-head">
-          <h3 id="modalPlantaTitulo">Nueva planta / cliente</h3>
-          <button class="modal-close" data-close-modal="modalPlantaForm">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="grid">
-            <div><label>Nombre</label><input id="pNombre" placeholder="Planta CMPC Mininco" /></div>
-            <div><label>RUT</label><input id="pRut" placeholder="33.333.333-3" /></div>
-            <div><label>Contacto</label><input id="pContacto" placeholder="María López" /></div>
-            <div><label>Teléfono</label><input id="pTel" placeholder="+56 9 1234 5678" /></div>
-            <div><label>Comuna</label><input id="pComuna" placeholder="Mininco" /></div>
-            <div><label>¿Es planta de destino?</label><select id="pEsPlanta"><option value="true">Sí — planta de destino</option><option value="false">No — solo cliente</option></select></div>
-          </div>
-          <div style="margin-top:20px; padding-top:18px; border-top:1px solid var(--line)">
-            <label style="font-size:13px">Bodegas de entrega</label>
-            <p class="hint" style="margin-top:0; margin-bottom:12px">Agrega una o varias bodegas con su dirección, comuna y georreferenciación.</p>
-            <div class="grid">
-              <div><label>Nombre bodega</label><input id="bNombre" placeholder="Bodega Norte" /></div>
-              <div><label>Dirección</label><input id="bDireccion" placeholder="Camino Industrial 100" /></div>
-              <div><label>Comuna</label><input id="bComuna" placeholder="Mininco" /></div>
-              <div><label>Georreferenciación (lat, lng)</label><input id="bGeo" placeholder="-37.45, -72.40" /></div>
-            </div>
-            <div class="actions" style="margin-top:12px"><button class="mini" id="btnAddBodega" type="button">+ Agregar bodega</button></div>
-            <div id="bodegasLista" style="margin-top:12px"></div>
-          </div>
-        </div>
-        <div class="modal-foot">
-          <span class="msg" id="plantaMsg" style="margin-right:auto"></span>
-          <button class="primary" id="btnCancelarPlanta" style="background:var(--muted); border-color:var(--muted)">Cancelar</button>
-          <button class="primary" id="btnGuardarPlanta" disabled>Guardar ficha</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODAL: detalle de planta (solo lectura) -->
-    <div class="modal-overlay" id="modalPlantaDetalle">
-      <div class="modal">
-        <div class="modal-head">
-          <h3 id="detallePlantaTitulo">Ficha</h3>
-          <button class="modal-close" data-close-modal="modalPlantaDetalle">&times;</button>
-        </div>
-        <div class="modal-body" id="detallePlantaBody"></div>
-        <div class="modal-foot">
-          <button class="primary" id="btnEditarDesdeDetalle">Editar</button>
-          <button class="primary act del" id="btnEliminarDesdeDetalle" style="display:none">Eliminar</button>
-        </div>
-      </div>
     </div>
 
     <!-- PRODUCTOS -->
     <div class="view" id="view-productos">
       <section class="card">
-        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px">
-          <div>
-            <h2 style="margin:0"><span class="num">01</span> Catálogo de productos</h2>
-            <p class="sub" style="margin:4px 0 0">Haz clic en un producto para ver su ficha. Usa el botón para agregar uno nuevo.</p>
-          </div>
-          <button class="primary" id="btnNuevoProd">+ Agregar producto</button>
+        <h2><span class="num">01</span> Ficha de producto</h2>
+        <p class="sub">Catálogo de productos que se solicitan en las órdenes de compra.</p>
+        <div class="grid g3">
+          <div><label>Código de producto</label><input id="prodCodigo" placeholder="P244" /><div class="hint">Debe coincidir con el código del Excel de recepciones.</div></div>
+          <div><label>Especie</label><select id="prodEspecie"><option value="PINO">PINO</option><option value="EUCALYPTUS">EUCALYPTUS</option><option value="NATIVO">NATIVO</option><option value="OTRO">OTRO</option></select></div>
+          <div><label>Variedad</label><input id="prodVariedad" placeholder="Radiata" /></div>
+          <div><label>Tipo de producto</label><input id="prodTipo" placeholder="Trozo aserrable / Pulpable" /></div>
+          <div><label>Largo (m)</label><input id="prodLargo" type="number" step="0.01" placeholder="2.44" /></div>
+          <div><label>Diámetro mín. (cm)</label><input id="prodDiam" type="number" step="0.1" placeholder="18" /></div>
+          <div><label>Calidad / grado</label><input id="prodCalidad" placeholder="Grado 1" /></div>
+          <div><label>Unidad de medida</label><select id="prodUM"><option value="MR">MR (metros ruma)</option><option value="M3">M3 (metros cúbicos)</option><option value="UN">UN (unidad)</option></select></div>
+          <div><label>Descripción</label><input id="prodDescripcion" placeholder="MR PINO PULPABLE 2.44 MTS C/C" /></div>
         </div>
-        <table style="margin-top:18px"><thead><tr><th>Código</th><th>Descripción</th><th>Especie</th><th>Tipo</th><th class="num-cell">Largo</th><th>UM</th></tr></thead>
-        <tbody id="tablaProd"><tr><td colspan="6" class="empty">Cargando&hellip;</td></tr></tbody></table>
+        <div class="actions"><button class="primary" id="btnGuardarProd" disabled>Guardar producto</button><button class="primary" id="btnCancelarProd" style="display:none; background:var(--muted); border-color:var(--muted)">Cancelar edición</button><span class="msg" id="prodMsg"></span></div>
       </section>
-    </div>
-
-    <!-- MODAL: formulario de producto -->
-    <div class="modal-overlay" id="modalProdForm">
-      <div class="modal">
-        <div class="modal-head"><h3 id="modalProdTitulo">Nuevo producto</h3><button class="modal-close" data-close-modal="modalProdForm">&times;</button></div>
-        <div class="modal-body">
-          <div class="grid g3">
-            <div><label>Código de producto</label><input id="prodCodigo" placeholder="P244" /><div class="hint">Debe coincidir con el código del Excel.</div></div>
-            <div><label>Especie</label><select id="prodEspecie"><option value="PINO">PINO</option><option value="EUCALYPTUS">EUCALYPTUS</option><option value="NATIVO">NATIVO</option><option value="OTRO">OTRO</option></select></div>
-            <div><label>Variedad</label><input id="prodVariedad" placeholder="Radiata" /></div>
-            <div><label>Tipo de producto</label><input id="prodTipo" placeholder="Trozo aserrable / Pulpable" /></div>
-            <div><label>Largo (m)</label><input id="prodLargo" type="number" step="0.01" placeholder="2.44" /></div>
-            <div><label>Diámetro mín. (cm)</label><input id="prodDiam" type="number" step="0.1" placeholder="18" /></div>
-            <div><label>Calidad / grado</label><input id="prodCalidad" placeholder="Grado 1" /></div>
-            <div><label>Unidad de medida</label><select id="prodUM"><option value="MR">MR (metros ruma)</option><option value="M3">M3 (metros cúbicos)</option><option value="UN">UN (unidad)</option></select></div>
-            <div><label>Descripción</label><input id="prodDescripcion" placeholder="MR PINO PULPABLE 2.44 MTS C/C" /></div>
-          </div>
-        </div>
-        <div class="modal-foot">
-          <span class="msg" id="prodMsg" style="margin-right:auto"></span>
-          <button class="primary" id="btnCancelarProd" style="background:var(--muted); border-color:var(--muted)">Cancelar</button>
-          <button class="primary" id="btnGuardarProd" disabled>Guardar producto</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODAL: detalle de producto -->
-    <div class="modal-overlay" id="modalProdDetalle">
-      <div class="modal">
-        <div class="modal-head"><h3 id="detalleProdTitulo">Ficha de producto</h3><button class="modal-close" data-close-modal="modalProdDetalle">&times;</button></div>
-        <div class="modal-body" id="detalleProdBody"></div>
-        <div class="modal-foot">
-          <button class="primary" id="btnEditarProdDetalle">Editar</button>
-          <button class="primary act del" id="btnEliminarProdDetalle" style="display:none">Eliminar</button>
-        </div>
-      </div>
+      <section class="card">
+        <h2><span class="num">02</span> Catálogo de productos</h2>
+        <table><thead><tr><th>Código</th><th>Descripción</th><th>Especie</th><th>Tipo</th><th class="num-cell">Largo</th><th>UM</th><th>Acciones</th></tr></thead>
+        <tbody id="tablaProd"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
+      </section>
     </div>
 
     <!-- NEGOCIOS -->
@@ -415,91 +296,42 @@
           <div><label>Rol de predio</label><select id="nRol"><option value="">— Selecciona un rol —</option></select></div>
           <div><label>Proveedor</label><input id="nProveedor" placeholder="Aserradero Sur" /></div>
           <div><label>Especie</label><select id="nEspecie"><option value="PINO">PINO</option><option value="EUCALYPTUS">EUCALYPTUS</option><option value="NATIVO">NATIVO</option><option value="OTRO">OTRO</option></select></div>
-          <div><label>Planta de destino</label><select id="nPlanta"><option value="">— Sin asignar —</option></select></div>
-          <div><label>Bodega destino</label><select id="nBodega"><option value="">— Selecciona planta primero —</option></select></div>
-          <div><label>Tipo de negocio</label><select id="nTipo"><option value="bosque_en_pie">Bosque en pie (cosecha + flete)</option><option value="madera_puesta_planta">Madera puesta en planta</option></select></div>
-          <div><label>Fecha inicio</label><input id="nFechaInicio" type="date" /></div>
-          <div><label>Fecha término</label><input id="nFechaTermino" type="date" /></div>
-          <div><label>Supervisor faena</label><input id="nSupervisor" placeholder="Nombre del supervisor" /></div>
-          <div><label>Volumen M³</label><input id="nVolumen" type="number" step="0.01" placeholder="1200" /></div>
-          <div><label>Volumen MR</label><input id="nVolMR" type="number" step="0.01" placeholder="1600" /></div>
+          <div><label>Volumen estimado (m³)</label><input id="nVolumen" type="number" step="0.01" placeholder="1200" /></div>
           <div><label>Precio compra</label><input id="nPrecio" type="number" step="1" placeholder="35000" /></div>
-          <div><label>Precio venta</label><input id="nPrecioVenta" type="number" step="1" placeholder="42000" /></div>
+          <div><label>Planta de destino</label><select id="nPlanta"><option value="">— Sin asignar —</option></select></div>
+          <div><label>Tipo de negocio</label><select id="nTipo"><option value="bosque_en_pie">Bosque en pie (cosecha + flete)</option><option value="madera_puesta_planta">Madera puesta en planta</option></select></div>
         </div>
-        <div style="margin-top:16px">
-          <label style="font-size:13px">Productos</label>
-          <p class="hint" style="margin-top:0; margin-bottom:12px">Agrega uno o varios productos. Cada uno muestra su tipo, especie y largo.</p>
-          <div class="grid">
-            <div><label>Producto</label><select id="nProdSelect"><option value="">— Selecciona producto —</option></select></div>
-          </div>
-          <div class="actions" style="margin-top:12px"><button class="mini" id="btnAddProdNeg" type="button">+ Agregar producto</button></div>
-          <div id="negProductosLista" style="margin-top:12px"></div>
-        </div>
-        <div class="actions"><button class="primary" id="btnGuardarNeg" disabled>Guardar negocio</button><button class="primary" id="btnCancelarNeg" style="display:none; background:var(--muted); border-color:var(--muted)">Cancelar edición</button><span class="msg" id="negMsg"></span></div>
+        <div class="actions"><button class="primary" id="btnGuardarNeg" disabled>Guardar negocio</button><span class="msg" id="negMsg"></span></div>
       </section>
       <section class="card">
         <h2><span class="num">02</span> Negocios registrados</h2>
-        <table><thead><tr><th>Rol</th><th>Proveedor</th><th>Especie</th><th class="num-cell">Vol. m³</th><th class="num-cell">Vol. MR</th><th>Planta</th><th>Tipo</th><th>OC</th><th>Acciones</th></tr></thead>
-        <tbody id="tablaNeg"><tr><td colspan="9" class="empty">Cargando&hellip;</td></tr></tbody></table>
+        <table><thead><tr><th>Rol</th><th>Proveedor</th><th>Especie</th><th class="num-cell">Vol. m³</th><th>Planta</th><th>Tipo</th></tr></thead>
+        <tbody id="tablaNeg"><tr><td colspan="6" class="empty">Cargando&hellip;</td></tr></tbody></table>
       </section>
     </div>
 
     <!-- ÓRDENES DE COMPRA -->
     <div class="view" id="view-oc">
       <section class="card">
-        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px">
-          <div>
-            <h2 style="margin:0"><span class="num">01</span> Órdenes de compra abiertas</h2>
-            <p class="sub" style="margin:4px 0 0">Se listan las OC abiertas. Haz clic en una para ver su detalle y avance.</p>
-          </div>
-          <button class="primary" id="btnNuevaOC">+ Agregar orden de compra</button>
+        <h2><span class="num">01</span> Nueva orden de compra</h2>
+        <p class="sub">La OC la pide una planta/cliente y se asigna a un negocio. Define cantidad solicitada en metros ruma y m³.</p>
+        <div class="grid">
+          <div><label>Negocio (rol)</label><select id="ocNegocio"><option value="">— Selecciona negocio —</option></select></div>
+          <div><label>Planta / cliente</label><select id="ocPlanta"><option value="">— Selecciona planta —</option></select></div>
+          <div><label>Producto</label><select id="ocProducto"><option value="">— Selecciona producto —</option></select></div>
+          <div><label>N° orden de compra</label><input id="ocNumero" placeholder="OC-2026-001" /></div>
+          <div><label>Solicitado — metros ruma</label><input id="ocMr" type="number" step="0.01" placeholder="2000" /></div>
+          <div><label>Solicitado — m³</label><input id="ocM3" type="number" step="0.01" placeholder="1500" /></div>
+          <div><label>Umbral de alerta</label><input id="ocUmbral" type="number" step="1" value="300" /><div class="hint">Alerta cuando falten ≤ este valor (en mr o m³).</div></div>
         </div>
-        <div class="actions" style="margin-top:16px; margin-bottom:12px">
-          <label style="display:inline-flex; align-items:center; gap:6px; margin:0; font-weight:500"><input type="checkbox" id="ocMostrarTodas" style="width:auto" /> Mostrar también las completadas</label>
-          <span class="hint" id="ocCount"></span>
-        </div>
+        <div class="actions"><button class="primary" id="btnGuardarOC" disabled>Guardar OC</button><span class="msg" id="ocMsg"></span></div>
+      </section>
+      <section class="card">
+        <h2><span class="num">02</span> Órdenes de compra y avance</h2>
+        <p class="sub">El avance se actualiza con cada recepción.</p>
         <table><thead><tr><th>OC</th><th>Rol</th><th>Producto</th><th>Planta</th><th class="num-cell">Mr (rec/sol)</th><th class="num-cell">m³ (rec/sol)</th><th>Estado</th></tr></thead>
         <tbody id="tablaOC"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
       </section>
-    </div>
-
-    <!-- MODAL: formulario de OC -->
-    <div class="modal-overlay" id="modalOCForm">
-      <div class="modal">
-        <div class="modal-head"><h3 id="modalOCTitulo">Nueva orden de compra</h3><button class="modal-close" data-close-modal="modalOCForm">&times;</button></div>
-        <div class="modal-body">
-          <div class="grid">
-            <div><label>Negocio (rol)</label><select id="ocNegocio"><option value="">— Selecciona negocio —</option></select></div>
-            <div><label>Planta / cliente</label><select id="ocPlanta"><option value="">— Selecciona planta —</option></select></div>
-            <div><label>Bodega destino</label><select id="ocBodega"><option value="">— Selecciona planta primero —</option></select></div>
-            <div><label>Producto</label><select id="ocProducto"><option value="">— Selecciona producto —</option></select></div>
-          </div>
-          <div id="ocProdInfo" class="falt-box" style="display:none; margin-top:12px"></div>
-          <div class="grid" style="margin-top:12px">
-            <div><label>N° orden de compra</label><input id="ocNumero" placeholder="OC-2026-001" /></div>
-            <div><label>Umbral de alerta</label><input id="ocUmbral" type="number" step="1" value="300" /><div class="hint">Alerta cuando falten ≤ este valor.</div></div>
-            <div><label>Solicitado — metros ruma</label><input id="ocMr" type="number" step="0.01" placeholder="2000" /></div>
-            <div><label>Solicitado — m³</label><input id="ocM3" type="number" step="0.01" placeholder="1500" /></div>
-          </div>
-        </div>
-        <div class="modal-foot">
-          <span class="msg" id="ocMsg" style="margin-right:auto"></span>
-          <button class="primary" id="btnCancelarOC" style="background:var(--muted); border-color:var(--muted)">Cancelar</button>
-          <button class="primary" id="btnGuardarOC" disabled>Guardar OC</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODAL: detalle de OC -->
-    <div class="modal-overlay" id="modalOCDetalle">
-      <div class="modal">
-        <div class="modal-head"><h3 id="detalleOCTitulo">Orden de compra</h3><button class="modal-close" data-close-modal="modalOCDetalle">&times;</button></div>
-        <div class="modal-body" id="detalleOCBody"></div>
-        <div class="modal-foot">
-          <button class="primary" id="btnEditarOCDetalle">Editar</button>
-          <button class="primary act del" id="btnEliminarOCDetalle" style="display:none">Eliminar</button>
-        </div>
-      </div>
     </div>
 
     <!-- RECEPCIONES -->
@@ -509,20 +341,26 @@
         <ul id="alertList"></ul>
       </div>
       <section class="card">
-        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px">
-          <div>
-            <h2 style="margin:0"><span class="num">01</span> Recepciones</h2>
-            <p class="sub" style="margin:4px 0 0">Las recepciones se cargan desde el Excel. Cada carga agrega las nuevas sin duplicar.</p>
-          </div>
-          <button class="primary" id="btnIrImportar">📥 Cargar Excel con recepciones</button>
+        <h2><span class="num">01</span> Registrar recepción</h2>
+        <p class="sub">Se imputa automáticamente a la OC abierta del rol + producto. Si hay varias, el sistema te pedirá elegir.</p>
+        <div class="grid">
+          <div><label>Rol de predio</label><select id="rRol"><option value="">— Selecciona rol —</option></select></div>
+          <div><label>Producto</label><select id="rProducto"><option value="">— Selecciona producto —</option></select></div>
+          <div><label>Metros ruma recibidos</label><input id="rMr" type="number" step="0.01" placeholder="120" /></div>
+          <div><label>m³ recibidos</label><input id="rM3" type="number" step="0.01" placeholder="90" /></div>
+          <div><label>N° guía de despacho</label><input id="rGuia" placeholder="GD-00123" /></div>
+          <div><label>Patente</label><input id="rPatente" placeholder="ABCD-12" /></div>
         </div>
-        <div class="actions" style="margin-top:16px; margin-bottom:14px">
-          <input id="recBuscar" placeholder="Filtrar por rol, predio, planta, guía…" style="max-width:320px" />
-          <button class="primary" id="btnBuscarRec">Filtrar</button>
-          <button class="primary" id="btnLimpiarRec" style="background:var(--muted); border-color:var(--muted)">Limpiar</button>
-          <span class="hint" id="recCount"></span>
+        <div class="oc-pick" id="ocPick">
+          <label>Hay varias OC abiertas para ese rol + producto. ¿A cuál imputar?</label>
+          <select id="ocPickSelect"></select>
         </div>
-        <div id="recMeses"><p class="empty">Cargando…</p></div>
+        <div class="actions"><button class="primary" id="btnGuardarRec" disabled>Registrar recepción</button><span class="msg" id="recMsg"></span></div>
+      </section>
+      <section class="card">
+        <h2><span class="num">02</span> Recepciones registradas</h2>
+        <table><thead><tr><th>Fecha</th><th>Rol</th><th>Producto</th><th class="num-cell">Mr</th><th class="num-cell">m³</th><th>Guía</th><th>OC</th></tr></thead>
+        <tbody id="tablaRec"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
       </section>
     </div>
 
@@ -554,21 +392,18 @@
     <!-- GASTOS -->
     <div class="view" id="view-gastos">
       <section class="card">
-        <h2><span class="num">01</span> Importar gastos desde Excel</h2>
-        <p class="sub">Carga el archivo de gastos. Se asocian al rol de predio indicado en la columna ROL.</p>
-        <div class="actions" style="margin-top:0">
-          <input type="file" id="gastoFile" accept=".xlsx,.xls" style="max-width:340px" />
-          <button class="primary" id="btnPreviewGasto" disabled>Analizar archivo</button>
+        <h2><span class="num">01</span> Registrar gasto</h2>
+        <p class="sub">Los gastos se asocian al rol de predio. La categoría es libre: escribe la que uses.</p>
+        <div class="grid">
+          <div><label>Rol de predio</label><select id="gRol"><option value="">— Selecciona rol —</option></select></div>
+          <div><label>Categoría</label><input id="gCategoria" list="gCatList" placeholder="Flete, cosecha, manejo…" />
+            <datalist id="gCatList"></datalist><div class="hint">Se autocompleta con categorías que ya usaste.</div></div>
+          <div><label>Descripción</label><input id="gDescripcion" placeholder="Flete tramo predio-planta" /></div>
+          <div><label>Monto</label><input id="gMonto" type="number" step="1" placeholder="850000" /></div>
+          <div><label>Fecha</label><input id="gFecha" type="date" /></div>
+          <div><label>Proveedor</label><input id="gProveedor" placeholder="Transportes XX" /></div>
         </div>
-        <div class="hint" style="margin-top:8px">Columnas esperadas: NÚMERO · PRODUCTO · DESCRIPCIÓN · CANTIDAD · COSTO UNITARIO · TOTAL · CENTRO COSTO · CUENTA · PROVEEDOR · ROL. El rol se toma de la columna ROL (o del inicio de CENTRO COSTO si viene con formato "105-13 …").</div>
-        <div id="gastoPreviewCard" style="display:none; margin-top:18px">
-          <p class="msg" id="gastoPreviewResumen"></p>
-          <div style="max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:6px; margin-top:10px">
-            <table><thead><tr><th>Fila</th><th>Rol</th><th>Producto</th><th>Descripción</th><th class="num-cell">Cantidad</th><th class="num-cell">C. Unit.</th><th class="num-cell">Total</th><th>Estado</th></tr></thead>
-            <tbody id="gastoTablaPreview"></tbody></table>
-          </div>
-          <div class="actions"><button class="primary" id="btnImportarGasto" disabled>Importar gastos</button><span class="msg" id="gastoImportMsg"></span></div>
-        </div>
+        <div class="actions"><button class="primary" id="btnGuardarGasto" disabled>Guardar gasto</button><span class="msg" id="gastoMsg"></span></div>
       </section>
 
       <section class="card">
@@ -583,7 +418,7 @@
         <div class="actions" style="margin-top:0; margin-bottom:14px">
           <select id="gFiltroRol" style="max-width:280px"><option value="">Todos los roles</option></select>
         </div>
-        <table><thead><tr><th>Rol</th><th>Producto</th><th>Descripción</th><th>Cuenta</th><th>Proveedor</th><th class="num-cell">Total $</th></tr></thead>
+        <table><thead><tr><th>Fecha</th><th>Rol</th><th>Categoría</th><th>Descripción</th><th>Proveedor</th><th class="num-cell">Monto $</th></tr></thead>
         <tbody id="tablaGastos"><tr><td colspan="6" class="empty">Cargando…</td></tr></tbody></table>
       </section>
     </div>
@@ -678,20 +513,7 @@
     // XLSX y Chart.js se cargan de forma diferida (no bloquean el login si su CDN falla)
     let XLSX = null, Chart = null;
     async function cargarXLSX(){ if (!XLSX){ XLSX = await import("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm"); } return XLSX; }
-    async function cargarChart(){
-      if (Chart) return Chart;
-      if (window.Chart){ Chart = window.Chart; return Chart; }
-      // Carga la versión UMD por <script> (más confiable que el import ESM y sin problemas de CORS)
-      await new Promise((resolve, reject) => {
-        const s = document.createElement("script");
-        s.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
-        s.onload = resolve;
-        s.onerror = () => reject(new Error("No se pudo cargar Chart.js"));
-        document.head.appendChild(s);
-      });
-      Chart = window.Chart;
-      return Chart;
-    }
+    async function cargarChart(){ if (!Chart){ const mod = await import("https://cdn.jsdelivr.net/npm/chart.js@4.4.1/+esm"); Chart = mod.default; } return Chart; }
 
 
     const firebaseConfig = {
@@ -738,7 +560,7 @@
       const esAdmin = puede("usuarios");
       document.querySelectorAll('nav.sidebar button[data-admin]').forEach((b)=> b.classList.toggle("tab-hidden", !esAdmin));
       const editar = puede("editar");
-      const botonesEditar = ["btnGuardar","btnGuardarPlanta","btnGuardarProd","btnGuardarNeg","btnGuardarOC","btnImportar","btnPreview","btnImportarGasto","btnPreviewGasto"];
+      const botonesEditar = ["btnGuardar","btnGuardarPlanta","btnGuardarProd","btnGuardarNeg","btnGuardarOC","btnGuardarRec","btnGuardarGasto","btnImportar","btnPreview"];
       botonesEditar.forEach((id)=>{ const el=$(id); if(el){ el.disabled = !editar; el.title = editar?"":"No tienes permiso para editar"; } });
       $("btnCrearUsuario").disabled = !esAdmin;
       $("btnGuardarEmpresa").disabled = !esAdmin;
@@ -833,23 +655,7 @@
       $("userInfo").textContent = usuarioActual.nombre || usuarioActual.email;
       $("userBadge").textContent = usuarioActual.tipo;
       aplicarPermisos();
-      iniciarListeners();   // arranca las consultas a Firestore SOLO con sesión confirmada
     });
-
-    // Registra los listeners de Firestore una sola vez, ya con sesión activa.
-    let _listenersIniciados = false;
-    const _colaSnap = [];
-    // regSnap: encola un listener si aún no hay sesión; lo ejecuta cuando la haya.
-    function regSnap(...args){
-      if (_listenersIniciados){ try { onSnapshot(...args); } catch(e){} }
-      else { _colaSnap.push(args); }
-    }
-    function iniciarListeners(){
-      if (_listenersIniciados) return;
-      _listenersIniciados = true;
-      _colaSnap.forEach((args)=>{ try { onSnapshot(...args); } catch(e){} });
-      _colaSnap.length = 0;
-    }
 
     // Pestañas
     document.querySelectorAll("nav.sidebar button").forEach((b) => {
@@ -862,7 +668,6 @@
     });
 
     function setSelect(sel, items, mapFn, placeholder) {
-      if (!sel) return;   // el elemento puede no existir (formularios eliminados)
       const prev = sel.value;
       sel.innerHTML = '<option value="">' + placeholder + '</option>' + items.map(mapFn).join("");
       sel.value = prev;
@@ -872,7 +677,7 @@
     let editandoRolId = null;
     let rolesListadosVisible = false;  // si la tabla está mostrando algo
 
-    regSnap(query(collection(db, "roles"), orderBy("fechaCreacion", "desc")), (snap) => {
+    onSnapshot(query(collection(db, "roles"), orderBy("fechaCreacion", "desc")), (snap) => {
       statusEl.innerHTML = '<span class="dot ok"></span>Conectado &middot; controlgestionforestal';
       if (usuarioActual) aplicarPermisos();
       rolesCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -895,41 +700,17 @@
     function renderRolesTabla(lista){
       rolesListadosVisible = true;
       const t = $("tablaRoles");
-      if (!lista.length){ t.innerHTML = '<tr><td colspan="6" class="empty">No se encontraron roles.</td></tr>'; $("rolesCount").textContent=""; return; }
+      const puedeEd = puede("editar"), puedeBo = puede("borrar");
+      if (!lista.length){ t.innerHTML = '<tr><td colspan="7" class="empty">No se encontraron roles.</td></tr>'; $("rolesCount").textContent=""; return; }
       $("rolesCount").textContent = lista.length + " rol(es)";
       t.innerHTML = lista.map((r)=>{
-        return '<tr class="clickable-row" data-ver-rol="'+r.id+'"><td><strong>'+esc(r.numeroRol)+'</strong></td><td>'+esc(r.nombrePredio)+'</td><td>'+esc(r.propietario)+'</td><td>'+esc(r.comuna)+'</td><td>'+esc(r.especiePredominante)+'</td><td>'+esc(geoTxt(r.georeferencia))+'</td></tr>';
+        let acc = "";
+        if (puedeEd) acc += '<button class="act" data-edit-rol="'+r.id+'">Editar</button>';
+        if (!acc) acc = '<span class="hint">—</span>';
+        return '<tr><td><strong>'+esc(r.numeroRol)+'</strong></td><td>'+esc(r.nombrePredio)+'</td><td>'+esc(r.propietario)+'</td><td>'+esc(r.comuna)+'</td><td>'+esc(r.especiePredominante)+'</td><td>'+esc(geoTxt(r.georeferencia))+'</td><td style="white-space:nowrap">'+acc+'</td></tr>';
       }).join("");
-      t.querySelectorAll("[data-ver-rol]").forEach((row)=> row.addEventListener("click", ()=> verDetalleRol(row.dataset.verRol)));
+      t.querySelectorAll("[data-edit-rol]").forEach((b)=> b.addEventListener("click", ()=> iniciarEdicionRol(b.dataset.editRol)));
     }
-
-    let rolDetalleId = null;
-    function verDetalleRol(id){
-      const r = rolesCache.find((x)=>x.id===id); if (!r) return;
-      rolDetalleId = id;
-      $("detalleRolTitulo").textContent = "Rol " + (r.numeroRol||"");
-      const row = (k,v)=> v ? '<div class="detalle-row"><div class="k">'+k+'</div><div class="v">'+esc(v)+'</div></div>' : "";
-      $("detalleRolBody").innerHTML =
-          row("Número de rol", r.numeroRol) + row("Predio", r.nombrePredio) + row("Propietario", r.propietario)
-        + row("Comuna", r.comuna) + row("Especie", r.especiePredominante)
-        + row("Tipo de negocio", r.tipoNegocio==="bosque_en_pie"?"Bosque en pie":"Madera puesta en planta")
-        + row("Georreferencia", geoTxt(r.georeferencia));
-      $("btnEditarRolDetalle").style.display = puede("editar") ? "inline-block" : "none";
-      $("btnEliminarRolDetalle").style.display = puede("borrar") ? "inline-block" : "none";
-      abrirModal("modalRolDetalle");
-    }
-    $("btnEditarRolDetalle").addEventListener("click", ()=>{ cerrarModal("modalRolDetalle"); iniciarEdicionRol(rolDetalleId); });
-    $("btnEliminarRolDetalle").addEventListener("click", ()=>{ const id=rolDetalleId; cerrarModal("modalRolDetalle"); eliminarRol(id); });
-
-    $("btnNuevoRol").addEventListener("click", ()=>{
-      editandoRolId = null;
-      ["numeroRol","nombrePredio","propietario","comuna","rolGeo"].forEach((id)=>$(id).value="");
-      $("especie").value="PINO"; $("tipoNegocio").value="bosque_en_pie";
-      $("modalRolTitulo").textContent = "Nuevo rol de predio";
-      $("btnGuardar").textContent = "Guardar rol"; $("btnGuardar").disabled = !puede("editar");
-      $("formMsg").textContent = "";
-      abrirModal("modalRolForm");
-    });
 
     $("btnVerTodosRoles").addEventListener("click", ()=>{ _rolFiltro = null; renderRolesTabla(rolesCache); });
     $("btnBuscarRol").addEventListener("click", ()=>{ _rolFiltro = $("rolBuscar").value.trim(); renderRolesTabla(rolesFiltroActual()); });
@@ -942,19 +723,26 @@
       $("propietario").value = r.propietario||""; $("comuna").value = r.comuna||"";
       $("especie").value = up(r.especiePredominante)||"PINO"; $("tipoNegocio").value = r.tipoNegocio||"bosque_en_pie";
       $("rolGeo").value = r.georeferencia ? geoTxt(r.georeferencia) : "";
-      $("modalRolTitulo").textContent = "Editar rol " + (r.numeroRol||"");
-      $("btnGuardar").textContent = "Actualizar rol"; $("btnGuardar").disabled = !puede("editar");
-      $("formMsg").textContent = "";
-      abrirModal("modalRolForm");
+      $("btnGuardar").textContent = "Actualizar rol";
+      $("btnCancelarRol").style.display = "inline-block";
+      // Si es admin, ofrecer eliminar dentro de la edición
+      if (puede("borrar")){
+        $("formMsg").innerHTML = 'Editando rol '+esc(r.numeroRol)+' · <button class="act del" id="btnEliminarRol">Eliminar este rol</button>';
+        $("formMsg").className = "msg";
+        $("btnEliminarRol").addEventListener("click", ()=> eliminarRol(id));
+      } else {
+        $("formMsg").textContent = "Editando rol "+r.numeroRol; $("formMsg").className = "msg";
+      }
+      $("view-roles").scrollIntoView({ behavior:"smooth" });
     }
 
     function cancelarEdicionRol(){
       editandoRolId = null;
       ["numeroRol","nombrePredio","propietario","comuna","rolGeo"].forEach((id)=>$(id).value="");
-      $("especie").value="PINO"; $("tipoNegocio").value="bosque_en_pie";
+      $("especie").value="pino"; $("tipoNegocio").value="bosque_en_pie";
       $("btnGuardar").textContent = "Guardar rol";
+      $("btnCancelarRol").style.display = "none";
       $("formMsg").textContent = "";
-      cerrarModal("modalRolForm");
     }
     $("btnCancelarRol").addEventListener("click", cancelarEdicionRol);
 
@@ -968,7 +756,7 @@
       const usos = [usadoNeg&&"negocios", usadoRec&&"recepciones", usadoOC&&"órdenes de compra", usadoGas&&"gastos"].filter(Boolean);
       if (usos.length) aviso += "\n\n⚠️ Atención: este rol tiene "+usos.join(", ")+" asociados. Esos registros quedarán sin rol asociado, pero NO se borran.";
       if (!confirm(aviso)) return;
-      try { await deleteDoc(doc(db,"roles",id)); if (rolesListadosVisible) renderRolesTabla(rolesFiltroActual()); }
+      try { await deleteDoc(doc(db,"roles",id)); cancelarEdicionRol(); if (rolesListadosVisible) renderRolesTabla(rolesFiltroActual()); }
       catch(e){ alert("Error al eliminar: "+e.message); }
     }
 
@@ -980,82 +768,26 @@
       try {
         if (editandoRolId){
           await updateDoc(doc(db,"roles",editandoRolId), datos);
-          m.textContent="✓ Rol actualizado."; m.className="msg ok";
-          if (rolesListadosVisible) renderRolesTabla(rolesFiltroActual());
-          setTimeout(()=>cancelarEdicionRol(), 600);
+          m.textContent="✓ Rol actualizado."; m.className="msg ok"; cancelarEdicionRol();
         } else {
           await addDoc(collection(db,"roles"), { ...datos, estado:"activo", fechaCreacion:serverTimestamp() });
-          m.textContent="✓ Rol guardado."; m.className="msg ok";
-          setTimeout(()=>cancelarEdicionRol(), 600);
+          m.textContent="✓ Rol guardado."; m.className="msg ok"; ["numeroRol","nombrePredio","propietario","comuna","rolGeo"].forEach((id)=>$(id).value="");
         }
       } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardar").disabled = !puede("editar"); }
     });
 
     // ---- PLANTAS ----
-    // Helpers de modal
-    function abrirModal(id){ $(id).classList.add("show"); }
-    function cerrarModal(id){ $(id).classList.remove("show"); }
-    document.querySelectorAll("[data-close-modal]").forEach((b)=> b.addEventListener("click", ()=> cerrarModal(b.dataset.closeModal)));
-    // Cerrar al hacer clic fuera del cuadro
-    document.querySelectorAll(".modal-overlay").forEach((ov)=> ov.addEventListener("click", (e)=>{ if (e.target===ov) ov.classList.remove("show"); }));
-
-    let plantaDetalleId = null;  // planta actualmente mostrada en el modal de detalle
-
-    regSnap(query(collection(db,"clientes"), orderBy("fechaCreacion","desc")), (snap) => {
+    onSnapshot(query(collection(db,"clientes"), orderBy("fechaCreacion","desc")), (snap) => {
       plantasCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       const t = $("tablaPlantas");
-      t.innerHTML = snap.empty ? '<tr><td colspan="6" class="empty">Aún no hay plantas ni clientes. Pulsa "Agregar" para crear una.</td></tr>' :
+      t.innerHTML = snap.empty ? '<tr><td colspan="6" class="empty">Aún no hay plantas ni clientes.</td></tr>' :
         plantasCache.map((p)=>{ const c=p.esPlantaDestino?"planta":"abierta"; const x=p.esPlantaDestino?"Planta destino":"Cliente";
           const nBod=(p.bodegas||[]).length; const nombresBod=(p.bodegas||[]).map((b)=>b.nombre).join(", ");
-          return '<tr class="clickable-row" data-ver-planta="'+p.id+'"><td><strong>'+esc(p.nombre)+'</strong></td><td>'+esc(p.rut)+'</td><td>'+esc(p.contactoNombre)+'</td><td>'+esc(p.comuna)+'</td><td class="num-cell" title="'+esc(nombresBod)+'">'+nBod+'</td><td><span class="tag '+c+'">'+x+'</span></td></tr>'; }).join("");
-      t.querySelectorAll("[data-ver-planta]").forEach((row)=> row.addEventListener("click", ()=> verDetallePlanta(row.dataset.verPlanta)));
-      // Si el detalle abierto sigue existiendo, refrescarlo
-      if (plantaDetalleId && $("modalPlantaDetalle").classList.contains("show")){ const p=plantasCache.find((x)=>x.id===plantaDetalleId); if (p) verDetallePlanta(plantaDetalleId); }
+          return '<tr><td><strong>'+esc(p.nombre)+'</strong></td><td>'+esc(p.rut)+'</td><td>'+esc(p.contactoNombre)+'</td><td>'+esc(p.comuna)+'</td><td class="num-cell" title="'+esc(nombresBod)+'">'+nBod+'</td><td><span class="tag '+c+'">'+x+'</span></td></tr>'; }).join("");
       const plantasDestino = plantasCache.filter((p)=>p.esPlantaDestino);
       setSelect($("nPlanta"), plantasDestino, (p)=>'<option value="'+p.id+'">'+esc(p.nombre)+'</option>', "— Sin asignar —");
       setSelect($("ocPlanta"), plantasCache, (p)=>'<option value="'+p.id+'">'+esc(p.nombre)+'</option>', "— Selecciona planta —");
     }, ()=>{});
-
-    // Muestra la ficha de una planta en modo solo lectura
-    function verDetallePlanta(id){
-      const p = plantasCache.find((x)=>x.id===id); if (!p) return;
-      plantaDetalleId = id;
-      $("detallePlantaTitulo").textContent = p.nombre || "Ficha";
-      const row = (k,v)=> v ? '<div class="detalle-row"><div class="k">'+k+'</div><div class="v">'+esc(v)+'</div></div>' : "";
-      const bodegas = (p.bodegas||[]);
-      let bodHtml = "";
-      if (bodegas.length){
-        bodHtml = '<div style="margin-top:16px"><div class="k" style="font-weight:700; color:var(--ink); margin-bottom:8px">Bodegas ('+bodegas.length+')</div>'
-          + bodegas.map((b)=>'<div style="padding:8px 12px; background:var(--bg); border-radius:6px; margin-bottom:6px; font-size:13px"><strong>'+esc(b.nombre)+'</strong>'
-              + (b.direccion?' · '+esc(b.direccion):'') + (b.comuna?' · '+esc(b.comuna):'')
-              + (b.georeferencia&&b.georeferencia.lat!=null?' · 📍 '+esc(b.georeferencia.lat+", "+b.georeferencia.lng):'') + '</div>').join("")
-          + '</div>';
-      }
-      $("detallePlantaBody").innerHTML =
-          row("Tipo", p.esPlantaDestino?"Planta de destino":"Cliente")
-        + row("RUT", p.rut) + row("Contacto", p.contactoNombre) + row("Teléfono", p.contactoTelefono)
-        + row("Comuna", p.comuna) + bodHtml;
-      // Botón eliminar solo admin
-      $("btnEliminarDesdeDetalle").style.display = puede("borrar") ? "inline-block" : "none";
-      $("btnEditarDesdeDetalle").style.display = puede("editar") ? "inline-block" : "none";
-      abrirModal("modalPlantaDetalle");
-    }
-
-    // Botones del modal de detalle
-    $("btnEditarDesdeDetalle").addEventListener("click", ()=>{ cerrarModal("modalPlantaDetalle"); iniciarEdicionPlanta(plantaDetalleId); });
-    $("btnEliminarDesdeDetalle").addEventListener("click", ()=>{ const id=plantaDetalleId; cerrarModal("modalPlantaDetalle"); eliminarPlanta(id); });
-
-    // Botón agregar nueva planta
-    $("btnNuevaPlanta").addEventListener("click", ()=>{
-      editandoPlantaId = null;
-      ["pNombre","pRut","pContacto","pTel","pComuna","bNombre","bDireccion","bComuna","bGeo"].forEach((id)=>$(id).value="");
-      $("pEsPlanta").value="true"; bodegasTemp=[]; renderBodegasTemp();
-      $("modalPlantaTitulo").textContent = "Nueva planta / cliente";
-      $("btnGuardarPlanta").textContent = "Guardar ficha";
-      $("btnGuardarPlanta").disabled = !puede("editar");
-      $("plantaMsg").textContent="";
-      abrirModal("modalPlantaForm");
-    });
 
     // ---- Bodegas dinámicas (en el formulario de planta) ----
     let bodegasTemp = [];
@@ -1083,107 +815,43 @@
       $("plantaMsg").textContent=""; renderBodegasTemp();
     });
 
-    let editandoPlantaId = null;
-
-    function iniciarEdicionPlanta(id){
-      const p = plantasCache.find((x)=>x.id===id); if (!p) return;
-      editandoPlantaId = id;
-      $("pNombre").value = p.nombre||""; $("pRut").value = p.rut||"";
-      $("pContacto").value = p.contactoNombre||""; $("pTel").value = p.contactoTelefono||"";
-      $("pComuna").value = p.comuna||""; $("pEsPlanta").value = p.esPlantaDestino ? "true":"false";
-      bodegasTemp = (p.bodegas||[]).map((b)=>({ ...b })); renderBodegasTemp();
-      $("modalPlantaTitulo").textContent = "Editar: " + (p.nombre||"");
-      $("btnGuardarPlanta").textContent = "Actualizar ficha";
-      $("btnGuardarPlanta").disabled = !puede("editar");
-      $("plantaMsg").textContent = "";
-      abrirModal("modalPlantaForm");
-    }
-
-    function cancelarEdicionPlanta(){
-      editandoPlantaId = null;
-      ["pNombre","pRut","pContacto","pTel","pComuna","bNombre","bDireccion","bComuna","bGeo"].forEach((id)=>$(id).value="");
-      $("pEsPlanta").value="true"; bodegasTemp=[]; renderBodegasTemp();
-      $("btnGuardarPlanta").textContent = "Guardar ficha";
-      $("plantaMsg").textContent = "";
-      cerrarModal("modalPlantaForm");
-    }
-    $("btnCancelarPlanta").addEventListener("click", cancelarEdicionPlanta);
-
-    async function eliminarPlanta(id){
-      const p = plantasCache.find((x)=>x.id===id); if (!p) return;
-      const usadaNeg = negociosCache.some((n)=>n.plantaDestinoId===id);
-      const usadaOC = ocCache.some((o)=>o.plantaId===id);
-      let aviso = "¿Eliminar la ficha \""+(p.nombre||"")+"\"?";
-      const usos = [usadaNeg&&"negocios", usadaOC&&"órdenes de compra"].filter(Boolean);
-      if (usos.length) aviso += "\n\n⚠️ Atención: está usada en "+usos.join(" y ")+". Esos registros quedarán sin planta asociada, pero NO se borran.";
-      if (!confirm(aviso)) return;
-      try { await deleteDoc(doc(db,"clientes",id)); cancelarEdicionPlanta(); }
-      catch(e){ alert("Error al eliminar: "+e.message); }
-    }
-
     $("btnGuardarPlanta").addEventListener("click", async () => {
       const nombre = $("pNombre").value.trim(); const m = $("plantaMsg");
       if (!nombre) { m.textContent="El nombre es obligatorio."; m.className="msg err"; return; }
+      // Si quedó una bodega escrita sin agregar, la incluimos automáticamente
       const bodegas = [...bodegasTemp];
       if ($("bNombre").value.trim()){
         bodegas.push({ bodegaId: Date.now().toString(36), nombre:up($("bNombre").value), direccion:up($("bDireccion").value), comuna:up($("bComuna").value), georeferencia:parseGeo($("bGeo").value) });
       }
-      const datos = { nombre:up(nombre), rut:$("pRut").value.trim(), contactoNombre:up($("pContacto").value), contactoTelefono:$("pTel").value.trim(), comuna:up($("pComuna").value), esPlantaDestino: $("pEsPlanta").value==="true", bodegas };
       $("btnGuardarPlanta").disabled=true; m.textContent="Guardando…"; m.className="msg";
-      try {
-        if (editandoPlantaId){
-          await updateDoc(doc(db,"clientes",editandoPlantaId), datos);
-          m.textContent="✓ Ficha actualizada ("+bodegas.length+" bodega/s)."; m.className="msg ok"; cancelarEdicionPlanta();
-        } else {
-          await addDoc(collection(db,"clientes"), { ...datos, estado:"activo", fechaCreacion:serverTimestamp() });
-          m.textContent="✓ Ficha guardada con "+bodegas.length+" bodega(s)."; m.className="msg ok";
-          bodegasTemp = []; renderBodegasTemp();
-          setTimeout(()=> cerrarModal("modalPlantaForm"), 700);  // cerrar tras confirmar
-        }
-      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarPlanta").disabled = !puede("editar"); }
+      try { await addDoc(collection(db,"clientes"),{ nombre:up(nombre), rut:$("pRut").value.trim(), contactoNombre:up($("pContacto").value), contactoTelefono:$("pTel").value.trim(), comuna:up($("pComuna").value), esPlantaDestino: $("pEsPlanta").value==="true", bodegas, estado:"activo", fechaCreacion:serverTimestamp() });
+        m.textContent="✓ Ficha guardada con "+bodegas.length+" bodega(s)."; m.className="msg ok";
+        ["pNombre","pRut","pContacto","pTel","pComuna","bNombre","bDireccion","bComuna","bGeo"].forEach((id)=>$(id).value="");
+        bodegasTemp = []; renderBodegasTemp();
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarPlanta").disabled=false; }
     });
 
     // ---- PRODUCTOS ----
-    let editandoProdId = null;
-    let prodDetalleId = null;
+    let editandoProdId = null;  // id del producto en edición, o null
 
-    regSnap(query(collection(db,"productos"), orderBy("fechaCreacion","desc")), (snap) => {
+    onSnapshot(query(collection(db,"productos"), orderBy("fechaCreacion","desc")), (snap) => {
       productosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       const t = $("tablaProd");
-      t.innerHTML = snap.empty ? '<tr><td colspan="6" class="empty">Aún no hay productos. Pulsa "Agregar" para crear uno.</td></tr>' :
+      const puedeEd = puede("editar"), puedeBo = puede("borrar");
+      t.innerHTML = snap.empty ? '<tr><td colspan="7" class="empty">Aún no hay productos.</td></tr>' :
         productosCache.map((p)=>{
-          return '<tr class="clickable-row" data-ver-prod="'+p.id+'"><td><strong>'+esc(p.codigo)+'</strong></td><td>'+esc(p.descripcion||"")+'</td><td>'+esc(p.especie)+'</td><td>'+esc(p.tipoProducto)+'</td><td class="num-cell">'+esc(p.largo)+'</td><td>'+esc(p.unidadMedida||"")+'</td></tr>';
+          let acciones = "";
+          if (puedeEd) acciones += '<button class="act" data-edit-prod="'+p.id+'">Editar</button>';
+          if (puedeBo) acciones += '<button class="act del" data-del-prod="'+p.id+'">Eliminar</button>';
+          if (!acciones) acciones = '<span class="hint">—</span>';
+          return '<tr><td><strong>'+esc(p.codigo)+'</strong></td><td>'+esc(p.descripcion||"")+'</td><td>'+esc(p.especie)+'</td><td>'+esc(p.tipoProducto)+'</td><td class="num-cell">'+esc(p.largo)+'</td><td>'+esc(p.unidadMedida||"")+'</td><td style="white-space:nowrap">'+acciones+'</td></tr>';
         }).join("");
-      t.querySelectorAll("[data-ver-prod]").forEach((row)=> row.addEventListener("click", ()=> verDetalleProd(row.dataset.verProd)));
+      // Listeners de editar / eliminar
+      t.querySelectorAll("[data-edit-prod]").forEach((b)=> b.addEventListener("click", ()=> iniciarEdicionProd(b.dataset.editProd)));
+      t.querySelectorAll("[data-del-prod]").forEach((b)=> b.addEventListener("click", ()=> eliminarProd(b.dataset.delProd)));
       setSelect($("ocProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodLabel(p))+'</option>', "— Selecciona producto —");
-      setSelect($("nProdSelect"), productosCache, (p)=>'<option value="'+p.id+'">'+esc((p.codigo?p.codigo+' · ':'')+prodLabel(p))+'</option>', "— Selecciona producto —");
+      setSelect($("rProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodLabel(p))+'</option>', "— Selecciona producto —");
     }, ()=>{});
-
-    function verDetalleProd(id){
-      const p = productosCache.find((x)=>x.id===id); if (!p) return;
-      prodDetalleId = id;
-      $("detalleProdTitulo").textContent = (p.codigo||"") + " · " + (p.descripcion||prodLabel(p));
-      const row = (k,v)=> (v!==null&&v!==undefined&&v!=="") ? '<div class="detalle-row"><div class="k">'+k+'</div><div class="v">'+esc(v)+'</div></div>' : "";
-      $("detalleProdBody").innerHTML =
-          row("Código", p.codigo) + row("Descripción", p.descripcion) + row("Especie", p.especie)
-        + row("Variedad", p.variedad) + row("Tipo", p.tipoProducto) + row("Largo (m)", p.largo)
-        + row("Diámetro mín. (cm)", p.diametroMin) + row("Calidad", p.calidad) + row("Unidad de medida", p.unidadMedida);
-      $("btnEditarProdDetalle").style.display = puede("editar") ? "inline-block" : "none";
-      $("btnEliminarProdDetalle").style.display = puede("borrar") ? "inline-block" : "none";
-      abrirModal("modalProdDetalle");
-    }
-    $("btnEditarProdDetalle").addEventListener("click", ()=>{ cerrarModal("modalProdDetalle"); iniciarEdicionProd(prodDetalleId); });
-    $("btnEliminarProdDetalle").addEventListener("click", ()=>{ const id=prodDetalleId; cerrarModal("modalProdDetalle"); eliminarProd(id); });
-
-    $("btnNuevoProd").addEventListener("click", ()=>{
-      editandoProdId = null;
-      ["prodCodigo","prodVariedad","prodTipo","prodLargo","prodDiam","prodCalidad","prodDescripcion"].forEach((id)=>$(id).value="");
-      $("prodEspecie").value="PINO"; $("prodUM").value="MR";
-      $("modalProdTitulo").textContent = "Nuevo producto";
-      $("btnGuardarProd").textContent = "Guardar producto"; $("btnGuardarProd").disabled = !puede("editar");
-      $("prodMsg").textContent="";
-      abrirModal("modalProdForm");
-    });
 
     function iniciarEdicionProd(id){
       const p = productosCache.find((x)=>x.id===id); if (!p) return;
@@ -1192,24 +860,31 @@
       $("prodVariedad").value = p.variedad||""; $("prodTipo").value = p.tipoProducto||"";
       $("prodLargo").value = p.largo??""; $("prodDiam").value = p.diametroMin??""; $("prodCalidad").value = p.calidad||"";
       $("prodUM").value = p.unidadMedida||"MR"; $("prodDescripcion").value = p.descripcion||"";
-      $("modalProdTitulo").textContent = "Editar: " + (p.codigo||"");
-      $("btnGuardarProd").textContent = "Actualizar producto"; $("btnGuardarProd").disabled = !puede("editar");
-      $("prodMsg").textContent = "";
-      abrirModal("modalProdForm");
+      $("btnGuardarProd").textContent = "Actualizar producto";
+      $("btnCancelarProd").style.display = "inline-block";
+      if (puede("borrar")){
+        $("prodMsg").innerHTML = 'Editando producto '+esc(p.codigo||"")+' · <button class="act del" id="btnEliminarProdEdit">Eliminar este producto</button>';
+        $("prodMsg").className = "msg";
+        $("btnEliminarProdEdit").addEventListener("click", ()=> eliminarProd(id));
+      } else {
+        $("prodMsg").textContent = "Editando producto "+(p.codigo||""); $("prodMsg").className = "msg";
+      }
+      $("view-productos").scrollIntoView({ behavior:"smooth" });
     }
 
     function cancelarEdicionProd(){
       editandoProdId = null;
       ["prodCodigo","prodVariedad","prodTipo","prodLargo","prodDiam","prodCalidad","prodDescripcion"].forEach((id)=>$(id).value="");
-      $("prodUM").value = "MR"; $("prodEspecie").value="PINO";
+      $("prodUM").value = "MR";
       $("btnGuardarProd").textContent = "Guardar producto";
+      $("btnCancelarProd").style.display = "none";
       $("prodMsg").textContent = "";
-      cerrarModal("modalProdForm");
     }
     $("btnCancelarProd").addEventListener("click", cancelarEdicionProd);
 
     async function eliminarProd(id){
       const p = productosCache.find((x)=>x.id===id); if (!p) return;
+      // Advertir si el producto está en uso en recepciones u OC
       const usadoRec = recepcionesCache.some((r)=>r.productoId===id);
       const usadoOC = ocCache.some((o)=>o.productoId===id);
       let aviso = "¿Eliminar el producto \""+(p.codigo||"")+" · "+prodLabel(p)+"\"?";
@@ -1227,276 +902,55 @@
         if (editandoProdId){
           await updateDoc(doc(db,"productos",editandoProdId), datos);
           m.textContent="✓ Producto actualizado."; m.className="msg ok";
-          setTimeout(()=>cancelarEdicionProd(), 600);
+          cancelarEdicionProd();
         } else {
           await addDoc(collection(db,"productos"), { ...datos, fechaCreacion:serverTimestamp() });
           m.textContent="✓ Producto guardado."; m.className="msg ok";
-          setTimeout(()=>cancelarEdicionProd(), 600);
+          ["prodCodigo","prodVariedad","prodTipo","prodLargo","prodDiam","prodCalidad","prodDescripcion"].forEach((id)=>$(id).value=""); $("prodUM").value="MR";
         }
       } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarProd").disabled = !puede("editar"); }
     });
 
     // ---- NEGOCIOS ----
-    regSnap(query(collection(db,"negocios"), orderBy("fechaCreacion","desc")), (snap) => {
+    onSnapshot(query(collection(db,"negocios"), orderBy("fechaCreacion","desc")), (snap) => {
       negociosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
-      renderNegTabla();
+      const t = $("tablaNeg");
+      t.innerHTML = snap.empty ? '<tr><td colspan="6" class="empty">Aún no hay negocios.</td></tr>' :
+        negociosCache.map((n)=>{ const c=n.tipoNegocio==="bosque_en_pie"?"pie":"planta"; const x=n.tipoNegocio==="bosque_en_pie"?"Bosque en pie":"Puesta en planta";
+          return '<tr><td><strong>'+esc(n.numeroRol)+'</strong></td><td>'+esc(n.proveedor)+'</td><td>'+esc(n.especie)+'</td><td class="num-cell">'+fmt(n.volumenEstimadoM3)+'</td><td>'+esc(n.plantaDestinoNombre||"—")+'</td><td><span class="tag '+c+'">'+x+'</span></td></tr>'; }).join("");
       setSelect($("ocNegocio"), negociosCache, (n)=>'<option value="'+n.id+'">'+esc(n.numeroRol)+' · '+esc(n.proveedor||"")+'</option>', "— Selecciona negocio —");
     }, ()=>{});
-
-    function renderNegTabla(){
-      const t = $("tablaNeg"); if (!t) return;
-      const puedeEd = puede("editar"), puedeBo = puede("borrar");
-      if (!negociosCache.length){ t.innerHTML = '<tr><td colspan="9" class="empty">Aún no hay negocios.</td></tr>'; return; }
-      t.innerHTML = negociosCache.map((n)=>{
-        const c=n.tipoNegocio==="bosque_en_pie"?"pie":"planta"; const x=n.tipoNegocio==="bosque_en_pie"?"Bosque en pie":"Puesta en planta";
-        const tieneOC = ocCache.some((o)=> o.negocioId===n.id);
-        const ocTag = tieneOC ? '<span class="tag completada">✓ OC</span>' : '<span class="tag alerta">⚠️ Sin OC</span>';
-        let acc=""; if (puedeEd) acc+='<button class="act" data-edit-neg="'+n.id+'">Editar</button>'; if (puedeBo) acc+=' <button class="act del" data-del-neg="'+n.id+'">Eliminar</button>'; if (!acc) acc='<span class="hint">—</span>';
-        return '<tr><td><strong>'+esc(n.numeroRol)+'</strong></td><td>'+esc(n.proveedor)+'</td><td>'+esc(n.especie)+'</td><td class="num-cell">'+fmt(n.volumenEstimadoM3)+'</td><td class="num-cell">'+fmt(n.volumenMR)+'</td><td>'+esc(n.plantaDestinoNombre||"—")+'</td><td><span class="tag '+c+'">'+x+'</span></td><td>'+ocTag+'</td><td style="white-space:nowrap">'+acc+'</td></tr>';
-      }).join("");
-      t.querySelectorAll("[data-edit-neg]").forEach((b)=> b.addEventListener("click", ()=> iniciarEdicionNeg(b.dataset.editNeg)));
-      t.querySelectorAll("[data-del-neg]").forEach((b)=> b.addEventListener("click", ()=> eliminarNeg(b.dataset.delNeg)));
-    }
-
-    // Poblar bodegas destino según la planta elegida (cascada, igual que en OC)
-    function actualizarBodegasNeg(){
-      const planta = plantasCache.find((p)=>p.id===$("nPlanta").value);
-      const bodegas = planta ? (planta.bodegas||[]) : [];
-      $("nBodega").innerHTML = bodegas.length
-        ? '<option value="">— Selecciona bodega —</option>' + bodegas.map((b)=>'<option value="'+esc(b.bodegaId||b.nombre)+'">'+esc(b.nombre)+'</option>').join("")
-        : '<option value="">— Sin bodegas —</option>';
-    }
-    $("nPlanta").addEventListener("change", actualizarBodegasNeg);
-
-    // Chips de productos del negocio (patrón bodegasTemp)
-    let productosTempNeg = [];
-    function renderProductosTempNeg(){
-      const cont = $("negProductosLista");
-      if (!productosTempNeg.length){ cont.innerHTML = '<p class="hint">Sin productos agregados aún.</p>'; return; }
-      cont.innerHTML = productosTempNeg.map((p,i)=>'<span class="falt-chip"><strong>'+esc(p.codigo||p.label||"")+'</strong>'
-        + ' · Tipo: '+esc(p.tipoProducto||"—") + ' · Especie: '+esc(p.especie||"—") + ' · Largo: '+esc(p.largo!=null?p.largo+" m":"—")
-        + ' <button class="mini" data-del-prod-neg="'+i+'" type="button">✕</button></span>').join("");
-      cont.querySelectorAll("[data-del-prod-neg]").forEach((btn)=> btn.addEventListener("click", ()=>{ productosTempNeg.splice(parseInt(btn.dataset.delProdNeg),1); renderProductosTempNeg(); }));
-    }
-    renderProductosTempNeg();
-
-    $("btnAddProdNeg").addEventListener("click", () => {
-      const prod = productosCache.find((p)=>p.id===$("nProdSelect").value);
-      if (!prod){ $("negMsg").textContent="Selecciona un producto para agregar."; $("negMsg").className="msg err"; return; }
-      if (productosTempNeg.some((p)=>p.productoId===prod.id)){ $("negMsg").textContent="Ese producto ya está agregado."; $("negMsg").className="msg err"; return; }
-      productosTempNeg.push({ productoId:prod.id, codigo:prod.codigo||"", tipoProducto:prod.tipoProducto||"", especie:prod.especie||"", largo:prod.largo??null, label:prodLabel(prod) });
-      $("nProdSelect").value=""; $("negMsg").textContent=""; renderProductosTempNeg();
-    });
-
-    let editandoNegId = null;
-
-    function iniciarEdicionNeg(id){
-      const n = negociosCache.find((x)=>x.id===id); if (!n) return;
-      editandoNegId = id;
-      $("nRol").value = n.rolId||""; $("nProveedor").value = n.proveedor||"";
-      $("nEspecie").value = up(n.especie)||"PINO"; $("nVolumen").value = n.volumenEstimadoM3??"";
-      $("nVolMR").value = n.volumenMR??""; $("nPrecio").value = n.precioCompra??""; $("nPrecioVenta").value = n.precioVenta??"";
-      $("nPlanta").value = n.plantaDestinoId||""; $("nTipo").value = n.tipoNegocio||"bosque_en_pie";
-      $("nFechaInicio").value = n.fechaInicio||""; $("nFechaTermino").value = n.fechaTermino||""; $("nSupervisor").value = n.supervisorFaena||"";
-      actualizarBodegasNeg(); $("nBodega").value = n.bodegaDestinoId||"";
-      productosTempNeg = (n.productos||[]).map((x)=>({ ...x })); renderProductosTempNeg();
-      $("btnGuardarNeg").textContent = "Actualizar negocio";
-      $("btnCancelarNeg").style.display = "inline-block";
-      if (puede("borrar")){
-        $("negMsg").innerHTML = 'Editando negocio de '+esc(n.numeroRol)+' · <button class="act del" id="btnEliminarNeg">Eliminar este negocio</button>';
-        $("negMsg").className="msg";
-        $("btnEliminarNeg").addEventListener("click", ()=> eliminarNeg(id));
-      } else { $("negMsg").textContent = "Editando negocio de "+n.numeroRol; $("negMsg").className="msg"; }
-      $("view-negocios").scrollIntoView({ behavior:"smooth" });
-    }
-
-    function cancelarEdicionNeg(){
-      editandoNegId = null;
-      ["nProveedor","nVolumen","nVolMR","nPrecio","nPrecioVenta","nFechaInicio","nFechaTermino","nSupervisor"].forEach((id)=>$(id).value="");
-      $("nRol").value=""; $("nPlanta").value=""; $("nBodega").innerHTML='<option value="">— Selecciona planta primero —</option>';
-      $("nEspecie").value="PINO"; $("nTipo").value="bosque_en_pie";
-      productosTempNeg = []; renderProductosTempNeg();
-      $("btnGuardarNeg").textContent = "Guardar negocio";
-      $("btnCancelarNeg").style.display = "none";
-      $("negMsg").textContent = "";
-    }
-    $("btnCancelarNeg").addEventListener("click", cancelarEdicionNeg);
-
-    async function eliminarNeg(id){
-      const n = negociosCache.find((x)=>x.id===id); if (!n) return;
-      const usadoOC = ocCache.some((o)=>o.negocioId===id);
-      let aviso = "¿Eliminar el negocio del rol \""+(n.numeroRol||"")+"\"?";
-      if (usadoOC) aviso += "\n\n⚠️ Atención: tiene órdenes de compra asociadas. Esas quedarán sin negocio asociado, pero NO se borran.";
-      if (!confirm(aviso)) return;
-      try { await deleteDoc(doc(db,"negocios",id)); cancelarEdicionNeg(); }
-      catch(e){ alert("Error al eliminar: "+e.message); }
-    }
 
     $("btnGuardarNeg").addEventListener("click", async () => {
       const rolId = $("nRol").value; const m = $("negMsg");
       if (!rolId) { m.textContent="Debes seleccionar un rol."; m.className="msg err"; return; }
       const rol = rolesCache.find((r)=>r.id===rolId); const planta = plantasCache.find((p)=>p.id===$("nPlanta").value);
-      const bodega = planta && planta.bodegas ? planta.bodegas.find((b)=>(b.bodegaId||b.nombre)===$("nBodega").value) : null;
-      const datos = { rolId, numeroRol: rol?rol.numeroRol:"", proveedor:up($("nProveedor").value), especie:$("nEspecie").value, volumenEstimadoM3:parseFloat($("nVolumen").value)||0, volumenMR:parseFloat($("nVolMR").value)||0, precioCompra:parseFloat($("nPrecio").value)||0, precioVenta:parseFloat($("nPrecioVenta").value)||0, plantaDestinoId:$("nPlanta").value||null, plantaDestinoNombre: planta?planta.nombre:null, bodegaDestinoId:$("nBodega").value||null, bodegaDestinoNombre: bodega?bodega.nombre:null, fechaInicio:$("nFechaInicio").value||null, fechaTermino:$("nFechaTermino").value||null, supervisorFaena:up($("nSupervisor").value), productos: productosTempNeg.map((p)=>({ productoId:p.productoId, codigo:p.codigo||"", tipoProducto:p.tipoProducto||"", especie:p.especie||"", largo:p.largo??null, label:p.label||"" })), tipoNegocio:$("nTipo").value, incluyeCosecha:$("nTipo").value==="bosque_en_pie", incluyeFlete:$("nTipo").value==="bosque_en_pie" };
       $("btnGuardarNeg").disabled=true; m.textContent="Guardando…"; m.className="msg";
-      try {
-        if (editandoNegId){
-          await updateDoc(doc(db,"negocios",editandoNegId), datos);
-          m.textContent="✓ Negocio actualizado."; m.className="msg ok"; cancelarEdicionNeg();
-        } else {
-          await addDoc(collection(db,"negocios"), { ...datos, estado:"en_curso", fechaCreacion:serverTimestamp() });
-          m.textContent="✓ Negocio guardado."; m.className="msg ok";
-          ["nProveedor","nVolumen","nVolMR","nPrecio","nPrecioVenta","nFechaInicio","nFechaTermino","nSupervisor"].forEach((id)=>$(id).value="");
-          $("nRol").value=""; $("nPlanta").value=""; $("nBodega").innerHTML='<option value="">— Selecciona planta primero —</option>';
-          productosTempNeg = []; renderProductosTempNeg();
-        }
-      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarNeg").disabled = !puede("editar"); }
+      try { await addDoc(collection(db,"negocios"),{ rolId, numeroRol: rol?rol.numeroRol:"", proveedor:up($("nProveedor").value), especie:$("nEspecie").value, volumenEstimadoM3:parseFloat($("nVolumen").value)||0, precioCompra:parseFloat($("nPrecio").value)||0, plantaDestinoId:$("nPlanta").value||null, plantaDestinoNombre: planta?planta.nombre:null, tipoNegocio:$("nTipo").value, incluyeCosecha:$("nTipo").value==="bosque_en_pie", incluyeFlete:$("nTipo").value==="bosque_en_pie", estado:"en_curso", fechaCreacion:serverTimestamp() });
+        m.textContent="✓ Negocio guardado."; m.className="msg ok"; ["nProveedor","nVolumen","nPrecio"].forEach((id)=>$(id).value=""); $("nRol").value=""; $("nPlanta").value="";
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarNeg").disabled=false; }
     });
 
     // ---- ÓRDENES DE COMPRA ----
-    let ocMostrarTodas = false;
-    let ocDetalleId = null;
-    let editandoOCId = null;
-
-    function estadoOC(o){
-      const recMr=o.recibido?.metrosRuma||0, solMr=o.solicitado?.metrosRuma||0;
-      const recM3=o.recibido?.m3||0, solM3=o.solicitado?.m3||0;
-      const restMr=solMr-recMr, restM3=solM3-recM3, um=o.umbralAlerta??300;
-      if (restMr<=0 && restM3<=0) return {est:"completada", cls:"completada", txt:"Completada"};
-      if (restMr<=um || restM3<=um) return {est:"por_completar", cls:"alerta", txt:"⚠️ Por completar"};
-      return {est:"abierta", cls:"abierta", txt:"Abierta"};
-    }
-
-    regSnap(query(collection(db,"ordenesCompra"), orderBy("fechaCreacion","desc")), (snap) => {
+    onSnapshot(query(collection(db,"ordenesCompra"), orderBy("fechaCreacion","desc")), (snap) => {
       ocCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
-      renderOCTabla();
-      renderAlertas();
-      renderNegTabla();
-      if (ocDetalleId && $("modalOCDetalle").classList.contains("show")){ const o=ocCache.find((x)=>x.id===ocDetalleId); if (o) verDetalleOC(ocDetalleId); }
-    }, ()=>{});
-
-    function renderOCTabla(){
       const t = $("tablaOC");
-      // Por defecto solo abiertas (abierta o por_completar); si el check está activo, todas
-      let lista = ocCache.map((o)=>({o, e:estadoOC(o)}));
-      if (!ocMostrarTodas) lista = lista.filter((x)=> x.e.est!=="completada");
-      $("ocCount").textContent = lista.length + " OC";
-      if (!lista.length){ t.innerHTML = '<tr><td colspan="7" class="empty">No hay órdenes de compra'+(ocMostrarTodas?"":" abiertas")+'.</td></tr>'; return; }
-      t.innerHTML = lista.map(({o,e})=>{
-        const recMr=o.recibido?.metrosRuma||0, solMr=o.solicitado?.metrosRuma||0;
-        const recM3=o.recibido?.m3||0, solM3=o.solicitado?.m3||0;
-        const pMr=solMr?Math.min(100,recMr/solMr*100):0; const barCls = e.est==="completada"?"full":(e.est==="por_completar"?"warn":"");
-        return '<tr class="clickable-row" data-ver-oc="'+o.id+'"><td><strong>'+esc(o.numero)+'</strong></td><td>'+esc(o.numeroRol)+'</td><td>'+esc(o.productoLabel)+'</td><td>'+esc(o.plantaNombre||"—")+'</td>'+
-          '<td class="num-cell">'+fmt(recMr)+' / '+fmt(solMr)+'<div class="bar"><span class="'+barCls+'" style="width:'+pMr+'%"></span></div></td>'+
-          '<td class="num-cell">'+fmt(recM3)+' / '+fmt(solM3)+'</td>'+
-          '<td><span class="tag '+e.cls+'">'+e.txt+'</span></td></tr>';
-      }).join("");
-      t.querySelectorAll("[data-ver-oc]").forEach((row)=> row.addEventListener("click", ()=> verDetalleOC(row.dataset.verOc)));
-    }
-    $("ocMostrarTodas").addEventListener("change", ()=>{ ocMostrarTodas = $("ocMostrarTodas").checked; renderOCTabla(); });
-
-    function verDetalleOC(id){
-      const o = ocCache.find((x)=>x.id===id); if (!o) return;
-      ocDetalleId = id;
-      const e = estadoOC(o);
-      $("detalleOCTitulo").textContent = "OC " + (o.numero||"");
-      const row = (k,v)=> (v!==null&&v!==undefined&&v!=="") ? '<div class="detalle-row"><div class="k">'+k+'</div><div class="v">'+esc(v)+'</div></div>' : "";
-      const recMr=o.recibido?.metrosRuma||0, solMr=o.solicitado?.metrosRuma||0;
-      const recM3=o.recibido?.m3||0, solM3=o.solicitado?.m3||0;
-      $("detalleOCBody").innerHTML =
-          row("N° OC", o.numero) + row("Estado", e.txt) + row("Rol", o.numeroRol)
-        + row("Producto", o.productoLabel) + row("Planta", o.plantaNombre) + row("Bodega destino", o.bodegaNombre)
-        + row("Solicitado MR", fmt(solMr)) + row("Recibido MR", fmt(recMr)) + row("Falta MR", fmt(Math.max(0,solMr-recMr)))
-        + row("Solicitado M³", fmt(solM3)) + row("Recibido M³", fmt(recM3)) + row("Falta M³", fmt(Math.max(0,solM3-recM3)))
-        + row("Umbral alerta", o.umbralAlerta);
-      $("btnEditarOCDetalle").style.display = puede("editar") ? "inline-block" : "none";
-      $("btnEliminarOCDetalle").style.display = puede("borrar") ? "inline-block" : "none";
-      abrirModal("modalOCDetalle");
-    }
-    $("btnEditarOCDetalle").addEventListener("click", ()=>{ cerrarModal("modalOCDetalle"); iniciarEdicionOC(ocDetalleId); });
-    $("btnEliminarOCDetalle").addEventListener("click", ()=>{ const id=ocDetalleId; cerrarModal("modalOCDetalle"); eliminarOC(id); });
-
-    // Poblar bodegas destino según la planta elegida
-    function actualizarBodegasOC(){
-      const planta = plantasCache.find((p)=>p.id===$("ocPlanta").value);
-      const bodegas = planta ? (planta.bodegas||[]) : [];
-      $("ocBodega").innerHTML = bodegas.length
-        ? '<option value="">— Selecciona bodega —</option>' + bodegas.map((b)=>'<option value="'+esc(b.bodegaId||b.nombre)+'">'+esc(b.nombre)+'</option>').join("")
-        : '<option value="">— Sin bodegas —</option>';
-    }
-    $("ocPlanta").addEventListener("change", actualizarBodegasOC);
-
-    // Mostrar datos del producto automáticamente
-    function mostrarInfoProdOC(){
-      const prod = productosCache.find((p)=>p.id===$("ocProducto").value);
-      const box = $("ocProdInfo");
-      if (!prod){ box.style.display="none"; return; }
-      box.style.display="block";
-      box.innerHTML = '<strong>Datos del producto:</strong> Tipo: '+esc(prod.tipoProducto||"—")+' · Especie: '+esc(prod.especie||"—")+' · Largo: '+esc(prod.largo!=null?prod.largo+" m":"—")+' · UM: '+esc(prod.unidadMedida||"—");
-    }
-    $("ocProducto").addEventListener("change", mostrarInfoProdOC);
-
-    $("btnNuevaOC").addEventListener("click", ()=>{
-      editandoOCId = null;
-      ["ocNumero","ocMr","ocM3"].forEach((id)=>$(id).value=""); $("ocUmbral").value="300";
-      $("ocNegocio").value=""; $("ocPlanta").value=""; $("ocProducto").value=""; $("ocBodega").innerHTML='<option value="">— Selecciona planta primero —</option>';
-      $("ocProdInfo").style.display="none";
-      $("modalOCTitulo").textContent="Nueva orden de compra";
-      $("btnGuardarOC").textContent="Guardar OC"; $("btnGuardarOC").disabled=!puede("editar");
-      $("ocMsg").textContent="";
-      abrirModal("modalOCForm");
-    });
-
-    function iniciarEdicionOC(id){
-      const o = ocCache.find((x)=>x.id===id); if (!o) return;
-      editandoOCId = id;
-      $("ocNegocio").value = o.negocioId||""; $("ocPlanta").value = o.plantaId||"";
-      actualizarBodegasOC(); $("ocBodega").value = o.bodegaId||"";
-      $("ocProducto").value = o.productoId||""; mostrarInfoProdOC();
-      $("ocNumero").value = o.numero||""; $("ocUmbral").value = o.umbralAlerta??300;
-      $("ocMr").value = o.solicitado?.metrosRuma??""; $("ocM3").value = o.solicitado?.m3??"";
-      $("modalOCTitulo").textContent = "Editar OC " + (o.numero||"");
-      $("btnGuardarOC").textContent = "Actualizar OC"; $("btnGuardarOC").disabled=!puede("editar");
-      $("ocMsg").textContent="";
-      abrirModal("modalOCForm");
-    }
-
-    $("btnCancelarOC").addEventListener("click", ()=> cerrarModal("modalOCForm"));
-
-    async function eliminarOC(id){
-      const o = ocCache.find((x)=>x.id===id); if (!o) return;
-      if (!confirm("¿Eliminar la orden de compra \""+(o.numero||"")+"\"? Las recepciones ya imputadas no se borran.")) return;
-      try { await deleteDoc(doc(db,"ordenesCompra",id)); }
-      catch(e){ alert("Error al eliminar: "+e.message); }
-    }
-
-    $("btnGuardarOC").addEventListener("click", async () => {
-      const negId=$("ocNegocio").value, prodId=$("ocProducto").value; const m=$("ocMsg");
-      if (!negId || !prodId){ m.textContent="Negocio y producto son obligatorios."; m.className="msg err"; return; }
-      const neg=negociosCache.find((n)=>n.id===negId); const prod=productosCache.find((p)=>p.id===prodId);
-      const planta=plantasCache.find((p)=>p.id===$("ocPlanta").value);
-      const bodega = planta && planta.bodegas ? planta.bodegas.find((b)=>(b.bodegaId||b.nombre)===$("ocBodega").value) : null;
-      const datos = {
-        numero:$("ocNumero").value.trim()||("OC-"+Date.now()),
-        negocioId:negId, rolId:neg.rolId, numeroRol:neg.numeroRol,
-        productoId:prodId, productoLabel:prodLabel(prod),
-        plantaId:$("ocPlanta").value||null, plantaNombre:planta?planta.nombre:null,
-        bodegaId:$("ocBodega").value||null, bodegaNombre:bodega?bodega.nombre:null,
-        solicitado:{ metrosRuma:parseFloat($("ocMr").value)||0, m3:parseFloat($("ocM3").value)||0 },
-        umbralAlerta:parseFloat($("ocUmbral").value)||300,
-      };
-      $("btnGuardarOC").disabled=true; m.textContent="Guardando…"; m.className="msg";
-      try {
-        if (editandoOCId){
-          await updateDoc(doc(db,"ordenesCompra",editandoOCId), datos);
-          m.textContent="✓ OC actualizada."; m.className="msg ok";
-        } else {
-          await addDoc(collection(db,"ordenesCompra"), { ...datos, recibido:{ metrosRuma:0, m3:0 }, estado:"abierta", fechaCreacion:serverTimestamp() });
-          m.textContent="✓ OC guardada."; m.className="msg ok";
-        }
-        setTimeout(()=> cerrarModal("modalOCForm"), 600);
-      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarOC").disabled = !puede("editar"); }
-    });
+      t.innerHTML = snap.empty ? '<tr><td colspan="7" class="empty">Aún no hay órdenes de compra.</td></tr>' :
+        ocCache.map((o)=>{
+          const recMr=o.recibido?.metrosRuma||0, solMr=o.solicitado?.metrosRuma||0;
+          const recM3=o.recibido?.m3||0, solM3=o.solicitado?.m3||0;
+          const restMr=solMr-recMr, restM3=solM3-recM3, um=o.umbralAlerta??300;
+          let est="abierta", cls="abierta", txt="Abierta";
+          if (restMr<=0 && restM3<=0){ est="completada"; cls="completada"; txt="Completada"; }
+          else if (restMr<=um || restM3<=um){ est="por_completar"; cls="alerta"; txt="⚠️ Por completar"; }
+          const pMr=solMr?Math.min(100,recMr/solMr*100):0; const barCls = est==="completada"?"full":(est==="por_completar"?"warn":"");
+          return '<tr><td><strong>'+esc(o.numero)+'</strong></td><td>'+esc(o.numeroRol)+'</td><td>'+esc(o.productoLabel)+'</td><td>'+esc(o.plantaNombre||"—")+'</td>'+
+            '<td class="num-cell">'+fmt(recMr)+' / '+fmt(solMr)+'<div class="bar"><span class="'+barCls+'" style="width:'+pMr+'%"></span></div></td>'+
+            '<td class="num-cell">'+fmt(recM3)+' / '+fmt(solM3)+'</td>'+
+            '<td><span class="tag '+cls+'">'+txt+'</span></td></tr>';
+        }).join("");
+      renderAlertas();
+    }, ()=>{});
 
     function renderAlertas() {
       const alertas = ocCache.filter((o)=>{
@@ -1505,92 +959,82 @@
         return (restMr>0 || restM3>0) && (restMr<=um || restM3<=um);
       });
       const panel=$("alertPanel"), list=$("alertList");
-      if (!panel || !alertas.length){ if(panel) panel.classList.add("hidden"); return; }
+      if (!alertas.length){ panel.classList.add("hidden"); return; }
       panel.classList.remove("hidden");
       list.innerHTML = alertas.map((o)=>{ const restMr=(o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0); const restM3=(o.solicitado?.m3||0)-(o.recibido?.m3||0);
         return '<li><strong>'+esc(o.numero)+'</strong> ('+esc(o.numeroRol)+' · '+esc(o.productoLabel)+') — faltan '+fmt(Math.max(0,restMr))+' mr / '+fmt(Math.max(0,restM3))+' m³</li>'; }).join("");
     }
 
-    // ---- RECEPCIONES ----
+    $("btnGuardarOC").addEventListener("click", async () => {
+      const negId=$("ocNegocio").value, prodId=$("ocProducto").value; const m=$("ocMsg");
+      if (!negId || !prodId){ m.textContent="Negocio y producto son obligatorios."; m.className="msg err"; return; }
+      const neg=negociosCache.find((n)=>n.id===negId); const prod=productosCache.find((p)=>p.id===prodId); const planta=plantasCache.find((p)=>p.id===$("ocPlanta").value);
+      $("btnGuardarOC").disabled=true; m.textContent="Guardando…"; m.className="msg";
+      try { await addDoc(collection(db,"ordenesCompra"),{ numero:$("ocNumero").value.trim()||("OC-"+Date.now()), negocioId:negId, rolId:neg.rolId, numeroRol:neg.numeroRol, productoId:prodId, productoLabel:prodLabel(prod), plantaId:$("ocPlanta").value||null, plantaNombre:planta?planta.nombre:null, solicitado:{ metrosRuma:parseFloat($("ocMr").value)||0, m3:parseFloat($("ocM3").value)||0 }, recibido:{ metrosRuma:0, m3:0 }, umbralAlerta:parseFloat($("ocUmbral").value)||300, estado:"abierta", fechaCreacion:serverTimestamp() });
+        m.textContent="✓ OC guardada."; m.className="msg ok"; ["ocNumero","ocMr","ocM3"].forEach((id)=>$(id).value=""); $("ocUmbral").value="300"; $("ocNegocio").value=""; $("ocPlanta").value=""; $("ocProducto").value="";
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarOC").disabled=false; }
+    });
+
+    // ---- RECEPCIONES (vínculo + alerta) ----
     function ocsAbiertas(rolId, prodId) {
       return ocCache.filter((o)=> o.rolId===rolId && o.productoId===prodId && o.estado!=="completada");
     }
-    // Botón que lleva a la pestaña Importar Excel
-    $("btnIrImportar").addEventListener("click", ()=>{
-      document.querySelector('nav.sidebar button[data-tab="importar"]').click();
-    });
+    function actualizarPickOC() {
+      const matches = ocsAbiertas($("rRol").value, $("rProducto").value);
+      const pick=$("ocPick"), sel=$("ocPickSelect");
+      if (matches.length>1){ pick.classList.add("show"); sel.innerHTML = matches.map((o)=>'<option value="'+o.id+'">'+esc(o.numero)+' · '+esc(o.plantaNombre||"")+' (faltan '+fmt((o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0))+' mr)</option>').join(""); }
+      else { pick.classList.remove("show"); }
+    }
+    $("rRol").addEventListener("change", actualizarPickOC);
+    $("rProducto").addEventListener("change", actualizarPickOC);
 
-    let _recFiltro = "";
-    regSnap(query(collection(db,"recepciones"), orderBy("fechaCreacion","desc")), (snap) => {
+    onSnapshot(query(collection(db,"recepciones"), orderBy("fechaCreacion","desc")), (snap) => {
       recepcionesCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
-      renderRecepcionesPorMes();
+      const t=$("tablaRec");
+      t.innerHTML = snap.empty ? '<tr><td colspan="7" class="empty">Aún no hay recepciones.</td></tr>' :
+        snap.docs.map((d)=>{ const r=d.data(); const fecha = r.fechaCreacion?.toDate ? r.fechaCreacion.toDate().toLocaleDateString("es-CL") : "—";
+          return '<tr><td>'+fecha+'</td><td><strong>'+esc(r.numeroRol)+'</strong></td><td>'+esc(r.productoLabel)+'</td><td class="num-cell">'+fmt(r.metrosRuma)+'</td><td class="num-cell">'+fmt(r.m3)+'</td><td>'+esc(r.numeroGuia)+'</td><td>'+esc(r.ocNumero||"sin OC")+'</td></tr>'; }).join("");
     }, ()=>{});
 
-    const MESES_NOMBRE = ["","Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-    function nombreMes(periodo){
-      // periodo = "YYYY-MM"
-      const mm = periodo.match(/^(\d{4})-(\d{2})/);
-      if (!mm) return periodo || "Sin fecha";
-      return MESES_NOMBRE[parseInt(mm[2])] + " " + mm[1];
-    }
+    $("btnGuardarRec").addEventListener("click", async () => {
+      const rolId=$("rRol").value, prodId=$("rProducto").value; const m=$("recMsg");
+      if (!rolId || !prodId){ m.textContent="Rol y producto son obligatorios."; m.className="msg err"; return; }
+      const mr=parseFloat($("rMr").value)||0, m3=parseFloat($("rM3").value)||0;
+      if (mr<=0 && m3<=0){ m.textContent="Ingresa metros ruma o m³."; m.className="msg err"; return; }
+      const rol=rolesCache.find((r)=>r.id===rolId); const prod=productosCache.find((p)=>p.id===prodId);
 
-    function renderRecepcionesPorMes(){
-      const cont = $("recMeses");
-      let lista = recepcionesCache;
-      // Filtro de texto
-      if (_recFiltro){
-        const q = _recFiltro.toLowerCase();
-        lista = lista.filter((r)=> [r.numeroRol,r.descripPredio,r.planta,r.nombreDestino,r.numeroGuia,r.descripcionProducto,r.especie,r.comuna].some((v)=> (v||"").toString().toLowerCase().includes(q)));
-      }
-      $("recCount").textContent = lista.length + " recepción(es)";
-      if (!lista.length){ cont.innerHTML = '<p class="empty">No hay recepciones'+(_recFiltro?" para ese filtro":"")+'.</p>'; return; }
+      // Resolver OC destino
+      const matches = ocsAbiertas(rolId, prodId);
+      let ocDestino = null;
+      if (matches.length===1) ocDestino = matches[0];
+      else if (matches.length>1){ const sel=$("ocPickSelect").value; ocDestino = matches.find((o)=>o.id===sel) || matches[0]; }
 
-      // Agrupar por periodo (mes)
-      const grupos = {};
-      lista.forEach((r)=>{ const p = r.periodo || "0000-00"; (grupos[p] = grupos[p] || []).push(r); });
-      const periodos = Object.keys(grupos).sort((a,b)=>b.localeCompare(a));  // más reciente primero
+      $("btnGuardarRec").disabled=true; m.textContent="Guardando…"; m.className="msg";
+      try {
+        // 1) Crear la recepción
+        await addDoc(collection(db,"recepciones"),{ rolId, numeroRol: rol?rol.numeroRol:"", productoId:prodId, productoLabel:prodLabel(prod), metrosRuma:mr, m3, numeroGuia:$("rGuia").value.trim(), patente:$("rPatente").value.trim(), ordenCompraId: ocDestino?ocDestino.id:null, ocNumero: ocDestino?ocDestino.numero:null, periodo: new Date().toISOString().slice(0,7), estado:"recibido", fechaCreacion:serverTimestamp() });
 
-      cont.innerHTML = periodos.map((p, idx)=>{
-        const recs = grupos[p];
-        const totalMr = recs.reduce((a,r)=>a+(r.metrosRuma||0),0);
-        const totalM3 = recs.reduce((a,r)=>a+(r.m3||0),0);
-        const abierto = (idx===0 && !_recFiltro) ? "" : "";  // todos cerrados por defecto
-        const filas = recs.map((r)=>{
-          return '<tr>'
-            + '<td>'+esc(r.nroGMM||"")+'</td>'
-            + '<td>'+esc(r.fechaIngreso||"")+'</td>'
-            + '<td>'+esc(r.numeroGuia||"")+'</td>'
-            + '<td>'+esc(r.camion||r.patente||"")+'</td>'
-            + '<td class="num-cell">'+fmt(r.metrosRuma||0)+'</td>'
-            + '<td>'+esc(r.comuna||"")+'</td>'
-            + '<td>'+esc(r.nombreDestino||r.nombreBodega||"")+'</td>'
-            + '<td><strong>'+esc(r.numeroRol||"")+'</strong></td>'
-            + '<td>'+esc(r.descripPredio||"")+'</td>'
-            + '<td>'+esc(r.descripcionProducto||r.productoLabel||"")+'</td>'
-            + '<td>'+esc(r.unidadMedida||"")+'</td>'
-            + '<td>'+esc(r.especie||"")+'</td>'
-            + '<td>'+esc(r.planta||"")+'</td>'
-            + '<td>'+esc(r.coordenadasOrigen||"")+'</td>'
-            + '</tr>';
-        }).join("");
-        return '<div class="mes-group'+abierto+'">'
-          + '<div class="mes-header" data-mes-toggle>'
-          +   '<span class="mes-titulo">'+esc(nombreMes(p))+' <span class="hint">('+recs.length+')</span></span>'
-          +   '<span class="mes-stats">'+fmt(Math.round(totalMr))+' mr · '+fmt(Math.round(totalM3))+' m³ <span class="mes-flecha">▶</span></span>'
-          + '</div>'
-          + '<div class="mes-body"><table><thead><tr>'
-          +   '<th>NºGMM</th><th>Fecha Ing</th><th>NºG/D</th><th>Camión</th><th class="num-cell">MR</th><th>Comuna</th><th>Destino</th><th>Rol</th><th>Predio</th><th>Descripción</th><th>UM</th><th>Especie</th><th>Planta</th><th>Coord. origen</th>'
-          + '</tr></thead><tbody>'+filas+'</tbody></table></div>'
-          + '</div>';
-      }).join("");
-
-      // Listeners de despliegue
-      cont.querySelectorAll("[data-mes-toggle]").forEach((h)=> h.addEventListener("click", ()=> h.parentElement.classList.toggle("abierto")));
-    }
-
-    $("btnBuscarRec").addEventListener("click", ()=>{ _recFiltro = $("recBuscar").value.trim(); renderRecepcionesPorMes(); });
-    $("recBuscar").addEventListener("keydown", (e)=>{ if (e.key==="Enter"){ _recFiltro = $("recBuscar").value.trim(); renderRecepcionesPorMes(); } });
-    $("btnLimpiarRec").addEventListener("click", ()=>{ _recFiltro=""; $("recBuscar").value=""; renderRecepcionesPorMes(); });
+        // 2) Actualizar avance de la OC e revisar alerta
+        if (ocDestino){
+          const ref = doc(db,"ordenesCompra",ocDestino.id);
+          const nuevoMr = (ocDestino.recibido?.metrosRuma||0)+mr;
+          const nuevoM3 = (ocDestino.recibido?.m3||0)+m3;
+          const solMr = ocDestino.solicitado?.metrosRuma||0, solM3 = ocDestino.solicitado?.m3||0;
+          const um = ocDestino.umbralAlerta??300;
+          const restMr = solMr-nuevoMr, restM3 = solM3-nuevoM3;
+          let estado="abierta";
+          if (restMr<=0 && restM3<=0) estado="completada";
+          else if (restMr<=um || restM3<=um) estado="por_completar";
+          await updateDoc(ref,{ "recibido.metrosRuma":nuevoMr, "recibido.m3":nuevoM3, estado });
+          if (estado==="por_completar"){ m.textContent="✓ Recepción guardada. ⚠️ La OC "+ocDestino.numero+" está por completarse (faltan "+fmt(Math.max(0,restMr))+" mr / "+fmt(Math.max(0,restM3))+" m³)."; m.className="msg warn"; }
+          else if (estado==="completada"){ m.textContent="✓ Recepción guardada. La OC "+ocDestino.numero+" quedó completada."; m.className="msg ok"; }
+          else { m.textContent="✓ Recepción imputada a "+ocDestino.numero+"."; m.className="msg ok"; }
+        } else {
+          m.textContent="✓ Recepción guardada, pero no hay OC abierta para ese rol + producto."; m.className="msg warn";
+        }
+        ["rMr","rM3","rGuia","rPatente"].forEach((id)=>$(id).value=""); $("ocPick").classList.remove("show");
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarRec").disabled=false; }
+    });
 
     // ================== IMPORTACIÓN EXCEL/CSV ==================
     let filasPreview = [];
@@ -1675,25 +1119,16 @@
           if (!numeroRol){ const cc = pick(row, ["centro_costo","centro_de_costo"]); if (cc) numeroRol = extraerRol(cc); }
           // Código de producto: EE/PP (fletes) · producto (BASE_PROF) · codigo_producto (plantilla)
           const codigoProd = pick(row, ["codigo_producto","ee/pp","producto","cod_producto"]).toString().trim();
-          // Unidad de medida: define si la cantidad es MR o M3
-          const unidadMedida = pick(row, ["um","unidad","unidad_de_medida","unidad_medida"]).toString().trim().toUpperCase();
-          // La cantidad viene en UNA columna ("MR Recep." / "cantidad" / "metros_ruma").
-          // Si UM = M3, esa cantidad es metros cúbicos; si no, metros ruma.
-          // (Se mantiene compatibilidad si el archivo trae una columna "m3" separada.)
-          const cantidad = parseFloat(pick(row, ["metros_ruma","mr_recep.","cantidad"])) || 0;
-          const m3Directo = parseFloat(pick(row, ["m3"])) || 0;
-          let mr, m3;
-          if (unidadMedida === "M3"){ m3 = cantidad || m3Directo; mr = 0; }
-          else { mr = cantidad; m3 = m3Directo; }
+          // Cantidad en metros ruma: mr_recep (fletes) · cantidad (BASE_PROF) · metros_ruma (plantilla)
+          const mr = parseFloat(pick(row, ["metros_ruma","mr_recep.","cantidad"])) || 0;
+          const m3 = parseFloat(pick(row, ["m3"])) || 0;
           const bodega  = pick(row, ["nombre_bodega","nombre_destino","bodega"]).toString().trim();
           const guia    = pick(row, ["numero_guia","nºg/d","ng/d","guia_asociada"]).toString().trim();
-          const camion  = pick(row, ["camion/_carro","camion","carro"]).toString().trim();
-          const patente = pick(row, ["patente"]).toString().trim() || camion;
-          const nombreDestino = pick(row, ["nombre_destino","destino"]).toString().trim() || bodega;
+          const patente = pick(row, ["patente","camion/_carro"]).toString().trim();
           const fecha   = pick(row, ["fecha","fecha_ing"]).toString().trim();
-          const coordOrigen = pick(row, ["coordenadas_origen","coordenadas"]).toString().trim();
-          // Descripción del PRODUCTO
+          // Descripción y unidad de medida del PRODUCTO (columnas nuevas del archivo definitivo)
           const descProducto = pick(row, ["descripcion","descripcion_producto","desc_producto"]).toString().trim();
+          const unidadMedida = pick(row, ["um","unidad","unidad_de_medida","unidad_medida"]).toString().trim();
           const especieRow = pick(row, ["especie"]).toString().trim();
           const plantaRow = pick(row, ["planta"]).toString().trim();
           // Campos extra que se guardan como respaldo (de cualquiera de los formatos)
@@ -1717,7 +1152,7 @@
           if (mr<=0 && m3<=0) errores.push("sin cantidades");
           // El código es opcional aquí: si viene vacío, la recepción se guarda igual (sin imputar a OC por producto)
           const gmm = (extra.nroGMM||"").toString().trim();
-          return { fila: i+2, numeroRol, codigoProd, descProducto, unidadMedida, especieRow, plantaRow, bodega, camion, nombreDestino, coordOrigen, mr, m3, guia, patente, fecha, extra, gmm, rol, prod, valida: errores.length===0, errores };
+          return { fila: i+2, numeroRol, codigoProd, descProducto, unidadMedida, especieRow, plantaRow, bodega, mr, m3, guia, patente, fecha, extra, gmm, rol, prod, valida: errores.length===0, errores };
         });
 
         // Marcar duplicados: contra lo ya cargado (por GMM) y contra el propio archivo
@@ -1849,31 +1284,11 @@
       // Convierte fecha DD/MM/YYYY o YYYY-MM-DD a periodo YYYY-MM
       const periodoDe = (f) => {
         const v = (f.fecha||"").toString().trim();
-        if (!v) return "sin-fecha";
-        // Formato YYYY-MM-DD o YYYY/MM/DD (con o sin hora): 2026-02-04 00:00:00
-        let mYMD = v.match(/^(\d{4})[\/\-](\d{1,2})/);
-        if (mYMD) return mYMD[1] + "-" + mYMD[2].padStart(2,"0");
-        // Formato con año de 4 dígitos DD/MM/YYYY o MM/DD/YYYY
-        let m4 = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-        if (m4){
-          // Los archivos vienen en formato USA M/D/YYYY -> el primer número es el MES
-          return m4[3] + "-" + m4[1].padStart(2,"0");
-        }
-        // Formato con año de 2 dígitos M/D/YY (ej "2/4/26" = feb 2026, formato USA mes/día/año)
-        let m2 = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})(?!\d)/);
-        if (m2){
-          const anio = 2000 + parseInt(m2[3]);
-          return anio + "-" + m2[1].padStart(2,"0");  // m2[1] = mes
-        }
-        // Número serial de Excel
-        const num = parseFloat(v);
-        if (!isNaN(num) && num > 30000 && num < 60000){
-          const d = new Date(Math.round((num - 25569) * 86400 * 1000));
-          if (!isNaN(d)) return d.getUTCFullYear() + "-" + String(d.getUTCMonth()+1).padStart(2,"0");
-        }
-        const d = new Date(v);
-        if (!isNaN(d)) return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
-        return "sin-fecha";
+        let mDMY = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+        if (mDMY) return mDMY[3] + "-" + mDMY[2].padStart(2,"0");
+        let mYMD = v.match(/^(\d{4})-(\d{2})/);
+        if (mYMD) return mYMD[1] + "-" + mYMD[2];
+        return new Date().toISOString().slice(0,7);
       };
       // ID de documento seguro a partir del GMM (o autogenerado si no hay GMM)
       const docIdDe = (f) => f.gmm ? ("gmm_" + f.gmm.replace(/[^a-zA-Z0-9_\-]/g,"_")) : ("rec_" + Date.now() + "_" + Math.random().toString(36).slice(2,8));
@@ -1891,8 +1306,6 @@
               descripcionProducto: f.descProducto || null, unidadMedida: f.unidadMedida || null,
               especie: f.especieRow || null, planta: f.plantaRow || null,
               nombreBodega: f.bodega || null,
-              nombreDestino: f.nombreDestino || null, camion: f.camion || null,
-              fechaIngreso: f.fecha || null, coordenadasOrigen: f.coordOrigen || null,
               metrosRuma: f.mr, m3: f.m3,
               numeroGuia: f.guia, patente: f.patente,
               ordenCompraId: null, ocNumero: null,
@@ -1927,89 +1340,38 @@
     // Fecha por defecto: hoy
     $("gFecha").value = new Date().toISOString().slice(0,10);
 
-    // ---- IMPORTAR GASTOS DESDE EXCEL ----
-    let gastosPreview = [];
-    $("gastoFile").addEventListener("change", ()=>{ $("btnPreviewGasto").disabled = !$("gastoFile").files.length; });
-
-    $("btnPreviewGasto").addEventListener("click", async () => {
-      const file = $("gastoFile").files[0]; const m = $("gastoImportMsg");
-      if (!file) return;
-      m.textContent = "Leyendo archivo…"; m.className = "msg";
+    $("btnGuardarGasto").addEventListener("click", async () => {
+      const rolId = $("gRol").value; const m = $("gastoMsg");
+      const monto = parseFloat($("gMonto").value) || 0;
+      if (!rolId){ m.textContent="Debes seleccionar un rol."; m.className="msg err"; return; }
+      if (monto<=0){ m.textContent="Ingresa un monto válido."; m.className="msg err"; return; }
+      const rol = rolesCache.find((r)=>r.id===rolId);
+      const fecha = $("gFecha").value;
+      const periodo = fecha && /^\d{4}-\d{2}/.test(fecha) ? fecha.slice(0,7) : new Date().toISOString().slice(0,7);
+      $("btnGuardarGasto").disabled=true; m.textContent="Guardando…"; m.className="msg";
       try {
-        await cargarXLSX();
-        const buf = await file.arrayBuffer();
-        const wb = XLSX.read(buf, { type:"array" });
-        const filas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:"", raw:false });
-        if (!filas.length){ m.textContent="El archivo no tiene filas."; m.className="msg err"; return; }
-        const pick = (row, claves) => { for (const k of claves){ const kk=Object.keys(row).find((x)=>normHeader(x)===k); if (kk!==undefined && row[kk]!=="") return row[kk]; } return ""; };
-        const extraerRol = (txt) => { const mm=(txt||"").toString().trim().match(/^(\d+\-\d+)/); return mm?mm[1]:(txt||"").toString().trim(); };
-
-        gastosPreview = filas.map((row, i)=>{
-          let numeroRol = pick(row, ["rol"]).toString().trim();
-          if (!numeroRol){ const cc = pick(row, ["centro_costo","centro_de_costo"]); if (cc) numeroRol = extraerRol(cc); }
-          const rol = rolesCache.find((r)=>(r.numeroRol||"").toString().trim()===numeroRol);
-          const total = parseFloat(pick(row, ["total"])) || 0;
-          const cantidad = parseFloat(pick(row, ["cantidad"])) || 0;
-          const costoUnit = parseFloat(pick(row, ["costo_unitario","costo_unit."])) || 0;
-          const errores = [];
-          if (!numeroRol) errores.push("falta rol");
-          else if (!rol) errores.push("rol no existe");
-          if (total<=0 && costoUnit<=0) errores.push("sin monto");
-          return {
-            fila: i+2, numeroRol, rol,
-            numero: pick(row, ["numero","número","n°","nro"]).toString().trim(),
-            producto: pick(row, ["producto"]).toString().trim(),
-            descripcion: pick(row, ["descripcion","descripción"]).toString().trim(),
-            cantidad, costoUnit, total: total || (cantidad*costoUnit),
-            centroCosto: pick(row, ["centro_costo","centro_de_costo"]).toString().trim(),
-            cuenta: pick(row, ["cuenta"]).toString().trim(),
-            proveedor: pick(row, ["proveedor"]).toString().trim(),
-            valida: errores.length===0, errores,
-          };
+        await addDoc(collection(db,"gastos"), {
+          rolId, numeroRol: rol?rol.numeroRol:"",
+          categoria: up($("gCategoria").value) || "SIN CATEGORÍA",
+          descripcion: up($("gDescripcion").value),
+          monto, moneda: "CLP",
+          fecha: fecha || null, periodo,
+          proveedor: up($("gProveedor").value),
+          fechaCreacion: serverTimestamp(),
         });
-        const validas = gastosPreview.filter((g)=>g.valida).length;
-        $("gastoPreviewResumen").innerHTML = '<strong>'+gastosPreview.length+'</strong> filas · <strong style="color:var(--ok)">'+validas+' válidas</strong> · <strong style="color:var(--danger)">'+(gastosPreview.length-validas)+' con problemas</strong>.';
-        $("gastoTablaPreview").innerHTML = gastosPreview.slice(0,200).map((g)=>{
-          const estado = g.valida ? '<span class="tag abierta">✓</span>' : '<span class="tag alerta">'+esc(g.errores.join(", "))+'</span>';
-          return '<tr><td>'+g.fila+'</td><td>'+esc(g.numeroRol)+'</td><td>'+esc(g.producto)+'</td><td>'+esc(g.descripcion)+'</td><td class="num-cell">'+fmt(g.cantidad)+'</td><td class="num-cell">'+fmt(g.costoUnit)+'</td><td class="num-cell">'+fmt(g.total)+'</td><td>'+estado+'</td></tr>';
-        }).join("") + (gastosPreview.length>200?'<tr><td colspan="8" class="empty">… mostrando 200 de '+gastosPreview.length+'. Todas se importan.</td></tr>':'');
-        $("gastoPreviewCard").style.display = "block";
-        $("btnImportarGasto").disabled = validas===0 || !puede("editar");
-        m.textContent = "";
-      } catch(e){ m.textContent = "Error al leer: "+e.message; m.className="msg err"; }
-    });
-
-    $("btnImportarGasto").addEventListener("click", async () => {
-      const validas = gastosPreview.filter((g)=>g.valida);
-      const m = $("gastoImportMsg");
-      if (!validas.length) return;
-      $("btnImportarGasto").disabled = true; m.textContent = "Importando "+validas.length+" gastos…"; m.className="msg";
-      let ok=0, err=0;
-      for (const g of validas){
-        try {
-          await addDoc(collection(db,"gastos"), {
-            rolId: g.rol.id, numeroRol: g.rol.numeroRol,
-            numero: g.numero || null,
-            producto: up(g.producto), descripcion: up(g.descripcion),
-            cantidad: g.cantidad, costoUnitario: g.costoUnit,
-            monto: g.total, moneda: "CLP",
-            centroCosto: up(g.centroCosto), cuenta: up(g.cuenta),
-            proveedor: up(g.proveedor),
-            categoria: up(g.cuenta) || "SIN CATEGORÍA",
-            periodo: new Date().toISOString().slice(0,7),
-            origen: "importacion_excel", fechaCreacion: serverTimestamp(),
-          });
-          ok++; if (ok%50===0) m.textContent = "Importando… "+ok+" de "+validas.length;
-        } catch(e){ err++; }
-      }
-      m.textContent = "✓ "+ok+" gastos importados"+(err?(" · "+err+" con error"):"")+"."; m.className="msg ok";
-      $("gastoFile").value=""; $("gastoPreviewCard").style.display="none"; gastosPreview=[];
+        m.textContent="✓ Gasto guardado."; m.className="msg ok";
+        ["gCategoria","gDescripcion","gMonto","gProveedor"].forEach((id)=>$(id).value="");
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; }
+      finally { $("btnGuardarGasto").disabled=false; }
     });
 
     $("gFiltroRol").addEventListener("change", renderGastos);
 
-    regSnap(query(collection(db,"gastos"), orderBy("fechaCreacion","desc")), (snap) => {
+    onSnapshot(query(collection(db,"gastos"), orderBy("fechaCreacion","desc")), (snap) => {
       gastosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
+      // Autocompletado de categorías ya usadas
+      const cats = [...new Set(gastosCache.map((g)=>g.categoria).filter(Boolean))];
+      $("gCatList").innerHTML = cats.map((c)=>'<option value="'+esc(c)+'">').join("");
       renderGastos();
       renderTotales();
     }, ()=>{});
@@ -2019,8 +1381,7 @@
       const lista = filtro ? gastosCache.filter((g)=>g.rolId===filtro) : gastosCache;
       const t = $("tablaGastos");
       if (!lista.length){ t.innerHTML = '<tr><td colspan="6" class="empty">Sin gastos'+(filtro?" para este rol":"")+'.</td></tr>'; return; }
-      t.innerHTML = lista.slice(0,500).map((g)=>'<tr><td><strong>'+esc(g.numeroRol)+'</strong></td><td>'+esc(g.producto||"")+'</td><td>'+esc(g.descripcion)+'</td><td>'+esc(g.cuenta||g.categoria||"")+'</td><td>'+esc(g.proveedor)+'</td><td class="num-cell">'+fmt(g.monto)+'</td></tr>').join("")
-        + (lista.length>500?'<tr><td colspan="6" class="empty">… mostrando 500 de '+lista.length+'.</td></tr>':'');
+      t.innerHTML = lista.map((g)=>'<tr><td>'+esc(g.fecha||"—")+'</td><td><strong>'+esc(g.numeroRol)+'</strong></td><td>'+esc(g.categoria)+'</td><td>'+esc(g.descripcion)+'</td><td>'+esc(g.proveedor)+'</td><td class="num-cell">'+fmt(g.monto)+'</td></tr>').join("");
     }
 
     function renderTotales(){
@@ -2062,7 +1423,7 @@
       } finally { $("btnCrearUsuario").disabled = !puede("usuarios"); }
     });
 
-    regSnap(query(collection(db,"usuarios"), orderBy("fechaCreacion","desc")), (snap) => {
+    onSnapshot(query(collection(db,"usuarios"), orderBy("fechaCreacion","desc")), (snap) => {
       const t = $("tablaUsuarios");
       if (snap.empty){ t.innerHTML = '<tr><td colspan="5" class="empty">Sin usuarios.</td></tr>'; return; }
       t.innerHTML = snap.docs.map((d)=>{
@@ -2131,7 +1492,7 @@
     });
 
     // Escuchar datos de empresa y aplicarlos (header + formulario)
-    regSnap(doc(db,"config","empresa"), (snap) => {
+    onSnapshot(doc(db,"config","empresa"), (snap) => {
       if (!snap.exists()) return;
       const e = snap.data();
       // Rellenar formulario
@@ -2151,10 +1512,8 @@
 
     function dibujarChart(id, config){
       const ctx = $(id); if (!ctx) return;
-      try {
-        if (charts[id]) charts[id].destroy();
-        charts[id] = new Chart(ctx, config);
-      } catch(e){ console.error("Error al dibujar gráfico "+id+":", e); }
+      if (charts[id]) charts[id].destroy();
+      charts[id] = new Chart(ctx, config);
     }
 
     let resumenTimer = null;
@@ -2169,22 +1528,17 @@
       $("kpiOC").textContent = fmt(ocCache.length);
       const totalMr = recepcionesCache.reduce((a,r)=>a+(r.metrosRuma||0),0);
       $("kpiMr").innerHTML = fmt(Math.round(totalMr)) + ' <span class="unit">mr</span>';
-      const totalM3 = recepcionesCache.reduce((a,r)=>a+(r.m3||0),0);
-      $("kpiM3").innerHTML = fmt(Math.round(totalM3)) + ' <span class="unit">m³</span>';
       const totalGastos = gastosCache.reduce((a,g)=>a+(g.monto||0),0);
       $("kpiGastos").innerHTML = fmt(totalGastos) + ' <span class="unit">$</span>';
       const ocAlerta = ocCache.filter((o)=>{ const rm=(o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0); const r3=(o.solicitado?.m3||0)-(o.recibido?.m3||0); const u=o.umbralAlerta??300; return (rm>0||r3>0)&&(rm<=u||r3<=u); }).length;
       $("kpiOCAlerta").textContent = fmt(ocAlerta);
 
       // Cargar Chart.js de forma diferida; si falla, los KPIs ya se mostraron
-      try { await cargarChart(); } catch(e){ console.error("Chart.js no se pudo cargar:", e); return; }
-
-      // Helper: nombre de planta de una recepción (usa campo planta; si no, la bodega o el rol)
-      const plantaDe = (r) => (r.planta || r.nombreBodega || "(SIN PLANTA)").toString().trim().toUpperCase();
+      try { await cargarChart(); } catch(e){ return; }
 
       // --- Gráfico 1: recepciones por planta (mr) [barras] ---
       const porPlanta = {};
-      recepcionesCache.forEach((r)=>{ const k=plantaDe(r); porPlanta[k]=(porPlanta[k]||0)+(r.metrosRuma||0); });
+      recepcionesCache.forEach((r)=>{ const k=r.nombreBodega||r.numeroRol||"(s/d)"; porPlanta[k]=(porPlanta[k]||0)+(r.metrosRuma||0); });
       const plantaTop = Object.entries(porPlanta).sort((a,b)=>b[1]-a[1]).slice(0,8);
       dibujarChart("chartPlanta", {
         type:"bar",
@@ -2206,7 +1560,7 @@
 
       // --- Gráfico 3: gastos por categoría [circular] ---
       const porCat = {};
-      gastosCache.forEach((g)=>{ const k=g.categoria||"SIN CATEGORÍA"; porCat[k]=(porCat[k]||0)+(g.monto||0); });
+      gastosCache.forEach((g)=>{ const k=g.categoria||"Sin categoría"; porCat[k]=(porCat[k]||0)+(g.monto||0); });
       const catE = Object.entries(porCat).sort((a,b)=>b[1]-a[1]);
       dibujarChart("chartGastos", {
         type:"doughnut",
@@ -2222,44 +1576,6 @@
         type:"bar",
         data:{ labels:mesE.map((e)=>e[0]), datasets:[{ label:"mr", data:mesE.map((e)=>Math.round(e[1])), backgroundColor:"#107e3e" }] },
         options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true} } }
-      });
-
-      // --- Gráficos 5 y 6: evolución mensual por planta (líneas), uno MR y otro M3 ---
-      // Estructura: { planta: { mes: volumen } }, y lista de meses ordenada (eje X común)
-      function construirLineas(campo){
-        const mesesSet = new Set();
-        const porPlantaMes = {};
-        recepcionesCache.forEach((r)=>{
-          const mes = r.periodo || "s/f"; const planta = plantaDe(r); const val = r[campo]||0;
-          if (val<=0) return;
-          mesesSet.add(mes);
-          if (!porPlantaMes[planta]) porPlantaMes[planta] = {};
-          porPlantaMes[planta][mes] = (porPlantaMes[planta][mes]||0) + val;
-        });
-        const meses = [...mesesSet].sort((a,b)=>a.localeCompare(b));
-        const plantas = Object.keys(porPlantaMes).sort();
-        const datasets = plantas.map((p, i)=>({
-          label: p,
-          data: meses.map((mes)=> Math.round(porPlantaMes[p][mes]||0)),
-          borderColor: SAP_COLORS[i % SAP_COLORS.length],
-          backgroundColor: SAP_COLORS[i % SAP_COLORS.length],
-          tension: 0.3, fill: false, spanGaps: true,
-        }));
-        return { meses, datasets };
-      }
-
-      const lineasMR = construirLineas("metrosRuma");
-      dibujarChart("chartLineaMR", {
-        type:"line",
-        data:{ labels: lineasMR.meses, datasets: lineasMR.datasets },
-        options:{ responsive:true, plugins:{legend:{position:"bottom", labels:{boxWidth:12, font:{size:10}}}}, scales:{ y:{beginAtZero:true, title:{display:true, text:"MR"}} } }
-      });
-
-      const lineasM3 = construirLineas("m3");
-      dibujarChart("chartLineaM3", {
-        type:"line",
-        data:{ labels: lineasM3.meses, datasets: lineasM3.datasets },
-        options:{ responsive:true, plugins:{legend:{position:"bottom", labels:{boxWidth:12, font:{size:10}}}}, scales:{ y:{beginAtZero:true, title:{display:true, text:"M³"}} } }
       });
     }
 
