@@ -887,15 +887,6 @@
       _unsubs.length = 0;
       _listenersIniciados = false;
     }
-    // Detener todos los listeners: se llama al cerrar sesión para evitar que sigan
-    // consultando Firestore sin permisos (causa del error "insufficient permissions").
-    function detenerListeners(){
-      _unsubs.forEach((u)=>{ try { u(); } catch(e){} });
-      _unsubs.length = 0;
-      _listenersIniciados = false;
-      // Los listeners quedan encolados de nuevo para el próximo login
-      _colaSnap.length = 0;
-    }
 
     // Pestañas
     document.querySelectorAll("nav.sidebar button").forEach((b) => {
