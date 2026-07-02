@@ -862,10 +862,6 @@
       aplicarPermisos();
       // Asegurar que el token esté propagado antes de consultar Firestore.
       try { await user.getIdToken(); } catch(e){}
-      console.log("[DIAGNÓSTICO] Perfil cargado:", usuarioActual.tipo, usuarioActual.estado, "· uid:", user.uid);
-      // Esperar a que TODO el script haya registrado sus listeners (los regSnap están
-      // repartidos más abajo en el archivo). Sin esto, onAuthStateChanged puede dispararse
-      // antes de que _defsSnap esté completo y no cargarían los datos.
       arrancarCuandoListo();
     });
 
@@ -893,7 +889,6 @@
     function iniciarListeners(){
       if (_listenersIniciados) return;
       _listenersIniciados = true;
-      console.log("[DIAGNÓSTICO] Arrancando listeners. Cantidad registrada:", _defsSnap.length);
       _defsSnap.forEach((args)=>{ try { const u = onSnapshot(...args); if (typeof u==="function") _unsubs.push(u); } catch(e){} });
     }
     // Detener todos los listeners al cerrar sesión (evita el error "insufficient permissions"
@@ -956,7 +951,6 @@
       setSelect($("gRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona rol —");
       setSelect($("gFiltroRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "Todos los roles");
     }, (e)=>{
-      console.error("[DIAGNÓSTICO] Error en listener de ROLES:", e.code, "-", e.message);
       if (e.code === "permission-denied" || /insufficient permissions/i.test(e.message||"")){
         statusEl.innerHTML = '<span class="dot"></span>Conectando…';
         reintentarListeners();   // el token aún no estaba listo: refrescar y reintentar
@@ -2082,9 +2076,6 @@
 
     // ================== GASTOS (por rol) ==================
     let gastosCache = [];
-
-    // Fecha por defecto: hoy
-    $("gFecha").value = new Date().toISOString().slice(0,10);
 
     // ---- IMPORTAR GASTOS DESDE EXCEL ----
     let gastosPreview = [];
