@@ -234,31 +234,57 @@
 
     <div class="view" id="view-roles">
       <section class="card">
-        <h2><span class="num">01</span> Registrar rol de predio</h2>
-        <p class="sub">El rol de predio es el eje del sistema.</p>
-        <div class="grid">
-          <div><label>Número de rol</label><input id="numeroRol" placeholder="12345-67" /></div>
-          <div><label>Nombre del predio</label><input id="nombrePredio" placeholder="Fundo El Roble" /></div>
-          <div><label>Propietario</label><input id="propietario" placeholder="Juan Pérez" /></div>
-          <div><label>Comuna</label><input id="comuna" placeholder="Los Ángeles" /></div>
-          <div><label>Especie predominante</label><select id="especie"><option value="PINO">PINO</option><option value="EUCALYPTUS">EUCALYPTUS</option><option value="NATIVO">NATIVO</option><option value="OTRO">OTRO</option></select></div>
-          <div><label>Tipo de negocio</label><select id="tipoNegocio"><option value="bosque_en_pie">Bosque en pie</option><option value="madera_puesta_planta">Madera puesta en planta</option></select></div>
-          <div><label>Georreferenciación (lat, lng)</label><input id="rolGeo" placeholder="-37.4689, -72.3534" /><div class="hint">Coordenadas del predio para trazabilidad.</div></div>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px">
+          <div>
+            <h2 style="margin:0"><span class="num">01</span> Roles de predio</h2>
+            <p class="sub" style="margin:4px 0 0">Busca un rol o pulsa "Ver todos". Haz clic en un rol para ver su ficha.</p>
+          </div>
+          <button class="primary" id="btnNuevoRol">+ Agregar rol</button>
         </div>
-        <div class="actions"><button class="primary" id="btnGuardar" disabled>Guardar rol</button><button class="primary" id="btnCancelarRol" style="display:none; background:var(--muted); border-color:var(--muted)">Cancelar edición</button><span class="msg" id="formMsg"></span></div>
-      </section>
-      <section class="card">
-        <h2><span class="num">02</span> Roles registrados</h2>
-        <p class="sub">Busca un rol específico o carga el listado completo.</p>
-        <div class="actions" style="margin-top:0; margin-bottom:16px">
+        <div class="actions" style="margin-top:16px; margin-bottom:16px">
           <input id="rolBuscar" placeholder="Buscar por rol, predio o propietario…" style="max-width:340px" />
           <button class="primary" id="btnBuscarRol">Buscar</button>
           <button class="primary" id="btnVerTodosRoles" style="background:var(--muted); border-color:var(--muted)">Ver todos</button>
           <span class="hint" id="rolesCount"></span>
         </div>
-        <table><thead><tr><th>Rol</th><th>Predio</th><th>Propietario</th><th>Comuna</th><th>Especie</th><th>Geo</th><th>Acciones</th></tr></thead>
-        <tbody id="tablaRoles"><tr><td colspan="7" class="empty">Usa el buscador o pulsa "Ver todos" para listar los roles.</td></tr></tbody></table>
+        <table><thead><tr><th>Rol</th><th>Predio</th><th>Propietario</th><th>Comuna</th><th>Especie</th><th>Geo</th></tr></thead>
+        <tbody id="tablaRoles"><tr><td colspan="6" class="empty">Usa el buscador o pulsa "Ver todos" para listar los roles.</td></tr></tbody></table>
       </section>
+    </div>
+
+    <!-- MODAL: formulario de rol -->
+    <div class="modal-overlay" id="modalRolForm">
+      <div class="modal">
+        <div class="modal-head"><h3 id="modalRolTitulo">Nuevo rol de predio</h3><button class="modal-close" data-close-modal="modalRolForm">&times;</button></div>
+        <div class="modal-body">
+          <div class="grid">
+            <div><label>Número de rol</label><input id="numeroRol" placeholder="12345-67" /></div>
+            <div><label>Nombre del predio</label><input id="nombrePredio" placeholder="Fundo El Roble" /></div>
+            <div><label>Propietario</label><input id="propietario" placeholder="Juan Pérez" /></div>
+            <div><label>Comuna</label><input id="comuna" placeholder="Los Ángeles" /></div>
+            <div><label>Especie predominante</label><select id="especie"><option value="PINO">PINO</option><option value="EUCALYPTUS">EUCALYPTUS</option><option value="NATIVO">NATIVO</option><option value="OTRO">OTRO</option></select></div>
+            <div><label>Tipo de negocio</label><select id="tipoNegocio"><option value="bosque_en_pie">Bosque en pie</option><option value="madera_puesta_planta">Madera puesta en planta</option></select></div>
+            <div><label>Georreferenciación (lat, lng)</label><input id="rolGeo" placeholder="-37.4689, -72.3534" /></div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <span class="msg" id="formMsg" style="margin-right:auto"></span>
+          <button class="primary" id="btnCancelarRol" style="background:var(--muted); border-color:var(--muted)">Cancelar</button>
+          <button class="primary" id="btnGuardar" disabled>Guardar rol</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: detalle de rol -->
+    <div class="modal-overlay" id="modalRolDetalle">
+      <div class="modal">
+        <div class="modal-head"><h3 id="detalleRolTitulo">Ficha de rol</h3><button class="modal-close" data-close-modal="modalRolDetalle">&times;</button></div>
+        <div class="modal-body" id="detalleRolBody"></div>
+        <div class="modal-foot">
+          <button class="primary" id="btnEditarRolDetalle">Editar</button>
+          <button class="primary act del" id="btnEliminarRolDetalle" style="display:none">Eliminar</button>
+        </div>
+      </div>
     </div>
 
     <!-- PLANTAS / CLIENTES -->
@@ -331,26 +357,53 @@
     <!-- PRODUCTOS -->
     <div class="view" id="view-productos">
       <section class="card">
-        <h2><span class="num">01</span> Ficha de producto</h2>
-        <p class="sub">Catálogo de productos que se solicitan en las órdenes de compra.</p>
-        <div class="grid g3">
-          <div><label>Código de producto</label><input id="prodCodigo" placeholder="P244" /><div class="hint">Debe coincidir con el código del Excel de recepciones.</div></div>
-          <div><label>Especie</label><select id="prodEspecie"><option value="PINO">PINO</option><option value="EUCALYPTUS">EUCALYPTUS</option><option value="NATIVO">NATIVO</option><option value="OTRO">OTRO</option></select></div>
-          <div><label>Variedad</label><input id="prodVariedad" placeholder="Radiata" /></div>
-          <div><label>Tipo de producto</label><input id="prodTipo" placeholder="Trozo aserrable / Pulpable" /></div>
-          <div><label>Largo (m)</label><input id="prodLargo" type="number" step="0.01" placeholder="2.44" /></div>
-          <div><label>Diámetro mín. (cm)</label><input id="prodDiam" type="number" step="0.1" placeholder="18" /></div>
-          <div><label>Calidad / grado</label><input id="prodCalidad" placeholder="Grado 1" /></div>
-          <div><label>Unidad de medida</label><select id="prodUM"><option value="MR">MR (metros ruma)</option><option value="M3">M3 (metros cúbicos)</option><option value="UN">UN (unidad)</option></select></div>
-          <div><label>Descripción</label><input id="prodDescripcion" placeholder="MR PINO PULPABLE 2.44 MTS C/C" /></div>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px">
+          <div>
+            <h2 style="margin:0"><span class="num">01</span> Catálogo de productos</h2>
+            <p class="sub" style="margin:4px 0 0">Haz clic en un producto para ver su ficha. Usa el botón para agregar uno nuevo.</p>
+          </div>
+          <button class="primary" id="btnNuevoProd">+ Agregar producto</button>
         </div>
-        <div class="actions"><button class="primary" id="btnGuardarProd" disabled>Guardar producto</button><button class="primary" id="btnCancelarProd" style="display:none; background:var(--muted); border-color:var(--muted)">Cancelar edición</button><span class="msg" id="prodMsg"></span></div>
+        <table style="margin-top:18px"><thead><tr><th>Código</th><th>Descripción</th><th>Especie</th><th>Tipo</th><th class="num-cell">Largo</th><th>UM</th></tr></thead>
+        <tbody id="tablaProd"><tr><td colspan="6" class="empty">Cargando&hellip;</td></tr></tbody></table>
       </section>
-      <section class="card">
-        <h2><span class="num">02</span> Catálogo de productos</h2>
-        <table><thead><tr><th>Código</th><th>Descripción</th><th>Especie</th><th>Tipo</th><th class="num-cell">Largo</th><th>UM</th><th>Acciones</th></tr></thead>
-        <tbody id="tablaProd"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
-      </section>
+    </div>
+
+    <!-- MODAL: formulario de producto -->
+    <div class="modal-overlay" id="modalProdForm">
+      <div class="modal">
+        <div class="modal-head"><h3 id="modalProdTitulo">Nuevo producto</h3><button class="modal-close" data-close-modal="modalProdForm">&times;</button></div>
+        <div class="modal-body">
+          <div class="grid g3">
+            <div><label>Código de producto</label><input id="prodCodigo" placeholder="P244" /><div class="hint">Debe coincidir con el código del Excel.</div></div>
+            <div><label>Especie</label><select id="prodEspecie"><option value="PINO">PINO</option><option value="EUCALYPTUS">EUCALYPTUS</option><option value="NATIVO">NATIVO</option><option value="OTRO">OTRO</option></select></div>
+            <div><label>Variedad</label><input id="prodVariedad" placeholder="Radiata" /></div>
+            <div><label>Tipo de producto</label><input id="prodTipo" placeholder="Trozo aserrable / Pulpable" /></div>
+            <div><label>Largo (m)</label><input id="prodLargo" type="number" step="0.01" placeholder="2.44" /></div>
+            <div><label>Diámetro mín. (cm)</label><input id="prodDiam" type="number" step="0.1" placeholder="18" /></div>
+            <div><label>Calidad / grado</label><input id="prodCalidad" placeholder="Grado 1" /></div>
+            <div><label>Unidad de medida</label><select id="prodUM"><option value="MR">MR (metros ruma)</option><option value="M3">M3 (metros cúbicos)</option><option value="UN">UN (unidad)</option></select></div>
+            <div><label>Descripción</label><input id="prodDescripcion" placeholder="MR PINO PULPABLE 2.44 MTS C/C" /></div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <span class="msg" id="prodMsg" style="margin-right:auto"></span>
+          <button class="primary" id="btnCancelarProd" style="background:var(--muted); border-color:var(--muted)">Cancelar</button>
+          <button class="primary" id="btnGuardarProd" disabled>Guardar producto</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: detalle de producto -->
+    <div class="modal-overlay" id="modalProdDetalle">
+      <div class="modal">
+        <div class="modal-head"><h3 id="detalleProdTitulo">Ficha de producto</h3><button class="modal-close" data-close-modal="modalProdDetalle">&times;</button></div>
+        <div class="modal-body" id="detalleProdBody"></div>
+        <div class="modal-foot">
+          <button class="primary" id="btnEditarProdDetalle">Editar</button>
+          <button class="primary act del" id="btnEliminarProdDetalle" style="display:none">Eliminar</button>
+        </div>
+      </div>
     </div>
 
     <!-- NEGOCIOS -->
@@ -379,25 +432,59 @@
     <!-- ÓRDENES DE COMPRA -->
     <div class="view" id="view-oc">
       <section class="card">
-        <h2><span class="num">01</span> Nueva orden de compra</h2>
-        <p class="sub">La OC la pide una planta/cliente y se asigna a un negocio. Define cantidad solicitada en metros ruma y m³.</p>
-        <div class="grid">
-          <div><label>Negocio (rol)</label><select id="ocNegocio"><option value="">— Selecciona negocio —</option></select></div>
-          <div><label>Planta / cliente</label><select id="ocPlanta"><option value="">— Selecciona planta —</option></select></div>
-          <div><label>Producto</label><select id="ocProducto"><option value="">— Selecciona producto —</option></select></div>
-          <div><label>N° orden de compra</label><input id="ocNumero" placeholder="OC-2026-001" /></div>
-          <div><label>Solicitado — metros ruma</label><input id="ocMr" type="number" step="0.01" placeholder="2000" /></div>
-          <div><label>Solicitado — m³</label><input id="ocM3" type="number" step="0.01" placeholder="1500" /></div>
-          <div><label>Umbral de alerta</label><input id="ocUmbral" type="number" step="1" value="300" /><div class="hint">Alerta cuando falten ≤ este valor (en mr o m³).</div></div>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px">
+          <div>
+            <h2 style="margin:0"><span class="num">01</span> Órdenes de compra abiertas</h2>
+            <p class="sub" style="margin:4px 0 0">Se listan las OC abiertas. Haz clic en una para ver su detalle y avance.</p>
+          </div>
+          <button class="primary" id="btnNuevaOC">+ Agregar orden de compra</button>
         </div>
-        <div class="actions"><button class="primary" id="btnGuardarOC" disabled>Guardar OC</button><span class="msg" id="ocMsg"></span></div>
-      </section>
-      <section class="card">
-        <h2><span class="num">02</span> Órdenes de compra y avance</h2>
-        <p class="sub">El avance se actualiza con cada recepción.</p>
+        <div class="actions" style="margin-top:16px; margin-bottom:12px">
+          <label style="display:inline-flex; align-items:center; gap:6px; margin:0; font-weight:500"><input type="checkbox" id="ocMostrarTodas" style="width:auto" /> Mostrar también las completadas</label>
+          <span class="hint" id="ocCount"></span>
+        </div>
         <table><thead><tr><th>OC</th><th>Rol</th><th>Producto</th><th>Planta</th><th class="num-cell">Mr (rec/sol)</th><th class="num-cell">m³ (rec/sol)</th><th>Estado</th></tr></thead>
         <tbody id="tablaOC"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
       </section>
+    </div>
+
+    <!-- MODAL: formulario de OC -->
+    <div class="modal-overlay" id="modalOCForm">
+      <div class="modal">
+        <div class="modal-head"><h3 id="modalOCTitulo">Nueva orden de compra</h3><button class="modal-close" data-close-modal="modalOCForm">&times;</button></div>
+        <div class="modal-body">
+          <div class="grid">
+            <div><label>Negocio (rol)</label><select id="ocNegocio"><option value="">— Selecciona negocio —</option></select></div>
+            <div><label>Planta / cliente</label><select id="ocPlanta"><option value="">— Selecciona planta —</option></select></div>
+            <div><label>Bodega destino</label><select id="ocBodega"><option value="">— Selecciona planta primero —</option></select></div>
+            <div><label>Producto</label><select id="ocProducto"><option value="">— Selecciona producto —</option></select></div>
+          </div>
+          <div id="ocProdInfo" class="falt-box" style="display:none; margin-top:12px"></div>
+          <div class="grid" style="margin-top:12px">
+            <div><label>N° orden de compra</label><input id="ocNumero" placeholder="OC-2026-001" /></div>
+            <div><label>Umbral de alerta</label><input id="ocUmbral" type="number" step="1" value="300" /><div class="hint">Alerta cuando falten ≤ este valor.</div></div>
+            <div><label>Solicitado — metros ruma</label><input id="ocMr" type="number" step="0.01" placeholder="2000" /></div>
+            <div><label>Solicitado — m³</label><input id="ocM3" type="number" step="0.01" placeholder="1500" /></div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <span class="msg" id="ocMsg" style="margin-right:auto"></span>
+          <button class="primary" id="btnCancelarOC" style="background:var(--muted); border-color:var(--muted)">Cancelar</button>
+          <button class="primary" id="btnGuardarOC" disabled>Guardar OC</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: detalle de OC -->
+    <div class="modal-overlay" id="modalOCDetalle">
+      <div class="modal">
+        <div class="modal-head"><h3 id="detalleOCTitulo">Orden de compra</h3><button class="modal-close" data-close-modal="modalOCDetalle">&times;</button></div>
+        <div class="modal-body" id="detalleOCBody"></div>
+        <div class="modal-foot">
+          <button class="primary" id="btnEditarOCDetalle">Editar</button>
+          <button class="primary act del" id="btnEliminarOCDetalle" style="display:none">Eliminar</button>
+        </div>
+      </div>
     </div>
 
     <!-- RECEPCIONES -->
@@ -407,26 +494,14 @@
         <ul id="alertList"></ul>
       </div>
       <section class="card">
-        <h2><span class="num">01</span> Registrar recepción</h2>
-        <p class="sub">Se imputa automáticamente a la OC abierta del rol + producto. Si hay varias, el sistema te pedirá elegir.</p>
-        <div class="grid">
-          <div><label>Rol de predio</label><select id="rRol"><option value="">— Selecciona rol —</option></select></div>
-          <div><label>Producto</label><select id="rProducto"><option value="">— Selecciona producto —</option></select></div>
-          <div><label>Metros ruma recibidos</label><input id="rMr" type="number" step="0.01" placeholder="120" /></div>
-          <div><label>m³ recibidos</label><input id="rM3" type="number" step="0.01" placeholder="90" /></div>
-          <div><label>N° guía de despacho</label><input id="rGuia" placeholder="GD-00123" /></div>
-          <div><label>Patente</label><input id="rPatente" placeholder="ABCD-12" /></div>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px">
+          <div>
+            <h2 style="margin:0"><span class="num">01</span> Recepciones</h2>
+            <p class="sub" style="margin:4px 0 0">Las recepciones se cargan desde el Excel. Cada carga agrega las nuevas sin duplicar.</p>
+          </div>
+          <button class="primary" id="btnIrImportar">📥 Cargar Excel con recepciones</button>
         </div>
-        <div class="oc-pick" id="ocPick">
-          <label>Hay varias OC abiertas para ese rol + producto. ¿A cuál imputar?</label>
-          <select id="ocPickSelect"></select>
-        </div>
-        <div class="actions"><button class="primary" id="btnGuardarRec" disabled>Registrar recepción</button><span class="msg" id="recMsg"></span></div>
-      </section>
-      <section class="card">
-        <h2><span class="num">02</span> Recepciones registradas</h2>
-        <p class="sub">Agrupadas por mes. Pulsa un mes para desplegar sus recepciones.</p>
-        <div class="actions" style="margin-top:0; margin-bottom:14px">
+        <div class="actions" style="margin-top:16px; margin-bottom:14px">
           <input id="recBuscar" placeholder="Filtrar por rol, predio, planta, guía…" style="max-width:320px" />
           <button class="primary" id="btnBuscarRec">Filtrar</button>
           <button class="primary" id="btnLimpiarRec" style="background:var(--muted); border-color:var(--muted)">Limpiar</button>
@@ -464,18 +539,21 @@
     <!-- GASTOS -->
     <div class="view" id="view-gastos">
       <section class="card">
-        <h2><span class="num">01</span> Registrar gasto</h2>
-        <p class="sub">Los gastos se asocian al rol de predio. La categoría es libre: escribe la que uses.</p>
-        <div class="grid">
-          <div><label>Rol de predio</label><select id="gRol"><option value="">— Selecciona rol —</option></select></div>
-          <div><label>Categoría</label><input id="gCategoria" list="gCatList" placeholder="Flete, cosecha, manejo…" />
-            <datalist id="gCatList"></datalist><div class="hint">Se autocompleta con categorías que ya usaste.</div></div>
-          <div><label>Descripción</label><input id="gDescripcion" placeholder="Flete tramo predio-planta" /></div>
-          <div><label>Monto</label><input id="gMonto" type="number" step="1" placeholder="850000" /></div>
-          <div><label>Fecha</label><input id="gFecha" type="date" /></div>
-          <div><label>Proveedor</label><input id="gProveedor" placeholder="Transportes XX" /></div>
+        <h2><span class="num">01</span> Importar gastos desde Excel</h2>
+        <p class="sub">Carga el archivo de gastos. Se asocian al rol de predio indicado en la columna ROL.</p>
+        <div class="actions" style="margin-top:0">
+          <input type="file" id="gastoFile" accept=".xlsx,.xls" style="max-width:340px" />
+          <button class="primary" id="btnPreviewGasto" disabled>Analizar archivo</button>
         </div>
-        <div class="actions"><button class="primary" id="btnGuardarGasto" disabled>Guardar gasto</button><span class="msg" id="gastoMsg"></span></div>
+        <div class="hint" style="margin-top:8px">Columnas esperadas: NÚMERO · PRODUCTO · DESCRIPCIÓN · CANTIDAD · COSTO UNITARIO · TOTAL · CENTRO COSTO · CUENTA · PROVEEDOR · ROL. El rol se toma de la columna ROL (o del inicio de CENTRO COSTO si viene con formato "105-13 …").</div>
+        <div id="gastoPreviewCard" style="display:none; margin-top:18px">
+          <p class="msg" id="gastoPreviewResumen"></p>
+          <div style="max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:6px; margin-top:10px">
+            <table><thead><tr><th>Fila</th><th>Rol</th><th>Producto</th><th>Descripción</th><th class="num-cell">Cantidad</th><th class="num-cell">C. Unit.</th><th class="num-cell">Total</th><th>Estado</th></tr></thead>
+            <tbody id="gastoTablaPreview"></tbody></table>
+          </div>
+          <div class="actions"><button class="primary" id="btnImportarGasto" disabled>Importar gastos</button><span class="msg" id="gastoImportMsg"></span></div>
+        </div>
       </section>
 
       <section class="card">
@@ -490,7 +568,7 @@
         <div class="actions" style="margin-top:0; margin-bottom:14px">
           <select id="gFiltroRol" style="max-width:280px"><option value="">Todos los roles</option></select>
         </div>
-        <table><thead><tr><th>Fecha</th><th>Rol</th><th>Categoría</th><th>Descripción</th><th>Proveedor</th><th class="num-cell">Monto $</th></tr></thead>
+        <table><thead><tr><th>Rol</th><th>Producto</th><th>Descripción</th><th>Cuenta</th><th>Proveedor</th><th class="num-cell">Total $</th></tr></thead>
         <tbody id="tablaGastos"><tr><td colspan="6" class="empty">Cargando…</td></tr></tbody></table>
       </section>
     </div>
@@ -645,7 +723,7 @@
       const esAdmin = puede("usuarios");
       document.querySelectorAll('nav.sidebar button[data-admin]').forEach((b)=> b.classList.toggle("tab-hidden", !esAdmin));
       const editar = puede("editar");
-      const botonesEditar = ["btnGuardar","btnGuardarPlanta","btnGuardarProd","btnGuardarNeg","btnGuardarOC","btnGuardarRec","btnGuardarGasto","btnImportar","btnPreview"];
+      const botonesEditar = ["btnGuardar","btnGuardarPlanta","btnGuardarProd","btnGuardarNeg","btnGuardarOC","btnImportar","btnPreview","btnImportarGasto","btnPreviewGasto"];
       botonesEditar.forEach((id)=>{ const el=$(id); if(el){ el.disabled = !editar; el.title = editar?"":"No tienes permiso para editar"; } });
       $("btnCrearUsuario").disabled = !esAdmin;
       $("btnGuardarEmpresa").disabled = !esAdmin;
@@ -769,6 +847,7 @@
     });
 
     function setSelect(sel, items, mapFn, placeholder) {
+      if (!sel) return;   // el elemento puede no existir (formularios eliminados)
       const prev = sel.value;
       sel.innerHTML = '<option value="">' + placeholder + '</option>' + items.map(mapFn).join("");
       sel.value = prev;
@@ -801,17 +880,41 @@
     function renderRolesTabla(lista){
       rolesListadosVisible = true;
       const t = $("tablaRoles");
-      const puedeEd = puede("editar"), puedeBo = puede("borrar");
-      if (!lista.length){ t.innerHTML = '<tr><td colspan="7" class="empty">No se encontraron roles.</td></tr>'; $("rolesCount").textContent=""; return; }
+      if (!lista.length){ t.innerHTML = '<tr><td colspan="6" class="empty">No se encontraron roles.</td></tr>'; $("rolesCount").textContent=""; return; }
       $("rolesCount").textContent = lista.length + " rol(es)";
       t.innerHTML = lista.map((r)=>{
-        let acc = "";
-        if (puedeEd) acc += '<button class="act" data-edit-rol="'+r.id+'">Editar</button>';
-        if (!acc) acc = '<span class="hint">—</span>';
-        return '<tr><td><strong>'+esc(r.numeroRol)+'</strong></td><td>'+esc(r.nombrePredio)+'</td><td>'+esc(r.propietario)+'</td><td>'+esc(r.comuna)+'</td><td>'+esc(r.especiePredominante)+'</td><td>'+esc(geoTxt(r.georeferencia))+'</td><td style="white-space:nowrap">'+acc+'</td></tr>';
+        return '<tr class="clickable-row" data-ver-rol="'+r.id+'"><td><strong>'+esc(r.numeroRol)+'</strong></td><td>'+esc(r.nombrePredio)+'</td><td>'+esc(r.propietario)+'</td><td>'+esc(r.comuna)+'</td><td>'+esc(r.especiePredominante)+'</td><td>'+esc(geoTxt(r.georeferencia))+'</td></tr>';
       }).join("");
-      t.querySelectorAll("[data-edit-rol]").forEach((b)=> b.addEventListener("click", ()=> iniciarEdicionRol(b.dataset.editRol)));
+      t.querySelectorAll("[data-ver-rol]").forEach((row)=> row.addEventListener("click", ()=> verDetalleRol(row.dataset.verRol)));
     }
+
+    let rolDetalleId = null;
+    function verDetalleRol(id){
+      const r = rolesCache.find((x)=>x.id===id); if (!r) return;
+      rolDetalleId = id;
+      $("detalleRolTitulo").textContent = "Rol " + (r.numeroRol||"");
+      const row = (k,v)=> v ? '<div class="detalle-row"><div class="k">'+k+'</div><div class="v">'+esc(v)+'</div></div>' : "";
+      $("detalleRolBody").innerHTML =
+          row("Número de rol", r.numeroRol) + row("Predio", r.nombrePredio) + row("Propietario", r.propietario)
+        + row("Comuna", r.comuna) + row("Especie", r.especiePredominante)
+        + row("Tipo de negocio", r.tipoNegocio==="bosque_en_pie"?"Bosque en pie":"Madera puesta en planta")
+        + row("Georreferencia", geoTxt(r.georeferencia));
+      $("btnEditarRolDetalle").style.display = puede("editar") ? "inline-block" : "none";
+      $("btnEliminarRolDetalle").style.display = puede("borrar") ? "inline-block" : "none";
+      abrirModal("modalRolDetalle");
+    }
+    $("btnEditarRolDetalle").addEventListener("click", ()=>{ cerrarModal("modalRolDetalle"); iniciarEdicionRol(rolDetalleId); });
+    $("btnEliminarRolDetalle").addEventListener("click", ()=>{ const id=rolDetalleId; cerrarModal("modalRolDetalle"); eliminarRol(id); });
+
+    $("btnNuevoRol").addEventListener("click", ()=>{
+      editandoRolId = null;
+      ["numeroRol","nombrePredio","propietario","comuna","rolGeo"].forEach((id)=>$(id).value="");
+      $("especie").value="PINO"; $("tipoNegocio").value="bosque_en_pie";
+      $("modalRolTitulo").textContent = "Nuevo rol de predio";
+      $("btnGuardar").textContent = "Guardar rol"; $("btnGuardar").disabled = !puede("editar");
+      $("formMsg").textContent = "";
+      abrirModal("modalRolForm");
+    });
 
     $("btnVerTodosRoles").addEventListener("click", ()=>{ _rolFiltro = null; renderRolesTabla(rolesCache); });
     $("btnBuscarRol").addEventListener("click", ()=>{ _rolFiltro = $("rolBuscar").value.trim(); renderRolesTabla(rolesFiltroActual()); });
@@ -824,26 +927,19 @@
       $("propietario").value = r.propietario||""; $("comuna").value = r.comuna||"";
       $("especie").value = up(r.especiePredominante)||"PINO"; $("tipoNegocio").value = r.tipoNegocio||"bosque_en_pie";
       $("rolGeo").value = r.georeferencia ? geoTxt(r.georeferencia) : "";
-      $("btnGuardar").textContent = "Actualizar rol";
-      $("btnCancelarRol").style.display = "inline-block";
-      // Si es admin, ofrecer eliminar dentro de la edición
-      if (puede("borrar")){
-        $("formMsg").innerHTML = 'Editando rol '+esc(r.numeroRol)+' · <button class="act del" id="btnEliminarRol">Eliminar este rol</button>';
-        $("formMsg").className = "msg";
-        $("btnEliminarRol").addEventListener("click", ()=> eliminarRol(id));
-      } else {
-        $("formMsg").textContent = "Editando rol "+r.numeroRol; $("formMsg").className = "msg";
-      }
-      $("view-roles").scrollIntoView({ behavior:"smooth" });
+      $("modalRolTitulo").textContent = "Editar rol " + (r.numeroRol||"");
+      $("btnGuardar").textContent = "Actualizar rol"; $("btnGuardar").disabled = !puede("editar");
+      $("formMsg").textContent = "";
+      abrirModal("modalRolForm");
     }
 
     function cancelarEdicionRol(){
       editandoRolId = null;
       ["numeroRol","nombrePredio","propietario","comuna","rolGeo"].forEach((id)=>$(id).value="");
-      $("especie").value="pino"; $("tipoNegocio").value="bosque_en_pie";
+      $("especie").value="PINO"; $("tipoNegocio").value="bosque_en_pie";
       $("btnGuardar").textContent = "Guardar rol";
-      $("btnCancelarRol").style.display = "none";
       $("formMsg").textContent = "";
+      cerrarModal("modalRolForm");
     }
     $("btnCancelarRol").addEventListener("click", cancelarEdicionRol);
 
@@ -857,7 +953,7 @@
       const usos = [usadoNeg&&"negocios", usadoRec&&"recepciones", usadoOC&&"órdenes de compra", usadoGas&&"gastos"].filter(Boolean);
       if (usos.length) aviso += "\n\n⚠️ Atención: este rol tiene "+usos.join(", ")+" asociados. Esos registros quedarán sin rol asociado, pero NO se borran.";
       if (!confirm(aviso)) return;
-      try { await deleteDoc(doc(db,"roles",id)); cancelarEdicionRol(); if (rolesListadosVisible) renderRolesTabla(rolesFiltroActual()); }
+      try { await deleteDoc(doc(db,"roles",id)); if (rolesListadosVisible) renderRolesTabla(rolesFiltroActual()); }
       catch(e){ alert("Error al eliminar: "+e.message); }
     }
 
@@ -869,10 +965,13 @@
       try {
         if (editandoRolId){
           await updateDoc(doc(db,"roles",editandoRolId), datos);
-          m.textContent="✓ Rol actualizado."; m.className="msg ok"; cancelarEdicionRol();
+          m.textContent="✓ Rol actualizado."; m.className="msg ok";
+          if (rolesListadosVisible) renderRolesTabla(rolesFiltroActual());
+          setTimeout(()=>cancelarEdicionRol(), 600);
         } else {
           await addDoc(collection(db,"roles"), { ...datos, estado:"activo", fechaCreacion:serverTimestamp() });
-          m.textContent="✓ Rol guardado."; m.className="msg ok"; ["numeroRol","nombrePredio","propietario","comuna","rolGeo"].forEach((id)=>$(id).value="");
+          m.textContent="✓ Rol guardado."; m.className="msg ok";
+          setTimeout(()=>cancelarEdicionRol(), 600);
         }
       } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardar").disabled = !puede("editar"); }
     });
@@ -1030,26 +1129,45 @@
     });
 
     // ---- PRODUCTOS ----
-    let editandoProdId = null;  // id del producto en edición, o null
+    let editandoProdId = null;
+    let prodDetalleId = null;
 
     regSnap(query(collection(db,"productos"), orderBy("fechaCreacion","desc")), (snap) => {
       productosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       const t = $("tablaProd");
-      const puedeEd = puede("editar"), puedeBo = puede("borrar");
-      t.innerHTML = snap.empty ? '<tr><td colspan="7" class="empty">Aún no hay productos.</td></tr>' :
+      t.innerHTML = snap.empty ? '<tr><td colspan="6" class="empty">Aún no hay productos. Pulsa "Agregar" para crear uno.</td></tr>' :
         productosCache.map((p)=>{
-          let acciones = "";
-          if (puedeEd) acciones += '<button class="act" data-edit-prod="'+p.id+'">Editar</button>';
-          if (puedeBo) acciones += '<button class="act del" data-del-prod="'+p.id+'">Eliminar</button>';
-          if (!acciones) acciones = '<span class="hint">—</span>';
-          return '<tr><td><strong>'+esc(p.codigo)+'</strong></td><td>'+esc(p.descripcion||"")+'</td><td>'+esc(p.especie)+'</td><td>'+esc(p.tipoProducto)+'</td><td class="num-cell">'+esc(p.largo)+'</td><td>'+esc(p.unidadMedida||"")+'</td><td style="white-space:nowrap">'+acciones+'</td></tr>';
+          return '<tr class="clickable-row" data-ver-prod="'+p.id+'"><td><strong>'+esc(p.codigo)+'</strong></td><td>'+esc(p.descripcion||"")+'</td><td>'+esc(p.especie)+'</td><td>'+esc(p.tipoProducto)+'</td><td class="num-cell">'+esc(p.largo)+'</td><td>'+esc(p.unidadMedida||"")+'</td></tr>';
         }).join("");
-      // Listeners de editar / eliminar
-      t.querySelectorAll("[data-edit-prod]").forEach((b)=> b.addEventListener("click", ()=> iniciarEdicionProd(b.dataset.editProd)));
-      t.querySelectorAll("[data-del-prod]").forEach((b)=> b.addEventListener("click", ()=> eliminarProd(b.dataset.delProd)));
+      t.querySelectorAll("[data-ver-prod]").forEach((row)=> row.addEventListener("click", ()=> verDetalleProd(row.dataset.verProd)));
       setSelect($("ocProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodLabel(p))+'</option>', "— Selecciona producto —");
-      setSelect($("rProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodLabel(p))+'</option>', "— Selecciona producto —");
     }, ()=>{});
+
+    function verDetalleProd(id){
+      const p = productosCache.find((x)=>x.id===id); if (!p) return;
+      prodDetalleId = id;
+      $("detalleProdTitulo").textContent = (p.codigo||"") + " · " + (p.descripcion||prodLabel(p));
+      const row = (k,v)=> (v!==null&&v!==undefined&&v!=="") ? '<div class="detalle-row"><div class="k">'+k+'</div><div class="v">'+esc(v)+'</div></div>' : "";
+      $("detalleProdBody").innerHTML =
+          row("Código", p.codigo) + row("Descripción", p.descripcion) + row("Especie", p.especie)
+        + row("Variedad", p.variedad) + row("Tipo", p.tipoProducto) + row("Largo (m)", p.largo)
+        + row("Diámetro mín. (cm)", p.diametroMin) + row("Calidad", p.calidad) + row("Unidad de medida", p.unidadMedida);
+      $("btnEditarProdDetalle").style.display = puede("editar") ? "inline-block" : "none";
+      $("btnEliminarProdDetalle").style.display = puede("borrar") ? "inline-block" : "none";
+      abrirModal("modalProdDetalle");
+    }
+    $("btnEditarProdDetalle").addEventListener("click", ()=>{ cerrarModal("modalProdDetalle"); iniciarEdicionProd(prodDetalleId); });
+    $("btnEliminarProdDetalle").addEventListener("click", ()=>{ const id=prodDetalleId; cerrarModal("modalProdDetalle"); eliminarProd(id); });
+
+    $("btnNuevoProd").addEventListener("click", ()=>{
+      editandoProdId = null;
+      ["prodCodigo","prodVariedad","prodTipo","prodLargo","prodDiam","prodCalidad","prodDescripcion"].forEach((id)=>$(id).value="");
+      $("prodEspecie").value="PINO"; $("prodUM").value="MR";
+      $("modalProdTitulo").textContent = "Nuevo producto";
+      $("btnGuardarProd").textContent = "Guardar producto"; $("btnGuardarProd").disabled = !puede("editar");
+      $("prodMsg").textContent="";
+      abrirModal("modalProdForm");
+    });
 
     function iniciarEdicionProd(id){
       const p = productosCache.find((x)=>x.id===id); if (!p) return;
@@ -1058,31 +1176,24 @@
       $("prodVariedad").value = p.variedad||""; $("prodTipo").value = p.tipoProducto||"";
       $("prodLargo").value = p.largo??""; $("prodDiam").value = p.diametroMin??""; $("prodCalidad").value = p.calidad||"";
       $("prodUM").value = p.unidadMedida||"MR"; $("prodDescripcion").value = p.descripcion||"";
-      $("btnGuardarProd").textContent = "Actualizar producto";
-      $("btnCancelarProd").style.display = "inline-block";
-      if (puede("borrar")){
-        $("prodMsg").innerHTML = 'Editando producto '+esc(p.codigo||"")+' · <button class="act del" id="btnEliminarProdEdit">Eliminar este producto</button>';
-        $("prodMsg").className = "msg";
-        $("btnEliminarProdEdit").addEventListener("click", ()=> eliminarProd(id));
-      } else {
-        $("prodMsg").textContent = "Editando producto "+(p.codigo||""); $("prodMsg").className = "msg";
-      }
-      $("view-productos").scrollIntoView({ behavior:"smooth" });
+      $("modalProdTitulo").textContent = "Editar: " + (p.codigo||"");
+      $("btnGuardarProd").textContent = "Actualizar producto"; $("btnGuardarProd").disabled = !puede("editar");
+      $("prodMsg").textContent = "";
+      abrirModal("modalProdForm");
     }
 
     function cancelarEdicionProd(){
       editandoProdId = null;
       ["prodCodigo","prodVariedad","prodTipo","prodLargo","prodDiam","prodCalidad","prodDescripcion"].forEach((id)=>$(id).value="");
-      $("prodUM").value = "MR";
+      $("prodUM").value = "MR"; $("prodEspecie").value="PINO";
       $("btnGuardarProd").textContent = "Guardar producto";
-      $("btnCancelarProd").style.display = "none";
       $("prodMsg").textContent = "";
+      cerrarModal("modalProdForm");
     }
     $("btnCancelarProd").addEventListener("click", cancelarEdicionProd);
 
     async function eliminarProd(id){
       const p = productosCache.find((x)=>x.id===id); if (!p) return;
-      // Advertir si el producto está en uso en recepciones u OC
       const usadoRec = recepcionesCache.some((r)=>r.productoId===id);
       const usadoOC = ocCache.some((o)=>o.productoId===id);
       let aviso = "¿Eliminar el producto \""+(p.codigo||"")+" · "+prodLabel(p)+"\"?";
@@ -1100,11 +1211,11 @@
         if (editandoProdId){
           await updateDoc(doc(db,"productos",editandoProdId), datos);
           m.textContent="✓ Producto actualizado."; m.className="msg ok";
-          cancelarEdicionProd();
+          setTimeout(()=>cancelarEdicionProd(), 600);
         } else {
           await addDoc(collection(db,"productos"), { ...datos, fechaCreacion:serverTimestamp() });
           m.textContent="✓ Producto guardado."; m.className="msg ok";
-          ["prodCodigo","prodVariedad","prodTipo","prodLargo","prodDiam","prodCalidad","prodDescripcion"].forEach((id)=>$(id).value=""); $("prodUM").value="MR";
+          setTimeout(()=>cancelarEdicionProd(), 600);
         }
       } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarProd").disabled = !puede("editar"); }
     });
@@ -1178,25 +1289,148 @@
     });
 
     // ---- ÓRDENES DE COMPRA ----
+    let ocMostrarTodas = false;
+    let ocDetalleId = null;
+    let editandoOCId = null;
+
+    function estadoOC(o){
+      const recMr=o.recibido?.metrosRuma||0, solMr=o.solicitado?.metrosRuma||0;
+      const recM3=o.recibido?.m3||0, solM3=o.solicitado?.m3||0;
+      const restMr=solMr-recMr, restM3=solM3-recM3, um=o.umbralAlerta??300;
+      if (restMr<=0 && restM3<=0) return {est:"completada", cls:"completada", txt:"Completada"};
+      if (restMr<=um || restM3<=um) return {est:"por_completar", cls:"alerta", txt:"⚠️ Por completar"};
+      return {est:"abierta", cls:"abierta", txt:"Abierta"};
+    }
+
     regSnap(query(collection(db,"ordenesCompra"), orderBy("fechaCreacion","desc")), (snap) => {
       ocCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
-      const t = $("tablaOC");
-      t.innerHTML = snap.empty ? '<tr><td colspan="7" class="empty">Aún no hay órdenes de compra.</td></tr>' :
-        ocCache.map((o)=>{
-          const recMr=o.recibido?.metrosRuma||0, solMr=o.solicitado?.metrosRuma||0;
-          const recM3=o.recibido?.m3||0, solM3=o.solicitado?.m3||0;
-          const restMr=solMr-recMr, restM3=solM3-recM3, um=o.umbralAlerta??300;
-          let est="abierta", cls="abierta", txt="Abierta";
-          if (restMr<=0 && restM3<=0){ est="completada"; cls="completada"; txt="Completada"; }
-          else if (restMr<=um || restM3<=um){ est="por_completar"; cls="alerta"; txt="⚠️ Por completar"; }
-          const pMr=solMr?Math.min(100,recMr/solMr*100):0; const barCls = est==="completada"?"full":(est==="por_completar"?"warn":"");
-          return '<tr><td><strong>'+esc(o.numero)+'</strong></td><td>'+esc(o.numeroRol)+'</td><td>'+esc(o.productoLabel)+'</td><td>'+esc(o.plantaNombre||"—")+'</td>'+
-            '<td class="num-cell">'+fmt(recMr)+' / '+fmt(solMr)+'<div class="bar"><span class="'+barCls+'" style="width:'+pMr+'%"></span></div></td>'+
-            '<td class="num-cell">'+fmt(recM3)+' / '+fmt(solM3)+'</td>'+
-            '<td><span class="tag '+cls+'">'+txt+'</span></td></tr>';
-        }).join("");
+      renderOCTabla();
       renderAlertas();
+      if (ocDetalleId && $("modalOCDetalle").classList.contains("show")){ const o=ocCache.find((x)=>x.id===ocDetalleId); if (o) verDetalleOC(ocDetalleId); }
     }, ()=>{});
+
+    function renderOCTabla(){
+      const t = $("tablaOC");
+      // Por defecto solo abiertas (abierta o por_completar); si el check está activo, todas
+      let lista = ocCache.map((o)=>({o, e:estadoOC(o)}));
+      if (!ocMostrarTodas) lista = lista.filter((x)=> x.e.est!=="completada");
+      $("ocCount").textContent = lista.length + " OC";
+      if (!lista.length){ t.innerHTML = '<tr><td colspan="7" class="empty">No hay órdenes de compra'+(ocMostrarTodas?"":" abiertas")+'.</td></tr>'; return; }
+      t.innerHTML = lista.map(({o,e})=>{
+        const recMr=o.recibido?.metrosRuma||0, solMr=o.solicitado?.metrosRuma||0;
+        const recM3=o.recibido?.m3||0, solM3=o.solicitado?.m3||0;
+        const pMr=solMr?Math.min(100,recMr/solMr*100):0; const barCls = e.est==="completada"?"full":(e.est==="por_completar"?"warn":"");
+        return '<tr class="clickable-row" data-ver-oc="'+o.id+'"><td><strong>'+esc(o.numero)+'</strong></td><td>'+esc(o.numeroRol)+'</td><td>'+esc(o.productoLabel)+'</td><td>'+esc(o.plantaNombre||"—")+'</td>'+
+          '<td class="num-cell">'+fmt(recMr)+' / '+fmt(solMr)+'<div class="bar"><span class="'+barCls+'" style="width:'+pMr+'%"></span></div></td>'+
+          '<td class="num-cell">'+fmt(recM3)+' / '+fmt(solM3)+'</td>'+
+          '<td><span class="tag '+e.cls+'">'+e.txt+'</span></td></tr>';
+      }).join("");
+      t.querySelectorAll("[data-ver-oc]").forEach((row)=> row.addEventListener("click", ()=> verDetalleOC(row.dataset.verOc)));
+    }
+    $("ocMostrarTodas").addEventListener("change", ()=>{ ocMostrarTodas = $("ocMostrarTodas").checked; renderOCTabla(); });
+
+    function verDetalleOC(id){
+      const o = ocCache.find((x)=>x.id===id); if (!o) return;
+      ocDetalleId = id;
+      const e = estadoOC(o);
+      $("detalleOCTitulo").textContent = "OC " + (o.numero||"");
+      const row = (k,v)=> (v!==null&&v!==undefined&&v!=="") ? '<div class="detalle-row"><div class="k">'+k+'</div><div class="v">'+esc(v)+'</div></div>' : "";
+      const recMr=o.recibido?.metrosRuma||0, solMr=o.solicitado?.metrosRuma||0;
+      const recM3=o.recibido?.m3||0, solM3=o.solicitado?.m3||0;
+      $("detalleOCBody").innerHTML =
+          row("N° OC", o.numero) + row("Estado", e.txt) + row("Rol", o.numeroRol)
+        + row("Producto", o.productoLabel) + row("Planta", o.plantaNombre) + row("Bodega destino", o.bodegaNombre)
+        + row("Solicitado MR", fmt(solMr)) + row("Recibido MR", fmt(recMr)) + row("Falta MR", fmt(Math.max(0,solMr-recMr)))
+        + row("Solicitado M³", fmt(solM3)) + row("Recibido M³", fmt(recM3)) + row("Falta M³", fmt(Math.max(0,solM3-recM3)))
+        + row("Umbral alerta", o.umbralAlerta);
+      $("btnEditarOCDetalle").style.display = puede("editar") ? "inline-block" : "none";
+      $("btnEliminarOCDetalle").style.display = puede("borrar") ? "inline-block" : "none";
+      abrirModal("modalOCDetalle");
+    }
+    $("btnEditarOCDetalle").addEventListener("click", ()=>{ cerrarModal("modalOCDetalle"); iniciarEdicionOC(ocDetalleId); });
+    $("btnEliminarOCDetalle").addEventListener("click", ()=>{ const id=ocDetalleId; cerrarModal("modalOCDetalle"); eliminarOC(id); });
+
+    // Poblar bodegas destino según la planta elegida
+    function actualizarBodegasOC(){
+      const planta = plantasCache.find((p)=>p.id===$("ocPlanta").value);
+      const bodegas = planta ? (planta.bodegas||[]) : [];
+      $("ocBodega").innerHTML = bodegas.length
+        ? '<option value="">— Selecciona bodega —</option>' + bodegas.map((b)=>'<option value="'+esc(b.bodegaId||b.nombre)+'">'+esc(b.nombre)+'</option>').join("")
+        : '<option value="">— Sin bodegas —</option>';
+    }
+    $("ocPlanta").addEventListener("change", actualizarBodegasOC);
+
+    // Mostrar datos del producto automáticamente
+    function mostrarInfoProdOC(){
+      const prod = productosCache.find((p)=>p.id===$("ocProducto").value);
+      const box = $("ocProdInfo");
+      if (!prod){ box.style.display="none"; return; }
+      box.style.display="block";
+      box.innerHTML = '<strong>Datos del producto:</strong> Tipo: '+esc(prod.tipoProducto||"—")+' · Especie: '+esc(prod.especie||"—")+' · Largo: '+esc(prod.largo!=null?prod.largo+" m":"—")+' · UM: '+esc(prod.unidadMedida||"—");
+    }
+    $("ocProducto").addEventListener("change", mostrarInfoProdOC);
+
+    $("btnNuevaOC").addEventListener("click", ()=>{
+      editandoOCId = null;
+      ["ocNumero","ocMr","ocM3"].forEach((id)=>$(id).value=""); $("ocUmbral").value="300";
+      $("ocNegocio").value=""; $("ocPlanta").value=""; $("ocProducto").value=""; $("ocBodega").innerHTML='<option value="">— Selecciona planta primero —</option>';
+      $("ocProdInfo").style.display="none";
+      $("modalOCTitulo").textContent="Nueva orden de compra";
+      $("btnGuardarOC").textContent="Guardar OC"; $("btnGuardarOC").disabled=!puede("editar");
+      $("ocMsg").textContent="";
+      abrirModal("modalOCForm");
+    });
+
+    function iniciarEdicionOC(id){
+      const o = ocCache.find((x)=>x.id===id); if (!o) return;
+      editandoOCId = id;
+      $("ocNegocio").value = o.negocioId||""; $("ocPlanta").value = o.plantaId||"";
+      actualizarBodegasOC(); $("ocBodega").value = o.bodegaId||"";
+      $("ocProducto").value = o.productoId||""; mostrarInfoProdOC();
+      $("ocNumero").value = o.numero||""; $("ocUmbral").value = o.umbralAlerta??300;
+      $("ocMr").value = o.solicitado?.metrosRuma??""; $("ocM3").value = o.solicitado?.m3??"";
+      $("modalOCTitulo").textContent = "Editar OC " + (o.numero||"");
+      $("btnGuardarOC").textContent = "Actualizar OC"; $("btnGuardarOC").disabled=!puede("editar");
+      $("ocMsg").textContent="";
+      abrirModal("modalOCForm");
+    }
+
+    $("btnCancelarOC").addEventListener("click", ()=> cerrarModal("modalOCForm"));
+
+    async function eliminarOC(id){
+      const o = ocCache.find((x)=>x.id===id); if (!o) return;
+      if (!confirm("¿Eliminar la orden de compra \""+(o.numero||"")+"\"? Las recepciones ya imputadas no se borran.")) return;
+      try { await deleteDoc(doc(db,"ordenesCompra",id)); }
+      catch(e){ alert("Error al eliminar: "+e.message); }
+    }
+
+    $("btnGuardarOC").addEventListener("click", async () => {
+      const negId=$("ocNegocio").value, prodId=$("ocProducto").value; const m=$("ocMsg");
+      if (!negId || !prodId){ m.textContent="Negocio y producto son obligatorios."; m.className="msg err"; return; }
+      const neg=negociosCache.find((n)=>n.id===negId); const prod=productosCache.find((p)=>p.id===prodId);
+      const planta=plantasCache.find((p)=>p.id===$("ocPlanta").value);
+      const bodega = planta && planta.bodegas ? planta.bodegas.find((b)=>(b.bodegaId||b.nombre)===$("ocBodega").value) : null;
+      const datos = {
+        numero:$("ocNumero").value.trim()||("OC-"+Date.now()),
+        negocioId:negId, rolId:neg.rolId, numeroRol:neg.numeroRol,
+        productoId:prodId, productoLabel:prodLabel(prod),
+        plantaId:$("ocPlanta").value||null, plantaNombre:planta?planta.nombre:null,
+        bodegaId:$("ocBodega").value||null, bodegaNombre:bodega?bodega.nombre:null,
+        solicitado:{ metrosRuma:parseFloat($("ocMr").value)||0, m3:parseFloat($("ocM3").value)||0 },
+        umbralAlerta:parseFloat($("ocUmbral").value)||300,
+      };
+      $("btnGuardarOC").disabled=true; m.textContent="Guardando…"; m.className="msg";
+      try {
+        if (editandoOCId){
+          await updateDoc(doc(db,"ordenesCompra",editandoOCId), datos);
+          m.textContent="✓ OC actualizada."; m.className="msg ok";
+        } else {
+          await addDoc(collection(db,"ordenesCompra"), { ...datos, recibido:{ metrosRuma:0, m3:0 }, estado:"abierta", fechaCreacion:serverTimestamp() });
+          m.textContent="✓ OC guardada."; m.className="msg ok";
+        }
+        setTimeout(()=> cerrarModal("modalOCForm"), 600);
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarOC").disabled = !puede("editar"); }
+    });
 
     function renderAlertas() {
       const alertas = ocCache.filter((o)=>{
@@ -1205,34 +1439,20 @@
         return (restMr>0 || restM3>0) && (restMr<=um || restM3<=um);
       });
       const panel=$("alertPanel"), list=$("alertList");
-      if (!alertas.length){ panel.classList.add("hidden"); return; }
+      if (!panel || !alertas.length){ if(panel) panel.classList.add("hidden"); return; }
       panel.classList.remove("hidden");
       list.innerHTML = alertas.map((o)=>{ const restMr=(o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0); const restM3=(o.solicitado?.m3||0)-(o.recibido?.m3||0);
         return '<li><strong>'+esc(o.numero)+'</strong> ('+esc(o.numeroRol)+' · '+esc(o.productoLabel)+') — faltan '+fmt(Math.max(0,restMr))+' mr / '+fmt(Math.max(0,restM3))+' m³</li>'; }).join("");
     }
 
-    $("btnGuardarOC").addEventListener("click", async () => {
-      const negId=$("ocNegocio").value, prodId=$("ocProducto").value; const m=$("ocMsg");
-      if (!negId || !prodId){ m.textContent="Negocio y producto son obligatorios."; m.className="msg err"; return; }
-      const neg=negociosCache.find((n)=>n.id===negId); const prod=productosCache.find((p)=>p.id===prodId); const planta=plantasCache.find((p)=>p.id===$("ocPlanta").value);
-      $("btnGuardarOC").disabled=true; m.textContent="Guardando…"; m.className="msg";
-      try { await addDoc(collection(db,"ordenesCompra"),{ numero:$("ocNumero").value.trim()||("OC-"+Date.now()), negocioId:negId, rolId:neg.rolId, numeroRol:neg.numeroRol, productoId:prodId, productoLabel:prodLabel(prod), plantaId:$("ocPlanta").value||null, plantaNombre:planta?planta.nombre:null, solicitado:{ metrosRuma:parseFloat($("ocMr").value)||0, m3:parseFloat($("ocM3").value)||0 }, recibido:{ metrosRuma:0, m3:0 }, umbralAlerta:parseFloat($("ocUmbral").value)||300, estado:"abierta", fechaCreacion:serverTimestamp() });
-        m.textContent="✓ OC guardada."; m.className="msg ok"; ["ocNumero","ocMr","ocM3"].forEach((id)=>$(id).value=""); $("ocUmbral").value="300"; $("ocNegocio").value=""; $("ocPlanta").value=""; $("ocProducto").value="";
-      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarOC").disabled=false; }
-    });
-
-    // ---- RECEPCIONES (vínculo + alerta) ----
+    // ---- RECEPCIONES ----
     function ocsAbiertas(rolId, prodId) {
       return ocCache.filter((o)=> o.rolId===rolId && o.productoId===prodId && o.estado!=="completada");
     }
-    function actualizarPickOC() {
-      const matches = ocsAbiertas($("rRol").value, $("rProducto").value);
-      const pick=$("ocPick"), sel=$("ocPickSelect");
-      if (matches.length>1){ pick.classList.add("show"); sel.innerHTML = matches.map((o)=>'<option value="'+o.id+'">'+esc(o.numero)+' · '+esc(o.plantaNombre||"")+' (faltan '+fmt((o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0))+' mr)</option>').join(""); }
-      else { pick.classList.remove("show"); }
-    }
-    $("rRol").addEventListener("change", actualizarPickOC);
-    $("rProducto").addEventListener("change", actualizarPickOC);
+    // Botón que lleva a la pestaña Importar Excel
+    $("btnIrImportar").addEventListener("click", ()=>{
+      document.querySelector('nav.sidebar button[data-tab="importar"]').click();
+    });
 
     let _recFiltro = "";
     regSnap(query(collection(db,"recepciones"), orderBy("fechaCreacion","desc")), (snap) => {
@@ -1305,46 +1525,6 @@
     $("btnBuscarRec").addEventListener("click", ()=>{ _recFiltro = $("recBuscar").value.trim(); renderRecepcionesPorMes(); });
     $("recBuscar").addEventListener("keydown", (e)=>{ if (e.key==="Enter"){ _recFiltro = $("recBuscar").value.trim(); renderRecepcionesPorMes(); } });
     $("btnLimpiarRec").addEventListener("click", ()=>{ _recFiltro=""; $("recBuscar").value=""; renderRecepcionesPorMes(); });
-
-    $("btnGuardarRec").addEventListener("click", async () => {
-      const rolId=$("rRol").value, prodId=$("rProducto").value; const m=$("recMsg");
-      if (!rolId || !prodId){ m.textContent="Rol y producto son obligatorios."; m.className="msg err"; return; }
-      const mr=parseFloat($("rMr").value)||0, m3=parseFloat($("rM3").value)||0;
-      if (mr<=0 && m3<=0){ m.textContent="Ingresa metros ruma o m³."; m.className="msg err"; return; }
-      const rol=rolesCache.find((r)=>r.id===rolId); const prod=productosCache.find((p)=>p.id===prodId);
-
-      // Resolver OC destino
-      const matches = ocsAbiertas(rolId, prodId);
-      let ocDestino = null;
-      if (matches.length===1) ocDestino = matches[0];
-      else if (matches.length>1){ const sel=$("ocPickSelect").value; ocDestino = matches.find((o)=>o.id===sel) || matches[0]; }
-
-      $("btnGuardarRec").disabled=true; m.textContent="Guardando…"; m.className="msg";
-      try {
-        // 1) Crear la recepción
-        await addDoc(collection(db,"recepciones"),{ rolId, numeroRol: rol?rol.numeroRol:"", productoId:prodId, productoLabel:prodLabel(prod), metrosRuma:mr, m3, numeroGuia:$("rGuia").value.trim(), patente:$("rPatente").value.trim(), ordenCompraId: ocDestino?ocDestino.id:null, ocNumero: ocDestino?ocDestino.numero:null, periodo: new Date().toISOString().slice(0,7), estado:"recibido", fechaCreacion:serverTimestamp() });
-
-        // 2) Actualizar avance de la OC e revisar alerta
-        if (ocDestino){
-          const ref = doc(db,"ordenesCompra",ocDestino.id);
-          const nuevoMr = (ocDestino.recibido?.metrosRuma||0)+mr;
-          const nuevoM3 = (ocDestino.recibido?.m3||0)+m3;
-          const solMr = ocDestino.solicitado?.metrosRuma||0, solM3 = ocDestino.solicitado?.m3||0;
-          const um = ocDestino.umbralAlerta??300;
-          const restMr = solMr-nuevoMr, restM3 = solM3-nuevoM3;
-          let estado="abierta";
-          if (restMr<=0 && restM3<=0) estado="completada";
-          else if (restMr<=um || restM3<=um) estado="por_completar";
-          await updateDoc(ref,{ "recibido.metrosRuma":nuevoMr, "recibido.m3":nuevoM3, estado });
-          if (estado==="por_completar"){ m.textContent="✓ Recepción guardada. ⚠️ La OC "+ocDestino.numero+" está por completarse (faltan "+fmt(Math.max(0,restMr))+" mr / "+fmt(Math.max(0,restM3))+" m³)."; m.className="msg warn"; }
-          else if (estado==="completada"){ m.textContent="✓ Recepción guardada. La OC "+ocDestino.numero+" quedó completada."; m.className="msg ok"; }
-          else { m.textContent="✓ Recepción imputada a "+ocDestino.numero+"."; m.className="msg ok"; }
-        } else {
-          m.textContent="✓ Recepción guardada, pero no hay OC abierta para ese rol + producto."; m.className="msg warn";
-        }
-        ["rMr","rM3","rGuia","rPatente"].forEach((id)=>$(id).value=""); $("ocPick").classList.remove("show");
-      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarRec").disabled=false; }
-    });
 
     // ================== IMPORTACIÓN EXCEL/CSV ==================
     let filasPreview = [];
@@ -1681,38 +1861,89 @@
     // Fecha por defecto: hoy
     $("gFecha").value = new Date().toISOString().slice(0,10);
 
-    $("btnGuardarGasto").addEventListener("click", async () => {
-      const rolId = $("gRol").value; const m = $("gastoMsg");
-      const monto = parseFloat($("gMonto").value) || 0;
-      if (!rolId){ m.textContent="Debes seleccionar un rol."; m.className="msg err"; return; }
-      if (monto<=0){ m.textContent="Ingresa un monto válido."; m.className="msg err"; return; }
-      const rol = rolesCache.find((r)=>r.id===rolId);
-      const fecha = $("gFecha").value;
-      const periodo = fecha && /^\d{4}-\d{2}/.test(fecha) ? fecha.slice(0,7) : new Date().toISOString().slice(0,7);
-      $("btnGuardarGasto").disabled=true; m.textContent="Guardando…"; m.className="msg";
+    // ---- IMPORTAR GASTOS DESDE EXCEL ----
+    let gastosPreview = [];
+    $("gastoFile").addEventListener("change", ()=>{ $("btnPreviewGasto").disabled = !$("gastoFile").files.length; });
+
+    $("btnPreviewGasto").addEventListener("click", async () => {
+      const file = $("gastoFile").files[0]; const m = $("gastoImportMsg");
+      if (!file) return;
+      m.textContent = "Leyendo archivo…"; m.className = "msg";
       try {
-        await addDoc(collection(db,"gastos"), {
-          rolId, numeroRol: rol?rol.numeroRol:"",
-          categoria: up($("gCategoria").value) || "SIN CATEGORÍA",
-          descripcion: up($("gDescripcion").value),
-          monto, moneda: "CLP",
-          fecha: fecha || null, periodo,
-          proveedor: up($("gProveedor").value),
-          fechaCreacion: serverTimestamp(),
+        await cargarXLSX();
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type:"array" });
+        const filas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:"", raw:false });
+        if (!filas.length){ m.textContent="El archivo no tiene filas."; m.className="msg err"; return; }
+        const pick = (row, claves) => { for (const k of claves){ const kk=Object.keys(row).find((x)=>normHeader(x)===k); if (kk!==undefined && row[kk]!=="") return row[kk]; } return ""; };
+        const extraerRol = (txt) => { const mm=(txt||"").toString().trim().match(/^(\d+\-\d+)/); return mm?mm[1]:(txt||"").toString().trim(); };
+
+        gastosPreview = filas.map((row, i)=>{
+          let numeroRol = pick(row, ["rol"]).toString().trim();
+          if (!numeroRol){ const cc = pick(row, ["centro_costo","centro_de_costo"]); if (cc) numeroRol = extraerRol(cc); }
+          const rol = rolesCache.find((r)=>(r.numeroRol||"").toString().trim()===numeroRol);
+          const total = parseFloat(pick(row, ["total"])) || 0;
+          const cantidad = parseFloat(pick(row, ["cantidad"])) || 0;
+          const costoUnit = parseFloat(pick(row, ["costo_unitario","costo_unit."])) || 0;
+          const errores = [];
+          if (!numeroRol) errores.push("falta rol");
+          else if (!rol) errores.push("rol no existe");
+          if (total<=0 && costoUnit<=0) errores.push("sin monto");
+          return {
+            fila: i+2, numeroRol, rol,
+            numero: pick(row, ["numero","número","n°","nro"]).toString().trim(),
+            producto: pick(row, ["producto"]).toString().trim(),
+            descripcion: pick(row, ["descripcion","descripción"]).toString().trim(),
+            cantidad, costoUnit, total: total || (cantidad*costoUnit),
+            centroCosto: pick(row, ["centro_costo","centro_de_costo"]).toString().trim(),
+            cuenta: pick(row, ["cuenta"]).toString().trim(),
+            proveedor: pick(row, ["proveedor"]).toString().trim(),
+            valida: errores.length===0, errores,
+          };
         });
-        m.textContent="✓ Gasto guardado."; m.className="msg ok";
-        ["gCategoria","gDescripcion","gMonto","gProveedor"].forEach((id)=>$(id).value="");
-      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; }
-      finally { $("btnGuardarGasto").disabled=false; }
+        const validas = gastosPreview.filter((g)=>g.valida).length;
+        $("gastoPreviewResumen").innerHTML = '<strong>'+gastosPreview.length+'</strong> filas · <strong style="color:var(--ok)">'+validas+' válidas</strong> · <strong style="color:var(--danger)">'+(gastosPreview.length-validas)+' con problemas</strong>.';
+        $("gastoTablaPreview").innerHTML = gastosPreview.slice(0,200).map((g)=>{
+          const estado = g.valida ? '<span class="tag abierta">✓</span>' : '<span class="tag alerta">'+esc(g.errores.join(", "))+'</span>';
+          return '<tr><td>'+g.fila+'</td><td>'+esc(g.numeroRol)+'</td><td>'+esc(g.producto)+'</td><td>'+esc(g.descripcion)+'</td><td class="num-cell">'+fmt(g.cantidad)+'</td><td class="num-cell">'+fmt(g.costoUnit)+'</td><td class="num-cell">'+fmt(g.total)+'</td><td>'+estado+'</td></tr>';
+        }).join("") + (gastosPreview.length>200?'<tr><td colspan="8" class="empty">… mostrando 200 de '+gastosPreview.length+'. Todas se importan.</td></tr>':'');
+        $("gastoPreviewCard").style.display = "block";
+        $("btnImportarGasto").disabled = validas===0 || !puede("editar");
+        m.textContent = "";
+      } catch(e){ m.textContent = "Error al leer: "+e.message; m.className="msg err"; }
+    });
+
+    $("btnImportarGasto").addEventListener("click", async () => {
+      const validas = gastosPreview.filter((g)=>g.valida);
+      const m = $("gastoImportMsg");
+      if (!validas.length) return;
+      $("btnImportarGasto").disabled = true; m.textContent = "Importando "+validas.length+" gastos…"; m.className="msg";
+      let ok=0, err=0;
+      for (const g of validas){
+        try {
+          await addDoc(collection(db,"gastos"), {
+            rolId: g.rol.id, numeroRol: g.rol.numeroRol,
+            numero: g.numero || null,
+            producto: up(g.producto), descripcion: up(g.descripcion),
+            cantidad: g.cantidad, costoUnitario: g.costoUnit,
+            monto: g.total, moneda: "CLP",
+            centroCosto: up(g.centroCosto), cuenta: up(g.cuenta),
+            proveedor: up(g.proveedor),
+            categoria: up(g.cuenta) || "SIN CATEGORÍA",
+            periodo: new Date().toISOString().slice(0,7),
+            origen: "importacion_excel", fechaCreacion: serverTimestamp(),
+          });
+          ok++; if (ok%50===0) m.textContent = "Importando… "+ok+" de "+validas.length;
+        } catch(e){ err++; }
+      }
+      m.textContent = "✓ "+ok+" gastos importados"+(err?(" · "+err+" con error"):"")+"."; m.className="msg ok";
+      $("gastoFile").value=""; $("gastoPreviewCard").style.display="none"; gastosPreview=[];
     });
 
     $("gFiltroRol").addEventListener("change", renderGastos);
 
     regSnap(query(collection(db,"gastos"), orderBy("fechaCreacion","desc")), (snap) => {
       gastosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
-      // Autocompletado de categorías ya usadas
-      const cats = [...new Set(gastosCache.map((g)=>g.categoria).filter(Boolean))];
-      $("gCatList").innerHTML = cats.map((c)=>'<option value="'+esc(c)+'">').join("");
       renderGastos();
       renderTotales();
     }, ()=>{});
@@ -1722,7 +1953,8 @@
       const lista = filtro ? gastosCache.filter((g)=>g.rolId===filtro) : gastosCache;
       const t = $("tablaGastos");
       if (!lista.length){ t.innerHTML = '<tr><td colspan="6" class="empty">Sin gastos'+(filtro?" para este rol":"")+'.</td></tr>'; return; }
-      t.innerHTML = lista.map((g)=>'<tr><td>'+esc(g.fecha||"—")+'</td><td><strong>'+esc(g.numeroRol)+'</strong></td><td>'+esc(g.categoria)+'</td><td>'+esc(g.descripcion)+'</td><td>'+esc(g.proveedor)+'</td><td class="num-cell">'+fmt(g.monto)+'</td></tr>').join("");
+      t.innerHTML = lista.slice(0,500).map((g)=>'<tr><td><strong>'+esc(g.numeroRol)+'</strong></td><td>'+esc(g.producto||"")+'</td><td>'+esc(g.descripcion)+'</td><td>'+esc(g.cuenta||g.categoria||"")+'</td><td>'+esc(g.proveedor)+'</td><td class="num-cell">'+fmt(g.monto)+'</td></tr>').join("")
+        + (lista.length>500?'<tr><td colspan="6" class="empty">… mostrando 500 de '+lista.length+'.</td></tr>':'');
     }
 
     function renderTotales(){
