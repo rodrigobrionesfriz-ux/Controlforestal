@@ -860,11 +860,25 @@
       $("userInfo").textContent = usuarioActual.nombre || usuarioActual.email;
       $("userBadge").textContent = usuarioActual.tipo;
       aplicarPermisos();
-      // Asegurar que el token de autenticación esté propagado antes de consultar Firestore,
-      // para evitar "Missing or insufficient permissions" al recargar.
+      // Asegurar que el token esté propagado antes de consultar Firestore.
       try { await user.getIdToken(); } catch(e){}
-      iniciarListeners();   // arranca las consultas a Firestore SOLO con sesión y token confirmados
+      // Esperar a que TODO el script haya registrado sus listeners (los regSnap están
+      // repartidos más abajo en el archivo). Sin esto, onAuthStateChanged puede dispararse
+      // antes de que _defsSnap esté completo y no cargarían los datos.
+      arrancarCuandoListo();
     });
+
+    // Arranca los listeners solo cuando el script terminó de registrarlos todos.
+    let _scriptListo = false;
+    let _arranquePendiente = false;
+    function arrancarCuandoListo(){
+      if (_scriptListo){ iniciarListeners(); }
+      else { _arranquePendiente = true; }   // se arrancará al marcar _scriptListo
+    }
+    function marcarScriptListo(){
+      _scriptListo = true;
+      if (_arranquePendiente){ _arranquePendiente = false; iniciarListeners(); }
+    }
 
     // Registra los listeners de Firestore. Las DEFINICIONES se guardan permanentemente
     // (para re-registrar en cada login); las desuscripciones se guardan para poder detenerlos.
@@ -2521,6 +2535,10 @@
       } catch(e){ m.textContent = "Error: "+e.message; m.className="msg err"; }
       finally { $("btnPrecargar").disabled = false; }
     });
+
+    // Marca que el script terminó de registrar todos los listeners.
+    // Si onAuthStateChanged ya confirmó sesión, esto dispara el arranque de las consultas.
+    marcarScriptListo();
   </script>
 </body>
 </html>
