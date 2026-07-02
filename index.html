@@ -415,17 +415,32 @@
           <div><label>Rol de predio</label><select id="nRol"><option value="">— Selecciona un rol —</option></select></div>
           <div><label>Proveedor</label><input id="nProveedor" placeholder="Aserradero Sur" /></div>
           <div><label>Especie</label><select id="nEspecie"><option value="PINO">PINO</option><option value="EUCALYPTUS">EUCALYPTUS</option><option value="NATIVO">NATIVO</option><option value="OTRO">OTRO</option></select></div>
-          <div><label>Volumen estimado (m³)</label><input id="nVolumen" type="number" step="0.01" placeholder="1200" /></div>
-          <div><label>Precio compra</label><input id="nPrecio" type="number" step="1" placeholder="35000" /></div>
           <div><label>Planta de destino</label><select id="nPlanta"><option value="">— Sin asignar —</option></select></div>
+          <div><label>Bodega destino</label><select id="nBodega"><option value="">— Selecciona planta primero —</option></select></div>
           <div><label>Tipo de negocio</label><select id="nTipo"><option value="bosque_en_pie">Bosque en pie (cosecha + flete)</option><option value="madera_puesta_planta">Madera puesta en planta</option></select></div>
+          <div><label>Fecha inicio</label><input id="nFechaInicio" type="date" /></div>
+          <div><label>Fecha término</label><input id="nFechaTermino" type="date" /></div>
+          <div><label>Supervisor faena</label><input id="nSupervisor" placeholder="Nombre del supervisor" /></div>
+          <div><label>Volumen M³</label><input id="nVolumen" type="number" step="0.01" placeholder="1200" /></div>
+          <div><label>Volumen MR</label><input id="nVolMR" type="number" step="0.01" placeholder="1600" /></div>
+          <div><label>Precio compra</label><input id="nPrecio" type="number" step="1" placeholder="35000" /></div>
+          <div><label>Precio venta</label><input id="nPrecioVenta" type="number" step="1" placeholder="42000" /></div>
+        </div>
+        <div style="margin-top:16px">
+          <label style="font-size:13px">Productos</label>
+          <p class="hint" style="margin-top:0; margin-bottom:12px">Agrega uno o varios productos. Cada uno muestra su tipo, especie y largo.</p>
+          <div class="grid">
+            <div><label>Producto</label><select id="nProdSelect"><option value="">— Selecciona producto —</option></select></div>
+          </div>
+          <div class="actions" style="margin-top:12px"><button class="mini" id="btnAddProdNeg" type="button">+ Agregar producto</button></div>
+          <div id="negProductosLista" style="margin-top:12px"></div>
         </div>
         <div class="actions"><button class="primary" id="btnGuardarNeg" disabled>Guardar negocio</button><button class="primary" id="btnCancelarNeg" style="display:none; background:var(--muted); border-color:var(--muted)">Cancelar edición</button><span class="msg" id="negMsg"></span></div>
       </section>
       <section class="card">
         <h2><span class="num">02</span> Negocios registrados</h2>
-        <table><thead><tr><th>Rol</th><th>Proveedor</th><th>Especie</th><th class="num-cell">Vol. m³</th><th>Planta</th><th>Tipo</th><th>Acciones</th></tr></thead>
-        <tbody id="tablaNeg"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
+        <table><thead><tr><th>Rol</th><th>Proveedor</th><th>Especie</th><th class="num-cell">Vol. m³</th><th class="num-cell">Vol. MR</th><th>Planta</th><th>Tipo</th><th>OC</th><th>Acciones</th></tr></thead>
+        <tbody id="tablaNeg"><tr><td colspan="9" class="empty">Cargando&hellip;</td></tr></tbody></table>
       </section>
     </div>
 
@@ -1141,6 +1156,7 @@
         }).join("");
       t.querySelectorAll("[data-ver-prod]").forEach((row)=> row.addEventListener("click", ()=> verDetalleProd(row.dataset.verProd)));
       setSelect($("ocProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodLabel(p))+'</option>', "— Selecciona producto —");
+      setSelect($("nProdSelect"), productosCache, (p)=>'<option value="'+p.id+'">'+esc((p.codigo?p.codigo+' · ':'')+prodLabel(p))+'</option>', "— Selecciona producto —");
     }, ()=>{});
 
     function verDetalleProd(id){
@@ -1223,15 +1239,54 @@
     // ---- NEGOCIOS ----
     regSnap(query(collection(db,"negocios"), orderBy("fechaCreacion","desc")), (snap) => {
       negociosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
-      const t = $("tablaNeg");
-      const puedeEd = puede("editar"), puedeBo = puede("borrar");
-      t.innerHTML = snap.empty ? '<tr><td colspan="7" class="empty">Aún no hay negocios.</td></tr>' :
-        negociosCache.map((n)=>{ const c=n.tipoNegocio==="bosque_en_pie"?"pie":"planta"; const x=n.tipoNegocio==="bosque_en_pie"?"Bosque en pie":"Puesta en planta";
-          let acc=""; if (puedeEd) acc+='<button class="act" data-edit-neg="'+n.id+'">Editar</button>'; if (!acc) acc='<span class="hint">—</span>';
-          return '<tr><td><strong>'+esc(n.numeroRol)+'</strong></td><td>'+esc(n.proveedor)+'</td><td>'+esc(n.especie)+'</td><td class="num-cell">'+fmt(n.volumenEstimadoM3)+'</td><td>'+esc(n.plantaDestinoNombre||"—")+'</td><td><span class="tag '+c+'">'+x+'</span></td><td style="white-space:nowrap">'+acc+'</td></tr>'; }).join("");
-      t.querySelectorAll("[data-edit-neg]").forEach((b)=> b.addEventListener("click", ()=> iniciarEdicionNeg(b.dataset.editNeg)));
+      renderNegTabla();
       setSelect($("ocNegocio"), negociosCache, (n)=>'<option value="'+n.id+'">'+esc(n.numeroRol)+' · '+esc(n.proveedor||"")+'</option>', "— Selecciona negocio —");
     }, ()=>{});
+
+    function renderNegTabla(){
+      const t = $("tablaNeg"); if (!t) return;
+      const puedeEd = puede("editar"), puedeBo = puede("borrar");
+      if (!negociosCache.length){ t.innerHTML = '<tr><td colspan="9" class="empty">Aún no hay negocios.</td></tr>'; return; }
+      t.innerHTML = negociosCache.map((n)=>{
+        const c=n.tipoNegocio==="bosque_en_pie"?"pie":"planta"; const x=n.tipoNegocio==="bosque_en_pie"?"Bosque en pie":"Puesta en planta";
+        const tieneOC = ocCache.some((o)=> o.negocioId===n.id);
+        const ocTag = tieneOC ? '<span class="tag completada">✓ OC</span>' : '<span class="tag alerta">⚠️ Sin OC</span>';
+        let acc=""; if (puedeEd) acc+='<button class="act" data-edit-neg="'+n.id+'">Editar</button>'; if (puedeBo) acc+=' <button class="act del" data-del-neg="'+n.id+'">Eliminar</button>'; if (!acc) acc='<span class="hint">—</span>';
+        return '<tr><td><strong>'+esc(n.numeroRol)+'</strong></td><td>'+esc(n.proveedor)+'</td><td>'+esc(n.especie)+'</td><td class="num-cell">'+fmt(n.volumenEstimadoM3)+'</td><td class="num-cell">'+fmt(n.volumenMR)+'</td><td>'+esc(n.plantaDestinoNombre||"—")+'</td><td><span class="tag '+c+'">'+x+'</span></td><td>'+ocTag+'</td><td style="white-space:nowrap">'+acc+'</td></tr>';
+      }).join("");
+      t.querySelectorAll("[data-edit-neg]").forEach((b)=> b.addEventListener("click", ()=> iniciarEdicionNeg(b.dataset.editNeg)));
+      t.querySelectorAll("[data-del-neg]").forEach((b)=> b.addEventListener("click", ()=> eliminarNeg(b.dataset.delNeg)));
+    }
+
+    // Poblar bodegas destino según la planta elegida (cascada, igual que en OC)
+    function actualizarBodegasNeg(){
+      const planta = plantasCache.find((p)=>p.id===$("nPlanta").value);
+      const bodegas = planta ? (planta.bodegas||[]) : [];
+      $("nBodega").innerHTML = bodegas.length
+        ? '<option value="">— Selecciona bodega —</option>' + bodegas.map((b)=>'<option value="'+esc(b.bodegaId||b.nombre)+'">'+esc(b.nombre)+'</option>').join("")
+        : '<option value="">— Sin bodegas —</option>';
+    }
+    $("nPlanta").addEventListener("change", actualizarBodegasNeg);
+
+    // Chips de productos del negocio (patrón bodegasTemp)
+    let productosTempNeg = [];
+    function renderProductosTempNeg(){
+      const cont = $("negProductosLista");
+      if (!productosTempNeg.length){ cont.innerHTML = '<p class="hint">Sin productos agregados aún.</p>'; return; }
+      cont.innerHTML = productosTempNeg.map((p,i)=>'<span class="falt-chip"><strong>'+esc(p.codigo||p.label||"")+'</strong>'
+        + ' · Tipo: '+esc(p.tipoProducto||"—") + ' · Especie: '+esc(p.especie||"—") + ' · Largo: '+esc(p.largo!=null?p.largo+" m":"—")
+        + ' <button class="mini" data-del-prod-neg="'+i+'" type="button">✕</button></span>').join("");
+      cont.querySelectorAll("[data-del-prod-neg]").forEach((btn)=> btn.addEventListener("click", ()=>{ productosTempNeg.splice(parseInt(btn.dataset.delProdNeg),1); renderProductosTempNeg(); }));
+    }
+    renderProductosTempNeg();
+
+    $("btnAddProdNeg").addEventListener("click", () => {
+      const prod = productosCache.find((p)=>p.id===$("nProdSelect").value);
+      if (!prod){ $("negMsg").textContent="Selecciona un producto para agregar."; $("negMsg").className="msg err"; return; }
+      if (productosTempNeg.some((p)=>p.productoId===prod.id)){ $("negMsg").textContent="Ese producto ya está agregado."; $("negMsg").className="msg err"; return; }
+      productosTempNeg.push({ productoId:prod.id, codigo:prod.codigo||"", tipoProducto:prod.tipoProducto||"", especie:prod.especie||"", largo:prod.largo??null, label:prodLabel(prod) });
+      $("nProdSelect").value=""; $("negMsg").textContent=""; renderProductosTempNeg();
+    });
 
     let editandoNegId = null;
 
@@ -1240,7 +1295,11 @@
       editandoNegId = id;
       $("nRol").value = n.rolId||""; $("nProveedor").value = n.proveedor||"";
       $("nEspecie").value = up(n.especie)||"PINO"; $("nVolumen").value = n.volumenEstimadoM3??"";
-      $("nPrecio").value = n.precioCompra??""; $("nPlanta").value = n.plantaDestinoId||""; $("nTipo").value = n.tipoNegocio||"bosque_en_pie";
+      $("nVolMR").value = n.volumenMR??""; $("nPrecio").value = n.precioCompra??""; $("nPrecioVenta").value = n.precioVenta??"";
+      $("nPlanta").value = n.plantaDestinoId||""; $("nTipo").value = n.tipoNegocio||"bosque_en_pie";
+      $("nFechaInicio").value = n.fechaInicio||""; $("nFechaTermino").value = n.fechaTermino||""; $("nSupervisor").value = n.supervisorFaena||"";
+      actualizarBodegasNeg(); $("nBodega").value = n.bodegaDestinoId||"";
+      productosTempNeg = (n.productos||[]).map((x)=>({ ...x })); renderProductosTempNeg();
       $("btnGuardarNeg").textContent = "Actualizar negocio";
       $("btnCancelarNeg").style.display = "inline-block";
       if (puede("borrar")){
@@ -1253,8 +1312,10 @@
 
     function cancelarEdicionNeg(){
       editandoNegId = null;
-      ["nProveedor","nVolumen","nPrecio"].forEach((id)=>$(id).value=""); $("nRol").value=""; $("nPlanta").value="";
+      ["nProveedor","nVolumen","nVolMR","nPrecio","nPrecioVenta","nFechaInicio","nFechaTermino","nSupervisor"].forEach((id)=>$(id).value="");
+      $("nRol").value=""; $("nPlanta").value=""; $("nBodega").innerHTML='<option value="">— Selecciona planta primero —</option>';
       $("nEspecie").value="PINO"; $("nTipo").value="bosque_en_pie";
+      productosTempNeg = []; renderProductosTempNeg();
       $("btnGuardarNeg").textContent = "Guardar negocio";
       $("btnCancelarNeg").style.display = "none";
       $("negMsg").textContent = "";
@@ -1275,7 +1336,8 @@
       const rolId = $("nRol").value; const m = $("negMsg");
       if (!rolId) { m.textContent="Debes seleccionar un rol."; m.className="msg err"; return; }
       const rol = rolesCache.find((r)=>r.id===rolId); const planta = plantasCache.find((p)=>p.id===$("nPlanta").value);
-      const datos = { rolId, numeroRol: rol?rol.numeroRol:"", proveedor:up($("nProveedor").value), especie:$("nEspecie").value, volumenEstimadoM3:parseFloat($("nVolumen").value)||0, precioCompra:parseFloat($("nPrecio").value)||0, plantaDestinoId:$("nPlanta").value||null, plantaDestinoNombre: planta?planta.nombre:null, tipoNegocio:$("nTipo").value, incluyeCosecha:$("nTipo").value==="bosque_en_pie", incluyeFlete:$("nTipo").value==="bosque_en_pie" };
+      const bodega = planta && planta.bodegas ? planta.bodegas.find((b)=>(b.bodegaId||b.nombre)===$("nBodega").value) : null;
+      const datos = { rolId, numeroRol: rol?rol.numeroRol:"", proveedor:up($("nProveedor").value), especie:$("nEspecie").value, volumenEstimadoM3:parseFloat($("nVolumen").value)||0, volumenMR:parseFloat($("nVolMR").value)||0, precioCompra:parseFloat($("nPrecio").value)||0, precioVenta:parseFloat($("nPrecioVenta").value)||0, plantaDestinoId:$("nPlanta").value||null, plantaDestinoNombre: planta?planta.nombre:null, bodegaDestinoId:$("nBodega").value||null, bodegaDestinoNombre: bodega?bodega.nombre:null, fechaInicio:$("nFechaInicio").value||null, fechaTermino:$("nFechaTermino").value||null, supervisorFaena:up($("nSupervisor").value), productos: productosTempNeg.map((p)=>({ productoId:p.productoId, codigo:p.codigo||"", tipoProducto:p.tipoProducto||"", especie:p.especie||"", largo:p.largo??null, label:p.label||"" })), tipoNegocio:$("nTipo").value, incluyeCosecha:$("nTipo").value==="bosque_en_pie", incluyeFlete:$("nTipo").value==="bosque_en_pie" };
       $("btnGuardarNeg").disabled=true; m.textContent="Guardando…"; m.className="msg";
       try {
         if (editandoNegId){
@@ -1283,7 +1345,10 @@
           m.textContent="✓ Negocio actualizado."; m.className="msg ok"; cancelarEdicionNeg();
         } else {
           await addDoc(collection(db,"negocios"), { ...datos, estado:"en_curso", fechaCreacion:serverTimestamp() });
-          m.textContent="✓ Negocio guardado."; m.className="msg ok"; ["nProveedor","nVolumen","nPrecio"].forEach((id)=>$(id).value=""); $("nRol").value=""; $("nPlanta").value="";
+          m.textContent="✓ Negocio guardado."; m.className="msg ok";
+          ["nProveedor","nVolumen","nVolMR","nPrecio","nPrecioVenta","nFechaInicio","nFechaTermino","nSupervisor"].forEach((id)=>$(id).value="");
+          $("nRol").value=""; $("nPlanta").value=""; $("nBodega").innerHTML='<option value="">— Selecciona planta primero —</option>';
+          productosTempNeg = []; renderProductosTempNeg();
         }
       } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarNeg").disabled = !puede("editar"); }
     });
@@ -1306,6 +1371,7 @@
       ocCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       renderOCTabla();
       renderAlertas();
+      renderNegTabla();
       if (ocDetalleId && $("modalOCDetalle").classList.contains("show")){ const o=ocCache.find((x)=>x.id===ocDetalleId); if (o) verDetalleOC(ocDetalleId); }
     }, ()=>{});
 
