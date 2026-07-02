@@ -777,12 +777,10 @@
     let hayUsuarios = true;  // se ajusta al cargar
 
     async function verificarPrimerUsuario(){
-      try {
-        const snap = await getDocs(query(collection(db,"usuarios")));
-        hayUsuarios = !snap.empty;
-      } catch(e){ hayUsuarios = true; }
-      // Si no hay usuarios, forzar modo registro y avisar que será admin
-      if (!hayUsuarios){ setModo(true); $("firstHint").style.display="block"; }
+      // Nota: no leemos la colección "usuarios" sin sesión (las reglas lo rechazan y
+      // genera un error de permisos al recargar). Asumimos que ya hay usuarios; si alguien
+      // necesita crear el primer admin, puede usar el enlace "Regístrate" manualmente.
+      hayUsuarios = true;
     }
 
     function setModo(registro){
@@ -861,7 +859,10 @@
       $("userInfo").textContent = usuarioActual.nombre || usuarioActual.email;
       $("userBadge").textContent = usuarioActual.tipo;
       aplicarPermisos();
-      iniciarListeners();   // arranca las consultas a Firestore SOLO con sesión confirmada
+      // Asegurar que el token de autenticación esté propagado antes de consultar Firestore,
+      // para evitar "Missing or insufficient permissions" al recargar.
+      try { await user.getIdToken(); } catch(e){}
+      iniciarListeners();   // arranca las consultas a Firestore SOLO con sesión y token confirmados
     });
 
     // Registra los listeners de Firestore una sola vez, ya con sesión activa.
@@ -911,7 +912,15 @@
       setSelect($("rRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona rol —");
       setSelect($("gRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona rol —");
       setSelect($("gFiltroRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "Todos los roles");
-    }, (e)=>{ statusEl.innerHTML='<span class="dot err"></span>Error: '+e.message; });
+    }, (e)=>{
+      // El error "permission-denied" al recargar suele ser transitorio: el token de sesión
+      // aún no está listo. Firestore reintenta solo. No ensuciamos la barra salvo que persista.
+      if (e.code === "permission-denied" || /insufficient permissions/i.test(e.message||"")){
+        statusEl.innerHTML = '<span class="dot"></span>Conectando…';
+      } else {
+        statusEl.innerHTML = '<span class="dot err"></span>Error: '+e.message;
+      }
+    });
 
     let _rolFiltro = null;  // null = todos; string = término de búsqueda
     function rolesFiltroActual(){
@@ -1537,9 +1546,9 @@
     function mostrarInfoProdOC(){
       const prod = productosCache.find((p)=>p.id===$("ocProducto").value);
       const box = $("ocProdInfo");
-      if (!prod){ box.style.display="none"; return; }
+      if (!prod){ box.style.display="none"; box.innerHTML=""; return; }
       box.style.display="block";
-      box.innerHTML = '<strong>Datos del producto:</strong> Tipo: '+esc(prod.tipoProducto||"—")+' · Especie: '+esc(prod.especie||"—")+' · Largo: '+esc(prod.largo!=null?prod.largo+" m":"—")+' · UM: '+esc(prod.unidadMedida||"—");
+      box.innerHTML = '<strong>Datos del producto</strong> &nbsp; Cód: '+esc(prod.codigo||"—")+' &nbsp;·&nbsp; Tipo: '+esc(prod.tipoProducto||"—")+' &nbsp;·&nbsp; Especie: '+esc(prod.especie||"—")+' &nbsp;·&nbsp; Largo: '+esc(prod.largo!=null?prod.largo+" m":"—")+' &nbsp;·&nbsp; UM: '+esc(prod.unidadMedida||"—");
     }
     $("ocProducto").addEventListener("change", mostrarInfoProdOC);
 
@@ -1668,7 +1677,7 @@
             + '<td>'+esc(r.fechaIngreso||"")+'</td>'
             + '<td>'+esc(r.numeroGuia||"")+'</td>'
             + '<td>'+esc(r.camion||r.patente||"")+'</td>'
-            + '<td class="num-cell">'+fmt(r.metrosRuma||0)+'</td>'
+            + '<td class="num-cell">'+fmt((r.metrosRuma||0) || (r.m3||0))+'</td>'
             + '<td>'+esc(r.comuna||"")+'</td>'
             + '<td>'+esc(r.nombreDestino||r.nombreBodega||"")+'</td>'
             + '<td><strong>'+esc(r.numeroRol||"")+'</strong></td>'
@@ -1686,7 +1695,7 @@
           +   '<span class="mes-stats">'+fmt(Math.round(totalMr))+' mr · '+fmt(Math.round(totalM3))+' m³ <span class="mes-flecha">▶</span></span>'
           + '</div>'
           + '<div class="mes-body"><table><thead><tr>'
-          +   '<th>NºGMM</th><th>Fecha Ing</th><th>NºG/D</th><th>Camión</th><th class="num-cell">MR</th><th>Comuna</th><th>Destino</th><th>Rol</th><th>Predio</th><th>Descripción</th><th>UM</th><th>Especie</th><th>Planta</th><th>Coord. origen</th>'
+          +   '<th>NºGMM</th><th>Fecha Ing</th><th>NºG/D</th><th>Camión</th><th class="num-cell">Cant</th><th>Comuna</th><th>Destino</th><th>Rol</th><th>Predio</th><th>Descripción</th><th>UM</th><th>Especie</th><th>Planta</th><th>Coord. origen</th>'
           + '</tr></thead><tbody>'+filas+'</tbody></table></div>'
           + '</div>';
       }).join("");
