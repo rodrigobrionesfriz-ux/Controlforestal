@@ -409,39 +409,67 @@
     <!-- NEGOCIOS -->
     <div class="view" id="view-negocios">
       <section class="card">
-        <h2><span class="num">01</span> Nueva ficha de negocio</h2>
-        <p class="sub">Cada negocio se asocia a un único rol de predio.</p>
-        <div class="grid">
-          <div><label>Rol de predio</label><select id="nRol"><option value="">— Selecciona un rol —</option></select></div>
-          <div><label>Proveedor</label><input id="nProveedor" placeholder="Aserradero Sur" /></div>
-          <div><label>Especie</label><select id="nEspecie"><option value="PINO">PINO</option><option value="EUCALYPTUS">EUCALYPTUS</option><option value="NATIVO">NATIVO</option><option value="OTRO">OTRO</option></select></div>
-          <div><label>Planta de destino</label><select id="nPlanta"><option value="">— Sin asignar —</option></select></div>
-          <div><label>Bodega destino</label><select id="nBodega"><option value="">— Selecciona planta primero —</option></select></div>
-          <div><label>Tipo de negocio</label><select id="nTipo"><option value="bosque_en_pie">Bosque en pie (cosecha + flete)</option><option value="madera_puesta_planta">Madera puesta en planta</option></select></div>
-          <div><label>Fecha inicio</label><input id="nFechaInicio" type="date" /></div>
-          <div><label>Fecha término</label><input id="nFechaTermino" type="date" /></div>
-          <div><label>Supervisor faena</label><input id="nSupervisor" placeholder="Nombre del supervisor" /></div>
-          <div><label>Volumen M³</label><input id="nVolumen" type="number" step="0.01" placeholder="1200" /></div>
-          <div><label>Volumen MR</label><input id="nVolMR" type="number" step="0.01" placeholder="1600" /></div>
-          <div><label>Precio compra</label><input id="nPrecio" type="number" step="1" placeholder="35000" /></div>
-          <div><label>Precio venta</label><input id="nPrecioVenta" type="number" step="1" placeholder="42000" /></div>
-        </div>
-        <div style="margin-top:16px">
-          <label style="font-size:13px">Productos</label>
-          <p class="hint" style="margin-top:0; margin-bottom:12px">Agrega uno o varios productos. Cada uno muestra su tipo, especie y largo.</p>
-          <div class="grid">
-            <div><label>Producto</label><select id="nProdSelect"><option value="">— Selecciona producto —</option></select></div>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px">
+          <div>
+            <h2 style="margin:0"><span class="num">01</span> Negocios</h2>
+            <p class="sub" style="margin:4px 0 0">Haz clic en un negocio para ver su ficha. Usa el botón para agregar uno nuevo.</p>
           </div>
-          <div class="actions" style="margin-top:12px"><button class="mini" id="btnAddProdNeg" type="button">+ Agregar producto</button></div>
-          <div id="negProductosLista" style="margin-top:12px"></div>
+          <button class="primary" id="btnNuevoNeg">+ Agregar negocio</button>
         </div>
-        <div class="actions"><button class="primary" id="btnGuardarNeg" disabled>Guardar negocio</button><button class="primary" id="btnCancelarNeg" style="display:none; background:var(--muted); border-color:var(--muted)">Cancelar edición</button><span class="msg" id="negMsg"></span></div>
+        <table style="margin-top:18px"><thead><tr><th>Rol</th><th>Proveedor</th><th>Especie</th><th class="num-cell">MR</th><th class="num-cell">M³</th><th>Planta</th><th>OC</th></tr></thead>
+        <tbody id="tablaNeg"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
       </section>
-      <section class="card">
-        <h2><span class="num">02</span> Negocios registrados</h2>
-        <table><thead><tr><th>Rol</th><th>Proveedor</th><th>Especie</th><th class="num-cell">Vol. m³</th><th class="num-cell">Vol. MR</th><th>Planta</th><th>Tipo</th><th>OC</th><th>Acciones</th></tr></thead>
-        <tbody id="tablaNeg"><tr><td colspan="9" class="empty">Cargando&hellip;</td></tr></tbody></table>
-      </section>
+    </div>
+
+    <!-- MODAL: formulario de negocio -->
+    <div class="modal-overlay" id="modalNegForm">
+      <div class="modal" style="max-width:820px">
+        <div class="modal-head"><h3 id="modalNegTitulo">Nuevo negocio</h3><button class="modal-close" data-close-modal="modalNegForm">&times;</button></div>
+        <div class="modal-body">
+          <div class="grid">
+            <div><label>Rol de predio</label><select id="nRol"><option value="">— Selecciona un rol —</option></select></div>
+            <div><label>Proveedor</label><input id="nProveedor" placeholder="Aserradero Sur" /></div>
+            <div><label>Planta de destino</label><select id="nPlanta"><option value="">— Sin asignar —</option></select></div>
+            <div><label>Bodega destino</label><select id="nBodega"><option value="">— Selecciona planta primero —</option></select></div>
+            <div><label>Supervisor de faena</label><input id="nSupervisor" placeholder="Nombre del supervisor" /></div>
+            <div><label>Tipo de negocio</label><select id="nTipo"><option value="bosque_en_pie">Bosque en pie (cosecha + flete)</option><option value="madera_puesta_planta">Madera puesta en planta</option></select></div>
+            <div><label>Fecha inicio</label><input id="nFechaInicio" type="date" /></div>
+            <div><label>Fecha término</label><input id="nFechaTermino" type="date" /></div>
+            <div><label>Precio compra</label><input id="nPrecio" type="number" step="1" placeholder="35000" /></div>
+            <div><label>Precio venta</label><input id="nPrecioVenta" type="number" step="1" placeholder="48000" /></div>
+          </div>
+
+          <div style="margin-top:20px; padding-top:18px; border-top:1px solid var(--line)">
+            <label style="font-size:13px">Productos del negocio</label>
+            <p class="hint" style="margin-top:0; margin-bottom:12px">Agrega uno o varios productos, cada uno con su volumen MR y M³. Al elegir el producto se muestran sus datos.</p>
+            <div class="grid">
+              <div><label>Producto</label><select id="npProducto"><option value="">— Selecciona producto —</option></select></div>
+              <div><label>Volumen MR</label><input id="npMr" type="number" step="0.01" placeholder="1000" /></div>
+              <div><label>Volumen M³</label><input id="npM3" type="number" step="0.01" placeholder="750" /></div>
+            </div>
+            <div id="npInfo" class="hint" style="margin-top:6px"></div>
+            <div class="actions" style="margin-top:12px"><button class="mini" id="btnAddProdNeg" type="button">+ Agregar producto</button></div>
+            <div id="prodNegLista" style="margin-top:12px"></div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <span class="msg" id="negMsg" style="margin-right:auto"></span>
+          <button class="primary" id="btnCancelarNeg" style="background:var(--muted); border-color:var(--muted)">Cancelar</button>
+          <button class="primary" id="btnGuardarNeg" disabled>Guardar negocio</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: detalle de negocio -->
+    <div class="modal-overlay" id="modalNegDetalle">
+      <div class="modal" style="max-width:820px">
+        <div class="modal-head"><h3 id="detalleNegTitulo">Ficha de negocio</h3><button class="modal-close" data-close-modal="modalNegDetalle">&times;</button></div>
+        <div class="modal-body" id="detalleNegBody"></div>
+        <div class="modal-foot">
+          <button class="primary" id="btnEditarNegDetalle">Editar</button>
+          <button class="primary act del" id="btnEliminarNegDetalle" style="display:none">Eliminar</button>
+        </div>
+      </div>
     </div>
 
     <!-- ÓRDENES DE COMPRA -->
@@ -1156,7 +1184,7 @@
         }).join("");
       t.querySelectorAll("[data-ver-prod]").forEach((row)=> row.addEventListener("click", ()=> verDetalleProd(row.dataset.verProd)));
       setSelect($("ocProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodLabel(p))+'</option>', "— Selecciona producto —");
-      setSelect($("nProdSelect"), productosCache, (p)=>'<option value="'+p.id+'">'+esc((p.codigo?p.codigo+' · ':'')+prodLabel(p))+'</option>', "— Selecciona producto —");
+      setSelect($("npProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodLabel(p))+'</option>', "— Selecciona producto —");
     }, ()=>{});
 
     function verDetalleProd(id){
@@ -1237,28 +1265,73 @@
     });
 
     // ---- NEGOCIOS ----
-    regSnap(query(collection(db,"negocios"), orderBy("fechaCreacion","desc")), (snap) => {
-      negociosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
-      renderNegTabla();
-      setSelect($("ocNegocio"), negociosCache, (n)=>'<option value="'+n.id+'">'+esc(n.numeroRol)+' · '+esc(n.proveedor||"")+'</option>', "— Selecciona negocio —");
-    }, ()=>{});
+    let editandoNegId = null;
+    let negDetalleId = null;
+    let prodNegTemp = [];  // array temporal de productos del negocio {productoId, label, tipo, especie, largo, mr, m3}
 
-    function renderNegTabla(){
-      const t = $("tablaNeg"); if (!t) return;
-      const puedeEd = puede("editar"), puedeBo = puede("borrar");
-      if (!negociosCache.length){ t.innerHTML = '<tr><td colspan="9" class="empty">Aún no hay negocios.</td></tr>'; return; }
-      t.innerHTML = negociosCache.map((n)=>{
-        const c=n.tipoNegocio==="bosque_en_pie"?"pie":"planta"; const x=n.tipoNegocio==="bosque_en_pie"?"Bosque en pie":"Puesta en planta";
-        const tieneOC = ocCache.some((o)=> o.negocioId===n.id);
-        const ocTag = tieneOC ? '<span class="tag completada">✓ OC</span>' : '<span class="tag alerta">⚠️ Sin OC</span>';
-        let acc=""; if (puedeEd) acc+='<button class="act" data-edit-neg="'+n.id+'">Editar</button>'; if (puedeBo) acc+=' <button class="act del" data-del-neg="'+n.id+'">Eliminar</button>'; if (!acc) acc='<span class="hint">—</span>';
-        return '<tr><td><strong>'+esc(n.numeroRol)+'</strong></td><td>'+esc(n.proveedor)+'</td><td>'+esc(n.especie)+'</td><td class="num-cell">'+fmt(n.volumenEstimadoM3)+'</td><td class="num-cell">'+fmt(n.volumenMR)+'</td><td>'+esc(n.plantaDestinoNombre||"—")+'</td><td><span class="tag '+c+'">'+x+'</span></td><td>'+ocTag+'</td><td style="white-space:nowrap">'+acc+'</td></tr>';
-      }).join("");
-      t.querySelectorAll("[data-edit-neg]").forEach((b)=> b.addEventListener("click", ()=> iniciarEdicionNeg(b.dataset.editNeg)));
-      t.querySelectorAll("[data-del-neg]").forEach((b)=> b.addEventListener("click", ()=> eliminarNeg(b.dataset.delNeg)));
+    // ¿Existe una OC para el rol de este negocio? (vínculo automático)
+    function negocioTieneOC(neg){
+      return ocCache.some((o)=> o.rolId===neg.rolId || o.negocioId===neg.id);
     }
 
-    // Poblar bodegas destino según la planta elegida (cascada, igual que en OC)
+    regSnap(query(collection(db,"negocios"), orderBy("fechaCreacion","desc")), (snap) => {
+      negociosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
+      renderNegociosTabla();
+      setSelect($("ocNegocio"), negociosCache, (n)=>'<option value="'+n.id+'">'+esc(n.numeroRol)+' · '+esc(n.proveedor||"")+'</option>', "— Selecciona negocio —");
+      if (negDetalleId && $("modalNegDetalle").classList.contains("show")){ const n=negociosCache.find((x)=>x.id===negDetalleId); if (n) verDetalleNeg(negDetalleId); }
+    }, ()=>{});
+
+    function renderNegociosTabla(){
+      const t = $("tablaNeg");
+      if (!negociosCache.length){ t.innerHTML = '<tr><td colspan="7" class="empty">Aún no hay negocios. Pulsa "Agregar" para crear uno.</td></tr>'; return; }
+      t.innerHTML = negociosCache.map((n)=>{
+        // Volúmenes totales (suma de productos, o campos antiguos)
+        const totMr = (n.productos||[]).reduce((a,p)=>a+(p.mr||0), 0) || n.volumenMR || 0;
+        const totM3 = (n.productos||[]).reduce((a,p)=>a+(p.m3||0), 0) || n.volumenEstimadoM3 || 0;
+        const especies = [...new Set((n.productos||[]).map((p)=>p.especie).filter(Boolean))].join(", ") || n.especie || "—";
+        const tieneOC = negocioTieneOC(n);
+        const ocCell = tieneOC ? '<span title="Tiene orden de compra" style="color:var(--ok); font-size:16px">✓</span>' : '<span title="Sin orden de compra" style="color:var(--warn); font-size:16px">⚠️</span>';
+        return '<tr class="clickable-row" data-ver-neg="'+n.id+'"><td><strong>'+esc(n.numeroRol)+'</strong></td><td>'+esc(n.proveedor)+'</td><td>'+esc(especies)+'</td><td class="num-cell">'+fmt(totMr)+'</td><td class="num-cell">'+fmt(totM3)+'</td><td>'+esc(n.plantaDestinoNombre||"—")+'</td><td style="text-align:center">'+ocCell+'</td></tr>';
+      }).join("");
+      t.querySelectorAll("[data-ver-neg]").forEach((row)=> row.addEventListener("click", ()=> verDetalleNeg(row.dataset.verNeg)));
+    }
+
+    function verDetalleNeg(id){
+      const n = negociosCache.find((x)=>x.id===id); if (!n) return;
+      negDetalleId = id;
+      $("detalleNegTitulo").textContent = "Negocio · " + (n.numeroRol||"") + " · " + (n.proveedor||"");
+      const row = (k,v)=> (v!==null&&v!==undefined&&v!=="") ? '<div class="detalle-row"><div class="k">'+k+'</div><div class="v">'+esc(v)+'</div></div>' : "";
+      const totMr = (n.productos||[]).reduce((a,p)=>a+(p.mr||0), 0) || n.volumenMR || 0;
+      const totM3 = (n.productos||[]).reduce((a,p)=>a+(p.m3||0), 0) || n.volumenEstimadoM3 || 0;
+      const tieneOC = negocioTieneOC(n);
+      // Productos
+      let prodHtml = "";
+      const prods = n.productos || [];
+      if (prods.length){
+        prodHtml = '<div style="margin-top:16px"><div class="k" style="font-weight:700; color:var(--ink); margin-bottom:8px">Productos ('+prods.length+')</div>'
+          + prods.map((p)=>'<div style="padding:8px 12px; background:var(--bg); border-radius:6px; margin-bottom:6px; font-size:13px"><strong>'+esc(p.label||p.codigo||"")+'</strong>'
+              + (p.tipo?' · '+esc(p.tipo):'') + (p.especie?' · '+esc(p.especie):'') + (p.largo!=null?' · '+esc(p.largo)+' m':'')
+              + ' · <strong>'+fmt(p.mr||0)+' MR</strong> · <strong>'+fmt(p.m3||0)+' M³</strong></div>').join("")
+          + '</div>';
+      }
+      $("detalleNegBody").innerHTML =
+          row("Rol", n.numeroRol) + row("Proveedor", n.proveedor)
+        + row("Planta destino", n.plantaDestinoNombre) + row("Bodega destino", n.bodegaDestinoNombre)
+        + row("Supervisor de faena", n.supervisorFaena)
+        + row("Tipo de negocio", n.tipoNegocio==="bosque_en_pie"?"Bosque en pie":"Madera puesta en planta")
+        + row("Fecha inicio", n.fechaInicio) + row("Fecha término", n.fechaTermino)
+        + row("Precio compra", n.precioCompra!=null?fmt(n.precioCompra):"") + row("Precio venta", n.precioVenta!=null?fmt(n.precioVenta):"")
+        + row("Volumen total MR", fmt(totMr)) + row("Volumen total M³", fmt(totM3))
+        + '<div class="detalle-row"><div class="k">Orden de compra</div><div class="v">'+(tieneOC?'<span style="color:var(--ok)">✓ Tiene OC asociada</span>':'<span style="color:var(--warn)">⚠️ Sin orden de compra</span>')+'</div></div>'
+        + prodHtml;
+      $("btnEditarNegDetalle").style.display = puede("editar") ? "inline-block" : "none";
+      $("btnEliminarNegDetalle").style.display = puede("borrar") ? "inline-block" : "none";
+      abrirModal("modalNegDetalle");
+    }
+    $("btnEditarNegDetalle").addEventListener("click", ()=>{ cerrarModal("modalNegDetalle"); iniciarEdicionNeg(negDetalleId); });
+    $("btnEliminarNegDetalle").addEventListener("click", ()=>{ const id=negDetalleId; cerrarModal("modalNegDetalle"); eliminarNeg(id); });
+
+    // Poblar bodegas destino según la planta del negocio
     function actualizarBodegasNeg(){
       const planta = plantasCache.find((p)=>p.id===$("nPlanta").value);
       const bodegas = planta ? (planta.bodegas||[]) : [];
@@ -1268,57 +1341,71 @@
     }
     $("nPlanta").addEventListener("change", actualizarBodegasNeg);
 
-    // Chips de productos del negocio (patrón bodegasTemp)
-    let productosTempNeg = [];
-    function renderProductosTempNeg(){
-      const cont = $("negProductosLista");
-      if (!productosTempNeg.length){ cont.innerHTML = '<p class="hint">Sin productos agregados aún.</p>'; return; }
-      cont.innerHTML = productosTempNeg.map((p,i)=>'<span class="falt-chip"><strong>'+esc(p.codigo||p.label||"")+'</strong>'
-        + ' · Tipo: '+esc(p.tipoProducto||"—") + ' · Especie: '+esc(p.especie||"—") + ' · Largo: '+esc(p.largo!=null?p.largo+" m":"—")
-        + ' <button class="mini" data-del-prod-neg="'+i+'" type="button">✕</button></span>').join("");
-      cont.querySelectorAll("[data-del-prod-neg]").forEach((btn)=> btn.addEventListener("click", ()=>{ productosTempNeg.splice(parseInt(btn.dataset.delProdNeg),1); renderProductosTempNeg(); }));
-    }
-    renderProductosTempNeg();
-
-    $("btnAddProdNeg").addEventListener("click", () => {
-      const prod = productosCache.find((p)=>p.id===$("nProdSelect").value);
-      if (!prod){ $("negMsg").textContent="Selecciona un producto para agregar."; $("negMsg").className="msg err"; return; }
-      if (productosTempNeg.some((p)=>p.productoId===prod.id)){ $("negMsg").textContent="Ese producto ya está agregado."; $("negMsg").className="msg err"; return; }
-      productosTempNeg.push({ productoId:prod.id, codigo:prod.codigo||"", tipoProducto:prod.tipoProducto||"", especie:prod.especie||"", largo:prod.largo??null, label:prodLabel(prod) });
-      $("nProdSelect").value=""; $("negMsg").textContent=""; renderProductosTempNeg();
+    // Mostrar datos del producto seleccionado (para agregar al negocio)
+    $("npProducto").addEventListener("change", ()=>{
+      const prod = productosCache.find((p)=>p.id===$("npProducto").value);
+      const box = $("npInfo");
+      if (!prod){ box.textContent=""; return; }
+      box.innerHTML = '<strong>Datos:</strong> Tipo: '+esc(prod.tipoProducto||"—")+' · Especie: '+esc(prod.especie||"—")+' · Largo: '+esc(prod.largo!=null?prod.largo+" m":"—")+' · UM: '+esc(prod.unidadMedida||"—");
     });
 
-    let editandoNegId = null;
+    // Agregar producto al array temporal
+    $("btnAddProdNeg").addEventListener("click", ()=>{
+      const prod = productosCache.find((p)=>p.id===$("npProducto").value);
+      if (!prod){ $("negMsg").textContent="Selecciona un producto."; $("negMsg").className="msg err"; return; }
+      const mr = parseFloat($("npMr").value)||0, m3 = parseFloat($("npM3").value)||0;
+      if (mr<=0 && m3<=0){ $("negMsg").textContent="Ingresa volumen MR o M³ para el producto."; $("negMsg").className="msg err"; return; }
+      prodNegTemp.push({ productoId: prod.id, label: prodLabel(prod), codigo: prod.codigo||"", tipo: prod.tipoProducto||"", especie: prod.especie||"", largo: prod.largo??null, mr, m3 });
+      $("npProducto").value=""; $("npMr").value=""; $("npM3").value=""; $("npInfo").textContent="";
+      $("negMsg").textContent=""; renderProdNegTemp();
+    });
+
+    function renderProdNegTemp(){
+      const cont = $("prodNegLista");
+      if (!prodNegTemp.length){ cont.innerHTML = '<p class="hint">Aún no has agregado productos.</p>'; return; }
+      const totMr = prodNegTemp.reduce((a,p)=>a+(p.mr||0),0), totM3 = prodNegTemp.reduce((a,p)=>a+(p.m3||0),0);
+      cont.innerHTML = '<table><thead><tr><th>Producto</th><th>Tipo</th><th>Especie</th><th class="num-cell">Largo</th><th class="num-cell">MR</th><th class="num-cell">M³</th><th></th></tr></thead><tbody>'
+        + prodNegTemp.map((p,i)=>'<tr><td><strong>'+esc(p.label||p.codigo)+'</strong></td><td>'+esc(p.tipo||"—")+'</td><td>'+esc(p.especie||"—")+'</td><td class="num-cell">'+esc(p.largo!=null?p.largo:"—")+'</td><td class="num-cell">'+fmt(p.mr||0)+'</td><td class="num-cell">'+fmt(p.m3||0)+'</td><td><button class="act del" data-del-prodneg="'+i+'">Quitar</button></td></tr>').join("")
+        + '<tr style="border-top:2px solid var(--line)"><td colspan="4"><strong>Totales</strong></td><td class="num-cell"><strong>'+fmt(totMr)+'</strong></td><td class="num-cell"><strong>'+fmt(totM3)+'</strong></td><td></td></tr>'
+        + '</tbody></table>';
+      cont.querySelectorAll("[data-del-prodneg]").forEach((b)=> b.addEventListener("click", ()=>{ prodNegTemp.splice(parseInt(b.dataset.delProdneg),1); renderProdNegTemp(); }));
+    }
+
+    $("btnNuevoNeg").addEventListener("click", ()=>{
+      editandoNegId = null; prodNegTemp = [];
+      ["nProveedor","nSupervisor","nFechaInicio","nFechaTermino","nPrecio","nPrecioVenta","npMr","npM3"].forEach((id)=>$(id).value="");
+      $("nRol").value=""; $("nPlanta").value=""; $("nBodega").innerHTML='<option value="">— Selecciona planta primero —</option>';
+      $("nTipo").value="bosque_en_pie"; $("npProducto").value=""; $("npInfo").textContent="";
+      renderProdNegTemp();
+      $("modalNegTitulo").textContent = "Nuevo negocio";
+      $("btnGuardarNeg").textContent = "Guardar negocio"; $("btnGuardarNeg").disabled = !puede("editar");
+      $("negMsg").textContent="";
+      abrirModal("modalNegForm");
+    });
 
     function iniciarEdicionNeg(id){
       const n = negociosCache.find((x)=>x.id===id); if (!n) return;
       editandoNegId = id;
       $("nRol").value = n.rolId||""; $("nProveedor").value = n.proveedor||"";
-      $("nEspecie").value = up(n.especie)||"PINO"; $("nVolumen").value = n.volumenEstimadoM3??"";
-      $("nVolMR").value = n.volumenMR??""; $("nPrecio").value = n.precioCompra??""; $("nPrecioVenta").value = n.precioVenta??"";
-      $("nPlanta").value = n.plantaDestinoId||""; $("nTipo").value = n.tipoNegocio||"bosque_en_pie";
-      $("nFechaInicio").value = n.fechaInicio||""; $("nFechaTermino").value = n.fechaTermino||""; $("nSupervisor").value = n.supervisorFaena||"";
-      actualizarBodegasNeg(); $("nBodega").value = n.bodegaDestinoId||"";
-      productosTempNeg = (n.productos||[]).map((x)=>({ ...x })); renderProductosTempNeg();
-      $("btnGuardarNeg").textContent = "Actualizar negocio";
-      $("btnCancelarNeg").style.display = "inline-block";
-      if (puede("borrar")){
-        $("negMsg").innerHTML = 'Editando negocio de '+esc(n.numeroRol)+' · <button class="act del" id="btnEliminarNeg">Eliminar este negocio</button>';
-        $("negMsg").className="msg";
-        $("btnEliminarNeg").addEventListener("click", ()=> eliminarNeg(id));
-      } else { $("negMsg").textContent = "Editando negocio de "+n.numeroRol; $("negMsg").className="msg"; }
-      $("view-negocios").scrollIntoView({ behavior:"smooth" });
+      $("nPlanta").value = n.plantaDestinoId||""; actualizarBodegasNeg(); $("nBodega").value = n.bodegaDestinoId||"";
+      $("nSupervisor").value = n.supervisorFaena||""; $("nTipo").value = n.tipoNegocio||"bosque_en_pie";
+      $("nFechaInicio").value = n.fechaInicio||""; $("nFechaTermino").value = n.fechaTermino||"";
+      $("nPrecio").value = n.precioCompra??""; $("nPrecioVenta").value = n.precioVenta??"";
+      prodNegTemp = (n.productos||[]).map((p)=>({ ...p })); renderProdNegTemp();
+      $("modalNegTitulo").textContent = "Editar negocio · " + (n.numeroRol||"");
+      $("btnGuardarNeg").textContent = "Actualizar negocio"; $("btnGuardarNeg").disabled = !puede("editar");
+      $("negMsg").textContent = "";
+      abrirModal("modalNegForm");
     }
 
     function cancelarEdicionNeg(){
-      editandoNegId = null;
-      ["nProveedor","nVolumen","nVolMR","nPrecio","nPrecioVenta","nFechaInicio","nFechaTermino","nSupervisor"].forEach((id)=>$(id).value="");
-      $("nRol").value=""; $("nPlanta").value=""; $("nBodega").innerHTML='<option value="">— Selecciona planta primero —</option>';
-      $("nEspecie").value="PINO"; $("nTipo").value="bosque_en_pie";
-      productosTempNeg = []; renderProductosTempNeg();
+      editandoNegId = null; prodNegTemp = [];
+      ["nProveedor","nSupervisor","nFechaInicio","nFechaTermino","nPrecio","nPrecioVenta","npMr","npM3"].forEach((id)=>$(id).value="");
+      $("nRol").value=""; $("nPlanta").value=""; $("nTipo").value="bosque_en_pie"; $("npProducto").value=""; $("npInfo").textContent="";
+      renderProdNegTemp();
       $("btnGuardarNeg").textContent = "Guardar negocio";
-      $("btnCancelarNeg").style.display = "none";
       $("negMsg").textContent = "";
+      cerrarModal("modalNegForm");
     }
     $("btnCancelarNeg").addEventListener("click", cancelarEdicionNeg);
 
@@ -1328,30 +1415,50 @@
       let aviso = "¿Eliminar el negocio del rol \""+(n.numeroRol||"")+"\"?";
       if (usadoOC) aviso += "\n\n⚠️ Atención: tiene órdenes de compra asociadas. Esas quedarán sin negocio asociado, pero NO se borran.";
       if (!confirm(aviso)) return;
-      try { await deleteDoc(doc(db,"negocios",id)); cancelarEdicionNeg(); }
+      try { await deleteDoc(doc(db,"negocios",id)); }
       catch(e){ alert("Error al eliminar: "+e.message); }
     }
 
     $("btnGuardarNeg").addEventListener("click", async () => {
       const rolId = $("nRol").value; const m = $("negMsg");
       if (!rolId) { m.textContent="Debes seleccionar un rol."; m.className="msg err"; return; }
-      const rol = rolesCache.find((r)=>r.id===rolId); const planta = plantasCache.find((p)=>p.id===$("nPlanta").value);
+      const rol = rolesCache.find((r)=>r.id===rolId);
+      const planta = plantasCache.find((p)=>p.id===$("nPlanta").value);
       const bodega = planta && planta.bodegas ? planta.bodegas.find((b)=>(b.bodegaId||b.nombre)===$("nBodega").value) : null;
-      const datos = { rolId, numeroRol: rol?rol.numeroRol:"", proveedor:up($("nProveedor").value), especie:$("nEspecie").value, volumenEstimadoM3:parseFloat($("nVolumen").value)||0, volumenMR:parseFloat($("nVolMR").value)||0, precioCompra:parseFloat($("nPrecio").value)||0, precioVenta:parseFloat($("nPrecioVenta").value)||0, plantaDestinoId:$("nPlanta").value||null, plantaDestinoNombre: planta?planta.nombre:null, bodegaDestinoId:$("nBodega").value||null, bodegaDestinoNombre: bodega?bodega.nombre:null, fechaInicio:$("nFechaInicio").value||null, fechaTermino:$("nFechaTermino").value||null, supervisorFaena:up($("nSupervisor").value), productos: productosTempNeg.map((p)=>({ productoId:p.productoId, codigo:p.codigo||"", tipoProducto:p.tipoProducto||"", especie:p.especie||"", largo:p.largo??null, label:p.label||"" })), tipoNegocio:$("nTipo").value, incluyeCosecha:$("nTipo").value==="bosque_en_pie", incluyeFlete:$("nTipo").value==="bosque_en_pie" };
+      const totMr = prodNegTemp.reduce((a,p)=>a+(p.mr||0),0);
+      const totM3 = prodNegTemp.reduce((a,p)=>a+(p.m3||0),0);
+      const especies = [...new Set(prodNegTemp.map((p)=>p.especie).filter(Boolean))];
+      const datos = {
+        rolId, numeroRol: rol?rol.numeroRol:"",
+        proveedor: up($("nProveedor").value),
+        plantaDestinoId: $("nPlanta").value||null, plantaDestinoNombre: planta?planta.nombre:null,
+        bodegaDestinoId: $("nBodega").value||null, bodegaDestinoNombre: bodega?bodega.nombre:null,
+        supervisorFaena: up($("nSupervisor").value),
+        tipoNegocio: $("nTipo").value,
+        incluyeCosecha: $("nTipo").value==="bosque_en_pie", incluyeFlete: $("nTipo").value==="bosque_en_pie",
+        fechaInicio: $("nFechaInicio").value||null, fechaTermino: $("nFechaTermino").value||null,
+        precioCompra: parseFloat($("nPrecio").value)||0, precioVenta: parseFloat($("nPrecioVenta").value)||0,
+        productos: prodNegTemp.map((p)=>({ productoId:p.productoId, label:p.label, codigo:p.codigo, tipo:p.tipo, especie:p.especie, largo:p.largo, mr:p.mr||0, m3:p.m3||0 })),
+        volumenMR: totMr, volumenEstimadoM3: totM3,
+        especie: especies[0] || null, especies,
+      };
       $("btnGuardarNeg").disabled=true; m.textContent="Guardando…"; m.className="msg";
       try {
         if (editandoNegId){
           await updateDoc(doc(db,"negocios",editandoNegId), datos);
-          m.textContent="✓ Negocio actualizado."; m.className="msg ok"; cancelarEdicionNeg();
+          m.textContent="✓ Negocio actualizado."; m.className="msg ok";
         } else {
           await addDoc(collection(db,"negocios"), { ...datos, estado:"en_curso", fechaCreacion:serverTimestamp() });
           m.textContent="✓ Negocio guardado."; m.className="msg ok";
-          ["nProveedor","nVolumen","nVolMR","nPrecio","nPrecioVenta","nFechaInicio","nFechaTermino","nSupervisor"].forEach((id)=>$(id).value="");
-          $("nRol").value=""; $("nPlanta").value=""; $("nBodega").innerHTML='<option value="">— Selecciona planta primero —</option>';
-          productosTempNeg = []; renderProductosTempNeg();
         }
+        setTimeout(()=> cancelarEdicionNeg(), 600);
       } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarNeg").disabled = !puede("editar"); }
     });
+
+    // Poblar el selector de productos del negocio cuando cambian los productos
+    function poblarProductosNeg(){
+      setSelect($("npProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodLabel(p))+'</option>', "— Selecciona producto —");
+    }
 
     // ---- ÓRDENES DE COMPRA ----
     let ocMostrarTodas = false;
@@ -1371,7 +1478,7 @@
       ocCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       renderOCTabla();
       renderAlertas();
-      renderNegTabla();
+      if (typeof renderNegociosTabla==="function") renderNegociosTabla();  // actualizar tick/alerta OC en negocios
       if (ocDetalleId && $("modalOCDetalle").classList.contains("show")){ const o=ocCache.find((x)=>x.id===ocDetalleId); if (o) verDetalleOC(ocDetalleId); }
     }, ()=>{});
 
