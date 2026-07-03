@@ -203,6 +203,7 @@
       <button data-tab="recepciones"><span class="ico">🚚</span><span class="label">Recepciones</span></button>
       <button data-tab="importar" data-admin><span class="ico">📥</span><span class="label">Importar Excel</span></button>
       <button data-tab="gastos"><span class="ico">💰</span><span class="label">Gastos</span></button>
+      <button data-tab="ingresos"><span class="ico">💵</span><span class="label">Ingresos por Venta</span></button>
       <div class="sep"></div>
       <button data-tab="usuarios" data-admin="1"><span class="ico">👥</span><span class="label">Usuarios</span></button>
       <button data-tab="empresa" data-admin="1"><span class="ico">🏢</span><span class="label">Empresa</span></button>
@@ -221,6 +222,7 @@
       </div>
       <div class="kpi-grid">
         <div class="kpi"><div class="label">Gastos totales</div><div class="value" id="kpiGastos"><span class="unit">$</span> 0</div></div>
+        <div class="kpi"><div class="label">Ingresos totales</div><div class="value" id="kpiIngresos" style="color:var(--ok)"><span class="unit">$</span> 0</div></div>
         <div class="kpi"><div class="label">Plantas / Clientes</div><div class="value" id="kpiPlantas">0</div></div>
         <div class="kpi"><div class="label">Productos</div><div class="value" id="kpiProd">0</div></div>
         <div class="kpi"><div class="label">Órdenes de compra</div><div class="value" id="kpiOC">0</div></div>
@@ -655,6 +657,53 @@
       </section>
     </div>
 
+    <!-- INGRESOS POR VENTA -->
+    <div class="view" id="view-ingresos">
+      <section class="card" id="secImportarIngresos">
+        <h2><span class="num">01</span> Importar ingresos desde Excel</h2>
+        <p class="sub">Carga el archivo de ingresos. Debe contener una hoja llamada <strong>BASEINGRESOS</strong>.</p>
+        <div class="actions" style="margin-top:0">
+          <input type="file" id="ingresoFile" accept=".xlsx,.xls" style="max-width:340px" />
+          <button class="primary" id="btnPreviewIngreso" disabled>Analizar archivo</button>
+        </div>
+        <div class="hint" style="margin-top:8px">Columnas esperadas: FECHA · PROVEEDOR · MOTIVO · DESCRIPCIÓN · CANTIDAD · C.UNIT · NETO2. Los ingresos duplicados (misma fecha + proveedor + descripción + neto) se detectan y no se reimportan.</div>
+        <div id="ingresoPreviewCard" style="display:none; margin-top:18px">
+          <p class="msg" id="ingresoPreviewResumen"></p>
+          <div style="max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:6px; margin-top:10px">
+            <table><thead><tr><th>Fila</th><th>Fecha</th><th>Proveedor</th><th>Motivo</th><th>Descripción</th><th class="num-cell">Cantidad</th><th class="num-cell">C.Unit</th><th class="num-cell">Neto</th><th>Estado</th></tr></thead>
+            <tbody id="ingresoTablaPreview"></tbody></table>
+          </div>
+          <div class="actions"><button class="primary" id="btnImportarIngreso" disabled>Importar ingresos</button><span class="msg" id="ingresoImportMsg"></span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2><span class="num">02</span> Totales de ingresos por proveedor</h2>
+        <p class="sub">Suma de todos los ingresos agrupados por proveedor.</p>
+        <table><thead><tr><th>Proveedor</th><th class="num-cell">N° registros</th><th class="num-cell">Total $</th></tr></thead>
+        <tbody id="tablaIngTotales"><tr><td colspan="3" class="empty">Sin ingresos aún.</td></tr></tbody></table>
+      </section>
+
+      <section class="card">
+        <h2><span class="num">03</span> Ingresos registrados</h2>
+        <div class="actions" style="margin-top:0; margin-bottom:14px">
+          <select id="ingFiltroProveedor" style="max-width:280px"><option value="">Todos los proveedores</option></select>
+        </div>
+        <div id="ingresosAgrupados" style="max-height:calc(100vh - 260px); overflow-y:auto; overflow-x:hidden; padding-right:4px">
+          <p class="empty">Cargando…</p>
+        </div>
+      </section>
+    </div>
+
+    <!-- Modal: detalle de ingresos de un proveedor -->
+    <div class="modal-overlay" id="modalIngresoDetalle">
+      <div class="modal" style="max-width:820px">
+        <div class="modal-head"><h3 id="ingresoDetTitulo">Ingresos</h3><button class="modal-close" data-close-modal="modalIngresoDetalle">&times;</button></div>
+        <div class="modal-body" id="ingresoDetBody" style="max-height:60vh; overflow-y:auto"></div>
+        <div class="modal-foot"><button data-close-modal="modalIngresoDetalle">Cerrar</button></div>
+      </div>
+    </div>
+
     <!-- Modal: detalle de gastos de un rol -->
     <div class="modal-overlay" id="modalGastoDetalle">
       <div class="modal" style="max-width:820px">
@@ -797,6 +846,7 @@
           <button class="primary" id="btnBorrarRecep" style="background:var(--danger); border-color:var(--danger)">Borrar TODAS las recepciones</button>
           <button class="primary" id="btnBorrarRoles" style="background:var(--danger); border-color:var(--danger)">Borrar TODOS los roles</button>
           <button class="primary" id="btnBorrarGastos" style="background:var(--danger); border-color:var(--danger)">Borrar TODOS los gastos</button>
+          <button class="primary" id="btnBorrarIngresos" style="background:var(--danger); border-color:var(--danger)">Borrar TODOS los ingresos</button>
         </div>
         <p class="msg" id="borradoMsg" style="margin-top:12px"></p>
         <div class="hint">Los productos, plantas, negocios y OC no se ven afectados por estos botones.</div>
@@ -918,6 +968,7 @@
       { id:"ordenesCompra", label:"Órdenes de compra" },
       { id:"recepciones", label:"Recepciones" },
       { id:"gastos", label:"Gastos" },
+      { id:"ingresos", label:"Ingresos por Venta" },
     ];
     let usuarioActual = null;   // { uid, email, nombre, tipo, permisos? }
 
@@ -938,13 +989,15 @@
     }
 
     // Mapa: data-tab del menú → id de módulo de permisos
-    const TAB_A_MODULO = { roles:"roles", plantas:"plantas", productos:"productos", negocios:"negocios", oc:"ordenesCompra", recepciones:"recepciones", gastos:"gastos", importar:"recepciones" };
+    const TAB_A_MODULO = { roles:"roles", plantas:"plantas", productos:"productos", negocios:"negocios", oc:"ordenesCompra", recepciones:"recepciones", gastos:"gastos", ingresos:"ingresos", importar:"recepciones" };
     // Mapa: botón de guardar/editar → módulo al que pertenece
     const BOTON_A_MODULO = {
       btnGuardar:"roles", btnGuardarPlanta:"plantas", btnGuardarProd:"productos",
       btnGuardarNeg:"negocios", btnGuardarOC:"ordenesCompra",
       btnImportar:"recepciones", btnPreview:"recepciones",
-      btnImportarGasto:"gastos", btnPreviewGasto:"gastos", btnNuevoGasto:"gastos", btnGuardarGasto:"gastos", btnRecalcularOC:"ordenesCompra",
+      btnImportarGasto:"gastos", btnPreviewGasto:"gastos", btnNuevoGasto:"gastos", btnGuardarGasto:"gastos",
+      btnImportarIngreso:"ingresos", btnPreviewIngreso:"ingresos",
+      btnRecalcularOC:"ordenesCompra",
     };
 
     // Aplica permisos a la interfaz: oculta pestañas que el usuario no puede ver,
@@ -970,6 +1023,7 @@
       $("btnGuardarEmpresa").disabled = !esAdmin;
       // Importadores Excel: solo admin
       if ($("secImportarGastos")) $("secImportarGastos").style.display = esAdmin ? "" : "none";
+      if ($("secImportarIngresos")) $("secImportarIngresos").style.display = esAdmin ? "" : "none";
       if ($("btnIrImportar")) $("btnIrImportar").style.display = esAdmin ? "" : "none";
     }
 
@@ -2802,6 +2856,198 @@
         + '<tr style="border-top:2px solid var(--line)"><td><strong>Total general</strong></td><td class="num-cell"><strong>'+gastosCache.length+'</strong></td><td class="num-cell"><strong>'+fmt(granTotal)+'</strong></td></tr>';
     }
 
+    // ================== INGRESOS POR VENTA ==================
+    let ingresosCache = [];
+    let ingresosPreview = [];
+
+    $("ingresoFile").addEventListener("change", ()=>{ $("btnPreviewIngreso").disabled = !$("ingresoFile").files.length; });
+
+    $("btnPreviewIngreso").addEventListener("click", async () => {
+      const file = $("ingresoFile").files[0]; const m = $("ingresoImportMsg");
+      if (!file) return;
+      m.textContent = "Leyendo archivo…"; m.className = "msg";
+      try {
+        await cargarXLSX();
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type:"array" });
+        // Buscar hoja BASEINGRESOS (case-insensitive)
+        const hojaName = wb.SheetNames.find((n)=>n.trim().toUpperCase()==="BASEINGRESOS");
+        if (!hojaName){ m.textContent = 'No se encontró la hoja "BASEINGRESOS" en el archivo.'; m.className="msg err"; return; }
+        const ws = wb.Sheets[hojaName];
+        const filas = XLSX.utils.sheet_to_json(ws, { defval:"", raw:false });
+        const filasRaw = XLSX.utils.sheet_to_json(ws, { defval:"", raw:true, cellDates:true });
+        if (!filas.length){ m.textContent="La hoja BASEINGRESOS no tiene filas."; m.className="msg err"; return; }
+
+        // Helper parseMonto (reutilizar si ya existe en scope, si no definir aquí)
+        function parseMontoIng(rawVal, txtVal){
+          if (typeof rawVal === "number" && !isNaN(rawVal)) return rawVal;
+          let t = (txtVal||"").toString().replace(/[$\s]/g,"");
+          if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t)) t = t.replace(/\./g,"").replace(",",".");
+          else t = t.replace(",",".");
+          return parseFloat(t) || 0;
+        }
+        function parseFechaIng(rawVal, txtVal){
+          let fecha = "";
+          if (rawVal instanceof Date && !isNaN(rawVal.getTime())) return rawVal.toISOString().slice(0,10);
+          if (typeof rawVal === "number" && rawVal > 100){
+            const d = new Date(Math.round((rawVal - 25569) * 86400 * 1000));
+            if (!isNaN(d.getTime())) return d.toISOString().slice(0,10);
+          }
+          const txt = (txtVal||"").toString().trim();
+          let dp = txt.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+          if (dp){ let dd=parseInt(dp[1]),mm=parseInt(dp[2]); if(mm>12&&dd<=12){const t2=dd;dd=mm;mm=t2;} return dp[3]+"-"+String(mm).padStart(2,"0")+"-"+String(dd).padStart(2,"0"); }
+          dp = txt.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/);
+          if (dp){ const yy=parseInt(dp[3]); const yyyy=(yy<80?2000:1900)+yy; let dd=parseInt(dp[1]),mm=parseInt(dp[2]); if(mm>12&&dd<=12){const t2=dd;dd=mm;mm=t2;} return yyyy+"-"+String(mm).padStart(2,"0")+"-"+String(dd).padStart(2,"0"); }
+          dp = txt.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+          if (dp) return dp[1]+"-"+dp[2].padStart(2,"0")+"-"+dp[3].padStart(2,"0");
+          return txt || "";
+        }
+
+        // Clave duplicados
+        const claveIng = (g) => [
+          (g.fecha||"").toString().trim(),
+          (g.proveedor||"").toString().trim().toUpperCase(),
+          (g.descripcion||"").toString().trim().toUpperCase(),
+          Math.round(parseFloat(g.neto)||0)
+        ].join("|");
+        const clavesExistIng = new Set();
+        ingresosCache.forEach((g)=> clavesExistIng.add(claveIng(g)));
+
+        ingresosPreview = filas.map((row, i)=>{
+          const rawRow = filasRaw[i] || {};
+          const fecha = parseFechaIng(pick(rawRow, ["fecha"]), pick(row, ["fecha"]));
+          const periodo = fecha.length>=7 ? fecha.slice(0,7) : "";
+          const proveedor = pick(row, ["proveedor"]).toString().trim();
+          const motivo = pick(row, ["motivo"]).toString().trim();
+          const descripcion = pick(row, ["descripcion","descripción"]).toString().trim();
+          const cantidad = parseMontoIng(pick(rawRow, ["cantidad"]), pick(row, ["cantidad"]));
+          const cUnit = parseMontoIng(pick(rawRow, ["c.unit","c_unit","costo_unitario","c.unit."]), pick(row, ["c.unit","c_unit","costo_unitario","c.unit."]));
+          const neto = parseMontoIng(pick(rawRow, ["neto2"]), pick(row, ["neto2"])) || (cantidad * cUnit);
+          const errores = [];
+          if (!proveedor && !descripcion) errores.push("sin proveedor ni descripción");
+          if (neto<=0) errores.push("sin monto");
+          const clave = claveIng({ fecha, proveedor, descripcion, neto });
+          if (clavesExistIng.has(clave)) errores.push("duplicado");
+          return { fila:i+2, fecha, periodo, proveedor, motivo, descripcion, cantidad, cUnit, neto, valida:errores.length===0, errores };
+        });
+
+        const validas = ingresosPreview.filter((g)=>g.valida).length;
+        const duplicados = ingresosPreview.filter((g)=>g.errores.includes("duplicado")).length;
+        $("ingresoPreviewResumen").innerHTML = '<strong>'+ingresosPreview.length+'</strong> filas · <strong style="color:var(--ok)">'+validas+' válidas</strong> · <strong style="color:var(--danger)">'+(ingresosPreview.length-validas)+' con problemas</strong>'
+          + (duplicados ? ' · <strong style="color:var(--warn)">'+duplicados+' duplicado'+(duplicados!==1?'s':'')+'</strong>' : '')+'.';
+        $("ingresoTablaPreview").innerHTML = ingresosPreview.slice(0,200).map((g)=>{
+          const estado = g.valida ? '<span class="tag abierta">✓</span>' : '<span class="tag alerta">'+esc(g.errores.join(", "))+'</span>';
+          return '<tr><td>'+g.fila+'</td><td>'+esc(g.fecha)+'</td><td>'+esc(g.proveedor)+'</td><td>'+esc(g.motivo)+'</td><td>'+esc(g.descripcion)+'</td><td class="num-cell">'+fmt(g.cantidad)+'</td><td class="num-cell">'+fmt(g.cUnit)+'</td><td class="num-cell">'+fmt(g.neto)+'</td><td>'+estado+'</td></tr>';
+        }).join("") + (ingresosPreview.length>200?'<tr><td colspan="9" class="empty">… mostrando 200 de '+ingresosPreview.length+'.</td></tr>':'');
+        $("ingresoPreviewCard").style.display = "block";
+        $("btnImportarIngreso").disabled = validas===0 || !puede("editar","ingresos");
+        m.textContent = "";
+      } catch(e){ m.textContent = "Error al leer: "+e.message; m.className="msg err"; }
+    });
+
+    $("btnImportarIngreso").addEventListener("click", async () => {
+      const validas = ingresosPreview.filter((g)=>g.valida);
+      const m = $("ingresoImportMsg");
+      if (!validas.length) return;
+      $("btnImportarIngreso").disabled = true; m.textContent = "Importando "+validas.length+" ingresos…"; m.className="msg";
+      let ok=0, err=0;
+      for (const g of validas){
+        try {
+          await addDoc(collection(db,"ingresos"), {
+            fecha: g.fecha || null, periodo: g.periodo || null,
+            proveedor: up(g.proveedor), motivo: up(g.motivo),
+            descripcion: up(g.descripcion),
+            cantidad: g.cantidad, costoUnitario: g.cUnit,
+            neto: g.neto, moneda: "CLP",
+            origen: "importacion_excel", fechaCreacion: serverTimestamp(),
+          });
+          ok++; if (ok%50===0) m.textContent = "Importando… "+ok+" de "+validas.length;
+        } catch(e){ err++; }
+      }
+      m.textContent = "✓ "+ok+" ingresos importados"+(err?(" · "+err+" con error"):"")+"."; m.className="msg ok";
+      $("ingresoFile").value=""; $("ingresoPreviewCard").style.display="none"; ingresosPreview=[];
+    });
+
+    // Listener Firestore ingresos
+    regSnap(query(collection(db,"ingresos"), orderBy("fechaCreacion","desc")), (snap) => {
+      ingresosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
+      renderIngresos();
+      renderIngTotales();
+      programarResumen();
+    }, ()=>{});
+
+    $("ingFiltroProveedor").addEventListener("change", renderIngresos);
+
+    function renderIngresos(){
+      const filtro = $("ingFiltroProveedor").value;
+      const lista = filtro ? ingresosCache.filter((g)=>g.proveedor===filtro) : ingresosCache;
+      const cont = $("ingresosAgrupados");
+      if (!lista.length){ cont.innerHTML = '<p class="empty">Sin ingresos'+(filtro?" para ese proveedor":"")+'.</p>'; return; }
+
+      // Poblar filtro de proveedores
+      const provs = [...new Set(ingresosCache.map((g)=>(g.proveedor||"").trim()).filter(Boolean))].sort();
+      const selProv = $("ingFiltroProveedor");
+      const prev = selProv.value;
+      selProv.innerHTML = '<option value="">Todos los proveedores</option>' + provs.map((p)=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join("");
+      selProv.value = prev;
+
+      // Agrupar por proveedor
+      const porProv = {};
+      lista.forEach((g)=>{ const k = (g.proveedor||"").trim() || "(sin proveedor)"; (porProv[k] = porProv[k] || []).push(g); });
+      const provsOrd = Object.keys(porProv).sort((a,b)=>a.localeCompare(b,"es"));
+
+      cont.innerHTML = provsOrd.map((prov)=>{
+        const items = porProv[prov];
+        const totalProv = items.reduce((a,g)=>a+(g.neto||0),0);
+        return '<div class="mes-group" style="margin-bottom:8px; cursor:pointer" data-ing-ver-prov="'+esc(prov)+'">'
+          +'<div class="mes-header">'
+          +'<span class="mes-titulo">'+esc(prov)
+          +' <span class="hint">('+items.length+' ingreso'+(items.length!==1?'s':'')+')</span></span>'
+          +'<span class="mes-stats"><span class="unit">$</span> '+fmt(totalProv)+'</span>'
+          +'</div></div>';
+      }).join("");
+
+      cont.querySelectorAll("[data-ing-ver-prov]").forEach((div)=> div.addEventListener("click", ()=>{
+        abrirDetalleIngresoProv(div.dataset.ingVerProv);
+      }));
+    }
+
+    function abrirDetalleIngresoProv(prov){
+      const items = ingresosCache.filter((g)=>(g.proveedor||"").trim()===prov);
+      $("ingresoDetTitulo").textContent = "Ingresos · "+prov;
+      const ordenados = items.slice().sort((a,b)=>(b.fecha||b.periodo||"").localeCompare(a.fecha||a.periodo||""));
+      const totalProv = ordenados.reduce((a,g)=>a+(g.neto||0),0);
+
+      const porMes = {};
+      ordenados.forEach((g)=>{ const m = g.periodo || g.fecha?.slice(0,7) || "Sin fecha"; (porMes[m] = porMes[m] || []).push(g); });
+      const mesesOrd = Object.keys(porMes).sort((a,b)=>b.localeCompare(a));
+
+      let html = '<div style="margin-bottom:12px;font-size:14px"><strong>Total: <span class="unit">$</span> '+fmt(totalProv)+'</strong> · '+ordenados.length+' ingreso'+(ordenados.length!==1?'s':'')+'</div>';
+      html += mesesOrd.map((mes)=>{
+        const gs = porMes[mes];
+        const totalMes = gs.reduce((a,g)=>a+(g.neto||0),0);
+        return '<div style="margin-bottom:14px">'
+          +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#107e3e">'+esc(nombreMes(mes))
+          +' <span style="font-weight:400;color:var(--muted)">('+gs.length+') · <span class="unit">$</span> '+fmt(totalMes)+'</span></div>'
+          +'<table style="font-size:13px"><thead><tr><th>Fecha</th><th>Motivo</th><th>Descripción</th><th class="num-cell">Cantidad</th><th class="num-cell">C.Unit</th><th class="num-cell">Neto $</th></tr></thead>'
+          +'<tbody>'+gs.map((g)=>'<tr><td>'+esc(g.fecha||"")+'</td><td>'+esc(g.motivo||"")+'</td><td>'+esc(g.descripcion||"")+'</td><td class="num-cell">'+fmt(g.cantidad||0)+'</td><td class="num-cell">'+fmt(g.costoUnitario||0)+'</td><td class="num-cell">'+fmt(g.neto||0)+'</td></tr>').join("")
+          +'</tbody></table></div>';
+      }).join("");
+      $("ingresoDetBody").innerHTML = html;
+      abrirModal("modalIngresoDetalle");
+    }
+
+    function renderIngTotales(){
+      const t = $("tablaIngTotales");
+      if (!ingresosCache.length){ t.innerHTML = '<tr><td colspan="3" class="empty">Sin ingresos aún.</td></tr>'; return; }
+      const porProv = {};
+      ingresosCache.forEach((g)=>{ const k = (g.proveedor||"").trim() || "(sin proveedor)"; if (!porProv[k]) porProv[k]={count:0,total:0}; porProv[k].count++; porProv[k].total+=(g.neto||0); });
+      const filas = Object.entries(porProv).sort((a,b)=>b[1].total-a[1].total);
+      const granTotal = filas.reduce((a,[,v])=>a+v.total,0);
+      t.innerHTML = filas.map(([prov,v])=>'<tr><td><strong>'+esc(prov)+'</strong></td><td class="num-cell">'+v.count+'</td><td class="num-cell">'+fmt(v.total)+'</td></tr>').join("")
+        + '<tr style="border-top:2px solid var(--line)"><td><strong>Total general</strong></td><td class="num-cell"><strong>'+ingresosCache.length+'</strong></td><td class="num-cell"><strong>'+fmt(granTotal)+'</strong></td></tr>';
+    }
+
     // ================== GESTIÓN DE USUARIOS (admin) ==================
     $("btnCrearUsuario").addEventListener("click", async () => {
       if (!puede("usuarios")){ return; }
@@ -3014,6 +3260,8 @@
       $("kpiM3").innerHTML = fmt(Math.round(totalM3)) + ' <span class="unit">m³</span>';
       const totalGastos = gastosCache.reduce((a,g)=>a+(g.monto||0),0);
       $("kpiGastos").innerHTML = '<span class="unit">$</span> ' + fmt(totalGastos);
+      const totalIngresos = ingresosCache.reduce((a,g)=>a+(g.neto||0),0);
+      $("kpiIngresos").innerHTML = '<span class="unit">$</span> ' + fmt(totalIngresos);
       const ocAlerta = ocCache.filter((o)=>{ const rm=(o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0); const r3=(o.solicitado?.m3||0)-(o.recibido?.m3||0); const u=o.umbralAlerta??300; return (rm>0||r3>0)&&(rm<=u||r3<=u); }).length;
       $("kpiOCAlerta").textContent = fmt(ocAlerta);
 
@@ -3298,6 +3546,17 @@
       try { const n = await borrarColeccion("gastos", m); m.textContent = "✓ "+n+" gastos eliminados."; m.className="msg ok"; }
       catch(e){ m.textContent = "Error: "+e.message; m.className="msg err"; }
       finally { $("btnBorrarGastos").disabled = false; }
+    });
+
+    $("btnBorrarIngresos").addEventListener("click", async () => {
+      if (!puede("usuarios")) return;
+      if (!confirm("⚠️ ¿Borrar TODOS los ingresos? Esta acción es PERMANENTE y no se puede deshacer.")) return;
+      if (!confirm("Confirma una vez más: se eliminarán TODOS los ingresos de la base de datos.")) return;
+      const m = $("borradoMsg"); m.className="msg";
+      $("btnBorrarIngresos").disabled = true;
+      try { const n = await borrarColeccion("ingresos", m); m.textContent = "✓ "+n+" ingresos eliminados."; m.className="msg ok"; }
+      catch(e){ m.textContent = "Error: "+e.message; m.className="msg err"; }
+      finally { $("btnBorrarIngresos").disabled = false; }
     });
 
     // Pre-carga de roles y plantas desde el Excel
