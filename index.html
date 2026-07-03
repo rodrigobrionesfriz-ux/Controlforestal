@@ -629,7 +629,7 @@
         <div id="gastoPreviewCard" style="display:none; margin-top:18px">
           <p class="msg" id="gastoPreviewResumen"></p>
           <div style="max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:6px; margin-top:10px">
-            <table><thead><tr><th>Fila</th><th>Rol</th><th>Producto</th><th>Descripción</th><th class="num-cell">Cantidad</th><th class="num-cell">C. Unit.</th><th class="num-cell">Total</th><th>Estado</th></tr></thead>
+            <table><thead><tr><th>Fila</th><th>Fecha</th><th>Rol</th><th>Producto</th><th>Descripción</th><th class="num-cell">Cantidad</th><th class="num-cell">C. Unit.</th><th class="num-cell">Total</th><th>Estado</th></tr></thead>
             <tbody id="gastoTablaPreview"></tbody></table>
           </div>
           <div class="actions"><button class="primary" id="btnImportarGasto" disabled>Importar gastos</button><span class="msg" id="gastoImportMsg"></span></div>
@@ -2522,7 +2522,7 @@
       try {
         await cargarXLSX();
         const buf = await file.arrayBuffer();
-        const wb = XLSX.read(buf, { type:"array" });
+        const wb = XLSX.read(buf, { type:"array", cellDates:true });
         const filas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:"", raw:false });
         if (!filas.length){ m.textContent="El archivo no tiene filas."; m.className="msg err"; return; }
         const pick = (row, claves) => { for (const k of claves){ const kk=Object.keys(row).find((x)=>normHeader(x)===k); if (kk!==undefined && row[kk]!=="") return row[kk]; } return ""; };
@@ -2549,20 +2549,34 @@
           const total = parseFloat(pick(row, ["total"])) || 0;
           const cantidad = parseFloat(pick(row, ["cantidad"])) || 0;
           const costoUnit = parseFloat(pick(row, ["costo_unitario","costo_unit."])) || 0;
-          // Fecha: columna FECHA (puede venir como texto "dd/mm/yyyy", "yyyy-mm-dd", o serial de Excel)
-          let fechaRaw = pick(row, ["fecha"]).toString().trim();
+          // Fecha: columna FECHA — puede venir como texto "dd/mm/yyyy", "dd-mm-yy", "d/m/yy", serial de Excel, o Date
+          let fechaRaw = pick(row, ["fecha"]);
           let fecha = "";
-          if (fechaRaw){
-            // Intentar parsear formatos comunes
-            let dp = fechaRaw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-            if (dp) fecha = dp[3]+"-"+dp[2].padStart(2,"0")+"-"+dp[1].padStart(2,"0");
-            else { dp = fechaRaw.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/); if (dp) fecha = dp[1]+"-"+dp[2].padStart(2,"0")+"-"+dp[3].padStart(2,"0"); }
-            // Serial de Excel (número > 30000)
-            if (!fecha && !isNaN(fechaRaw) && parseFloat(fechaRaw)>30000){
-              const d = new Date(Math.round((parseFloat(fechaRaw)-25569)*86400*1000));
+          if (fechaRaw !== "" && fechaRaw !== null && fechaRaw !== undefined){
+            const txt = fechaRaw.toString().trim();
+            // 1) Intentar dd/mm/yyyy o dd-mm-yyyy (4 dígitos de año, formato usuario chileno)
+            let dp = txt.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+            if (dp){ fecha = dp[3]+"-"+dp[2].padStart(2,"0")+"-"+dp[1].padStart(2,"0"); }
+            // 2) Intentar dd/mm/yy o dd-mm-yy (2 dígitos de año)
+            if (!fecha){
+              dp = txt.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/);
+              if (dp){ const yy=parseInt(dp[3]); const yyyy=(yy<80?2000:1900)+yy; fecha = yyyy+"-"+dp[2].padStart(2,"0")+"-"+dp[1].padStart(2,"0"); }
+            }
+            // 3) Intentar yyyy-mm-dd o yyyy/mm/dd
+            if (!fecha){
+              dp = txt.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+              if (dp) fecha = dp[1]+"-"+dp[2].padStart(2,"0")+"-"+dp[3].padStart(2,"0");
+            }
+            // 4) Serial de Excel (número > 30000)
+            if (!fecha && !isNaN(txt) && parseFloat(txt)>30000){
+              const d = new Date(Math.round((parseFloat(txt)-25569)*86400*1000));
               if (!isNaN(d.getTime())) fecha = d.toISOString().slice(0,10);
             }
-            if (!fecha) fecha = fechaRaw; // dejar tal cual si no se pudo parsear
+            // 5) Si es un objeto Date de JS (XLSX puede devolver Date con raw:true)
+            if (!fecha && fechaRaw instanceof Date && !isNaN(fechaRaw.getTime())){
+              fecha = fechaRaw.toISOString().slice(0,10);
+            }
+            if (!fecha) fecha = txt; // dejar tal cual si no se pudo parsear
           }
           const periodo = fecha.length>=7 ? fecha.slice(0,7) : "";
           const descripcion = pick(row, ["descripcion","descripción"]).toString().trim();
@@ -2592,8 +2606,8 @@
           + (duplicados ? ' · <strong style="color:var(--warn)">'+duplicados+' duplicado'+(duplicados!==1?'s':'')+' (ya existen)</strong>' : '')+'.';
         $("gastoTablaPreview").innerHTML = gastosPreview.slice(0,200).map((g)=>{
           const estado = g.valida ? '<span class="tag abierta">✓</span>' : '<span class="tag alerta">'+esc(g.errores.join(", "))+'</span>';
-          return '<tr><td>'+g.fila+'</td><td>'+esc(g.numeroRol)+'</td><td>'+esc(g.producto)+'</td><td>'+esc(g.descripcion)+'</td><td class="num-cell">'+fmt(g.cantidad)+'</td><td class="num-cell">'+fmt(g.costoUnit)+'</td><td class="num-cell">'+fmt(g.total)+'</td><td>'+estado+'</td></tr>';
-        }).join("") + (gastosPreview.length>200?'<tr><td colspan="8" class="empty">… mostrando 200 de '+gastosPreview.length+'. Todas se importan.</td></tr>':'');
+          return '<tr><td>'+g.fila+'</td><td>'+esc(g.fecha)+'</td><td>'+esc(g.numeroRol)+'</td><td>'+esc(g.producto)+'</td><td>'+esc(g.descripcion)+'</td><td class="num-cell">'+fmt(g.cantidad)+'</td><td class="num-cell">'+fmt(g.costoUnit)+'</td><td class="num-cell">'+fmt(g.total)+'</td><td>'+estado+'</td></tr>';
+        }).join("") + (gastosPreview.length>200?'<tr><td colspan="9" class="empty">… mostrando 200 de '+gastosPreview.length+'. Todas se importan.</td></tr>':'');
         $("gastoPreviewCard").style.display = "block";
         $("btnImportarGasto").disabled = validas===0 || !puede("editar","gastos");
         m.textContent = "";
