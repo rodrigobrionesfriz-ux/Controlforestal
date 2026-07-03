@@ -2522,8 +2522,11 @@
       try {
         await cargarXLSX();
         const buf = await file.arrayBuffer();
-        const wb = XLSX.read(buf, { type:"array", cellDates:true });
-        const filas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:"", raw:false });
+        const wb = XLSX.read(buf, { type:"array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const filas = XLSX.utils.sheet_to_json(ws, { defval:"", raw:false });
+        // Lectura raw+cellDates para obtener Date objects y números sin formato
+        const filasRaw = XLSX.utils.sheet_to_json(ws, { defval:"", raw:true, cellDates:true });
         if (!filas.length){ m.textContent="El archivo no tiene filas."; m.className="msg err"; return; }
         const pick = (row, claves) => { for (const k of claves){ const kk=Object.keys(row).find((x)=>normHeader(x)===k); if (kk!==undefined && row[kk]!=="") return row[kk]; } return ""; };
         const extraerRol = (txt) => { const mm=(txt||"").toString().trim().match(/^(\d+\-\d+)/); return mm?mm[1]:(txt||"").toString().trim(); };
@@ -2542,42 +2545,64 @@
           numeroRol:g.numeroRol, fecha:g.fecha, descripcion:g.descripcion, total:g.monto
         })));
 
+        // Helper: parsear un monto — primero intenta el valor raw (número puro), si no, limpia el texto
+        function parseMonto(rawVal, txtVal){
+          if (typeof rawVal === "number" && !isNaN(rawVal)) return rawVal;
+          // Texto: quitar $ y espacios, reemplazar . por nada (separador miles CL), coma por punto (decimal)
+          let t = (txtVal||"").toString().replace(/[$\s]/g,"");
+          // Si tiene formato "458.000" (punto como miles): quitar puntos y dejar la coma como decimal
+          if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t)) t = t.replace(/\./g,"").replace(",",".");
+          else t = t.replace(",",".");
+          return parseFloat(t) || 0;
+        }
+
         gastosPreview = filas.map((row, i)=>{
+          const rawRow = filasRaw[i] || {};
           let numeroRol = pick(row, ["rol"]).toString().trim();
           if (!numeroRol){ const cc = pick(row, ["centro_costo","centro_de_costo"]); if (cc) numeroRol = extraerRol(cc); }
           const rol = rolesCache.find((r)=>(r.numeroRol||"").toString().trim()===numeroRol);
-          const total = parseFloat(pick(row, ["total"])) || 0;
-          const cantidad = parseFloat(pick(row, ["cantidad"])) || 0;
-          const costoUnit = parseFloat(pick(row, ["costo_unitario","costo_unit."])) || 0;
-          // Fecha: columna FECHA — puede venir como texto "dd/mm/yyyy", "dd-mm-yy", "d/m/yy", serial de Excel, o Date
-          let fechaRaw = pick(row, ["fecha"]);
+          const total = parseMonto(pick(rawRow, ["total"]), pick(row, ["total"]));
+          const cantidad = parseMonto(pick(rawRow, ["cantidad"]), pick(row, ["cantidad"]));
+          const costoUnit = parseMonto(pick(rawRow, ["costo_unitario","costo_unit."]), pick(row, ["costo_unitario","costo_unit."]));
+          // Fecha: el valor raw con cellDates:true es un objeto Date para celdas de fecha
+          const fechaValRaw = pick(rawRow, ["fecha"]);
+          const fechaValTxt = pick(row, ["fecha"]).toString().trim();
           let fecha = "";
-          if (fechaRaw !== "" && fechaRaw !== null && fechaRaw !== undefined){
-            const txt = fechaRaw.toString().trim();
-            // 1) Intentar dd/mm/yyyy o dd-mm-yyyy (4 dígitos de año, formato usuario chileno)
-            let dp = txt.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-            if (dp){ fecha = dp[3]+"-"+dp[2].padStart(2,"0")+"-"+dp[1].padStart(2,"0"); }
-            // 2) Intentar dd/mm/yy o dd-mm-yy (2 dígitos de año)
-            if (!fecha){
-              dp = txt.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/);
-              if (dp){ const yy=parseInt(dp[3]); const yyyy=(yy<80?2000:1900)+yy; fecha = yyyy+"-"+dp[2].padStart(2,"0")+"-"+dp[1].padStart(2,"0"); }
-            }
-            // 3) Intentar yyyy-mm-dd o yyyy/mm/dd
-            if (!fecha){
-              dp = txt.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-              if (dp) fecha = dp[1]+"-"+dp[2].padStart(2,"0")+"-"+dp[3].padStart(2,"0");
-            }
-            // 4) Serial de Excel (número > 30000)
-            if (!fecha && !isNaN(txt) && parseFloat(txt)>30000){
-              const d = new Date(Math.round((parseFloat(txt)-25569)*86400*1000));
-              if (!isNaN(d.getTime())) fecha = d.toISOString().slice(0,10);
-            }
-            // 5) Si es un objeto Date de JS (XLSX puede devolver Date con raw:true)
-            if (!fecha && fechaRaw instanceof Date && !isNaN(fechaRaw.getTime())){
-              fecha = fechaRaw.toISOString().slice(0,10);
-            }
-            if (!fecha) fecha = txt; // dejar tal cual si no se pudo parsear
+          // 1) Si raw es Date object (cellDates:true convierte seriales a Date)
+          if (fechaValRaw instanceof Date && !isNaN(fechaValRaw.getTime())){
+            fecha = fechaValRaw.toISOString().slice(0,10);
           }
+          // 2) Si raw es número (serial de Excel sin cellDates)
+          if (!fecha && typeof fechaValRaw === "number" && fechaValRaw > 100){
+            const d = new Date(Math.round((fechaValRaw - 25569) * 86400 * 1000));
+            if (!isNaN(d.getTime())) fecha = d.toISOString().slice(0,10);
+          }
+          // 3) Texto dd/mm/yyyy o dd-mm-yyyy (formato chileno)
+          if (!fecha){
+            let dp = fechaValTxt.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+            if (dp){
+              let dd=parseInt(dp[1]), mm=parseInt(dp[2]), yyyy=dp[3];
+              // Si el "mes" > 12, está en formato mm/dd/yyyy (US) — invertir
+              if (mm > 12 && dd <= 12){ const tmp=dd; dd=mm; mm=tmp; }
+              fecha = yyyy+"-"+String(mm).padStart(2,"0")+"-"+String(dd).padStart(2,"0");
+            }
+          }
+          // 4) Texto dd/mm/yy o dd-mm-yy (2 dígitos de año)
+          if (!fecha){
+            let dp = fechaValTxt.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/);
+            if (dp){
+              const yy=parseInt(dp[3]); const yyyy=(yy<80?2000:1900)+yy;
+              let dd=parseInt(dp[1]), mm=parseInt(dp[2]);
+              if (mm > 12 && dd <= 12){ const tmp=dd; dd=mm; mm=tmp; }
+              fecha = yyyy+"-"+String(mm).padStart(2,"0")+"-"+String(dd).padStart(2,"0");
+            }
+          }
+          // 5) Texto yyyy-mm-dd
+          if (!fecha){
+            let dp = fechaValTxt.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+            if (dp) fecha = dp[1]+"-"+dp[2].padStart(2,"0")+"-"+dp[3].padStart(2,"0");
+          }
+          if (!fecha && fechaValTxt) fecha = fechaValTxt;
           const periodo = fecha.length>=7 ? fecha.slice(0,7) : "";
           const descripcion = pick(row, ["descripcion","descripción"]).toString().trim();
           const totalFinal = total || (cantidad*costoUnit);
