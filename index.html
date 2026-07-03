@@ -233,7 +233,7 @@
         <div class="chart-box"><h3>Recepciones por planta — M³</h3><canvas id="chartPlantaM3"></canvas></div>
         <div class="chart-box"><h3>Recepciones por rol — Top 10</h3><canvas id="chartTopRoles"></canvas></div>
         <div class="chart-box"><h3>Avance de OC (recibido vs solicitado)</h3><canvas id="chartOC"></canvas></div>
-        <div class="chart-box"><h3>Gastos por rol</h3><canvas id="chartGastos"></canvas></div>
+        <div class="chart-box"><h3 style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">Gastos por rol <select id="filtroMesGasto" style="width:auto;font-size:12px;padding:4px 8px"><option value="">Todos los meses</option></select></h3><canvas id="chartGastos"></canvas></div>
         <div class="chart-box"><h3>Volumen por mes</h3><canvas id="chartMes"></canvas></div>
       </div>
       <div class="chart-grid" style="margin-top:18px">
@@ -2845,6 +2845,7 @@
 
     let resumenTimer = null;
     function programarResumen(){ clearTimeout(resumenTimer); resumenTimer = setTimeout(actualizarResumen, 400); }
+    $("filtroMesGasto").addEventListener("change", ()=>{ if (window._dibujarGastosRol) window._dibujarGastosRol(); });
 
     async function actualizarResumen(){
       // --- KPIs (siempre, aunque Chart.js no cargue) ---
@@ -2960,43 +2961,48 @@
         options:{ responsive:true, plugins:{legend:{position:"bottom"}, datalabels:dlBarra}, scales:{ y:{beginAtZero:true, grace:"15%"} } }
       });
 
-      // --- Gráfico 3: gastos por rol [líneas, etiquetas en M$ con 2 decimales] ---
-      // Formato M$: dividir por 1.000.000 y mostrar con 2 decimales + " M$"
+      // --- Gráfico 3: gastos por rol [barras, eje X=roles, eje Y=M$, filtro de mes] ---
       const fmtM = (v)=> (v/1000000).toFixed(2) + " M$";
-      // Agrupar gastos por rol y por periodo (mes)
-      const gastosRolMes = {};
-      const mesesGasto = new Set();
-      gastosCache.forEach((g)=>{
-        const rol = g.numeroRol || "(sin rol)";
-        const mes = g.periodo || g.fecha?.slice(0,7) || "s/f";
-        mesesGasto.add(mes);
-        if (!gastosRolMes[rol]) gastosRolMes[rol] = {};
-        gastosRolMes[rol][mes] = (gastosRolMes[rol][mes]||0) + (g.monto||0);
-      });
-      const mesesGastoArr = [...mesesGasto].sort();
-      // Top 10 roles por gasto total
-      const rolesTotalGasto = Object.entries(gastosRolMes).map(([rol,meses])=>({ rol, total:Object.values(meses).reduce((a,v)=>a+v,0) }))
-        .sort((a,b)=>b.total-a.total).slice(0,10);
-      const dlGastoLinea = {
-        display: (ctx)=> (ctx.dataset.data[ctx.dataIndex]||0) > 0,
-        align:"top", clamp:true, color: (ctx)=>ctx.dataset.borderColor, font:{ size:9, weight:"600" },
-        formatter: (v)=>fmtM(v),
-      };
-      if (rolesTotalGasto.length && mesesGastoArr.length){
-        dibujarChart("chartGastos", {
-          type:"line",
-          data:{ labels:mesesGastoArr.map((m)=>nombreMes(m)),
-            datasets: rolesTotalGasto.map((rt,i)=>{
-              const c = SAP_COLORS[i%SAP_COLORS.length];
-              const pr = nombrePredioDe(rt.rol, null);
-              return { label: rt.rol+(pr?" · "+pr:""), data:mesesGastoArr.map((m)=>gastosRolMes[rt.rol][m]||0),
-                borderColor:c, backgroundColor:c+"33", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3 };
-            }) },
-          options:{ responsive:true, plugins:{ legend:{position:"bottom", labels:{boxWidth:14}}, datalabels:dlGastoLinea,
-            tooltip:{ callbacks:{ label:(c)=>c.dataset.label+": "+fmtM(c.parsed.y) } } },
-            scales:{ y:{ beginAtZero:true, grace:"15%", ticks:{ callback:(v)=>fmtM(v) } } } }
-        });
-      } else if (charts["chartGastos"]){ charts["chartGastos"].destroy(); delete charts["chartGastos"]; }
+
+      // Poblar filtro de meses
+      const mesesGastoSet = new Set();
+      gastosCache.forEach((g)=>{ const m = g.periodo || g.fecha?.slice(0,7) || ""; if (m) mesesGastoSet.add(m); });
+      const mesesGastoArr = [...mesesGastoSet].sort();
+      const selMesG = $("filtroMesGasto");
+      const prevMesG = selMesG.value;
+      selMesG.innerHTML = '<option value="">Todos los meses</option>' + mesesGastoArr.map((m)=>'<option value="'+m+'">'+nombreMes(m)+'</option>').join("");
+      selMesG.value = prevMesG; // mantener selección al redibujar
+
+      dibujarGastosRol();
+
+      // Exponer para el listener del filtro
+      window._dibujarGastosRol = dibujarGastosRol;
+
+      function dibujarGastosRol(){
+        const mesFiltro = $("filtroMesGasto").value;
+        const gastosFilt = mesFiltro ? gastosCache.filter((g)=>(g.periodo||g.fecha?.slice(0,7))=== mesFiltro) : gastosCache;
+        // Agrupar por rol
+        const porRolG = {};
+        gastosFilt.forEach((g)=>{ const k = g.numeroRol || "(sin rol)"; porRolG[k] = (porRolG[k]||0) + (g.monto||0); });
+        const rolesGasto = Object.entries(porRolG).sort((a,b)=>b[1]-a[1]).slice(0,15);
+        const dlGastoBarra = {
+          display: (ctx)=> (ctx.dataset.data[ctx.dataIndex]||0) > 0,
+          anchor:"end", align:"end", clamp:true, color:"#32363a", font:{ size:10, weight:"600" },
+          formatter: (v)=>fmtM(v),
+        };
+        if (rolesGasto.length){
+          dibujarChart("chartGastos", {
+            type:"bar",
+            data:{ labels:rolesGasto.map((e)=>{ const pr=nombrePredioDe(e[0],null); return pr ? e[0]+"\n"+pr.slice(0,18) : e[0]; }),
+              datasets:[{ label:"Gasto", data:rolesGasto.map((e)=>e[1]), backgroundColor:SAP_COLORS.slice(0,rolesGasto.length) }] },
+            options:{ responsive:true,
+              plugins:{ legend:{display:false}, datalabels:dlGastoBarra,
+                tooltip:{ callbacks:{ label:(c)=>fmtM(c.parsed.y) } } },
+              scales:{ y:{ beginAtZero:true, grace:"18%", ticks:{ callback:(v)=>fmtM(v) } },
+                       x:{ ticks:{ font:{size:10}, maxRotation:45, minRotation:0 } } } }
+          });
+        } else if (charts["chartGastos"]){ charts["chartGastos"].destroy(); delete charts["chartGastos"]; }
+      }
 
       // --- Gráfico 4: volumen por mes [líneas: MR y M³] ---
       const porMesMR = {}, porMesM3 = {};
