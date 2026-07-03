@@ -224,6 +224,7 @@
       <div class="chart-grid">
         <div class="chart-box"><h3>Recepciones por planta — MR</h3><canvas id="chartPlantaMR"></canvas></div>
         <div class="chart-box"><h3>Recepciones por planta — M³</h3><canvas id="chartPlantaM3"></canvas></div>
+        <div class="chart-box"><h3>Recepciones por rol — Top 10</h3><canvas id="chartTopRoles"></canvas></div>
         <div class="chart-box"><h3>Avance de OC (recibido vs solicitado)</h3><canvas id="chartOC"></canvas></div>
         <div class="chart-box"><h3>Gastos por categoría</h3><canvas id="chartGastos"></canvas></div>
         <div class="chart-box"><h3>Volumen por mes</h3><canvas id="chartMes"></canvas></div>
@@ -778,6 +779,21 @@
         document.head.appendChild(s);
       });
       Chart = window.Chart;
+      // Plugin de etiquetas de datos (valores y porcentajes sobre los gráficos).
+      // Si su CDN falla, los gráficos se dibujan igual, solo sin etiquetas.
+      try {
+        await new Promise((resolve, reject) => {
+          const s2 = document.createElement("script");
+          s2.src = "https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js";
+          s2.onload = resolve;
+          s2.onerror = () => reject(new Error("No se pudo cargar el plugin de etiquetas"));
+          document.head.appendChild(s2);
+        });
+        if (window.ChartDataLabels){
+          Chart.register(window.ChartDataLabels);
+          Chart.defaults.plugins.datalabels.display = false; // cada gráfico activa sus etiquetas
+        }
+      } catch(e){ console.warn(e.message); }
       return Chart;
     }
 
@@ -2738,6 +2754,26 @@
       // Helper: nombre de planta de una recepción (usa campo planta; si no, la bodega o el rol)
       const plantaDe = (r) => (r.planta || r.nombreBodega || "(SIN PLANTA)").toString().trim().toUpperCase();
 
+      // --- Estilos de etiquetas de datos (valor + porcentaje) ---
+      // Donas: valor y % dentro de cada porción; se ocultan porciones menores al 4% para no tapar el gráfico.
+      const dlDona = (unidad) => ({
+        display: (ctx)=>{ const d=ctx.dataset.data; const tot=d.reduce((a,b)=>a+b,0); return tot>0 && d[ctx.dataIndex]/tot >= 0.04; },
+        color:"#fff", textAlign:"center", font:{ weight:"700", size:11 },
+        formatter: (v,ctx)=>{ const tot=ctx.dataset.data.reduce((a,b)=>a+b,0); const pct=tot?Math.round(v/tot*100):0; return fmt(v)+(unidad?" "+unidad:"")+"\n"+pct+"%"; },
+      });
+      // Barras: valor sobre la barra (oculta ceros).
+      const dlBarra = {
+        display: (ctx)=> (ctx.dataset.data[ctx.dataIndex]||0) > 0,
+        anchor:"end", align:"end", clamp:true, color:"#32363a", font:{ size:10, weight:"600" },
+        formatter: (v)=>fmt(v),
+      };
+      // Líneas: valor sobre cada punto, del color de su serie (oculta ceros).
+      const dlLinea = {
+        display: (ctx)=> (ctx.dataset.data[ctx.dataIndex]||0) > 0,
+        align:"top", clamp:true, color: (ctx)=>ctx.dataset.borderColor, font:{ size:10, weight:"600" },
+        formatter: (v)=>fmt(v),
+      };
+
       // --- Gráficos 1a y 1b: recepciones por planta, MR y M³ [circular/dona] ---
       const porPlantaMR = {}, porPlantaM3 = {};
       recepcionesCache.forEach((r)=>{
@@ -2751,7 +2787,7 @@
         dibujarChart("chartPlantaMR", {
           type:"doughnut",
           data:{ labels:mrE.map((e)=>e[0]), datasets:[{ data:mrE.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS }] },
-          options:{ responsive:true, plugins:{ legend:{position:"right"}, tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" mr" } } } }
+          options:{ responsive:true, plugins:{ legend:{position:"right"}, datalabels:dlDona("mr"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" mr" } } } }
         });
       } else if (charts["chartPlantaMR"]){ charts["chartPlantaMR"].destroy(); delete charts["chartPlantaMR"]; }
       // Dona M³ (solo plantas con M³ > 0)
@@ -2760,9 +2796,40 @@
         dibujarChart("chartPlantaM3", {
           type:"doughnut",
           data:{ labels:m3E.map((e)=>e[0]), datasets:[{ data:m3E.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS }] },
-          options:{ responsive:true, plugins:{ legend:{position:"right"}, tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" m³" } } } }
+          options:{ responsive:true, plugins:{ legend:{position:"right"}, datalabels:dlDona("m³"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" m³" } } } }
         });
       } else if (charts["chartPlantaM3"]){ charts["chartPlantaM3"].destroy(); delete charts["chartPlantaM3"]; }
+
+      // --- Gráfico: recepciones por rol — Top 10 [barras horizontales MR y M³] ---
+      const porRol = {};
+      recepcionesCache.forEach((r)=>{
+        const k = ((r.numeroRol||"").toString().trim()) || "(SIN ROL)";
+        if (!porRol[k]) porRol[k] = { mr:0, m3:0 };
+        porRol[k].mr += r.metrosRuma||0;
+        porRol[k].m3 += r.m3||0;
+      });
+      const rolesTop = Object.entries(porRol).filter((e)=>e[1].mr>0||e[1].m3>0).sort((a,b)=>(b[1].mr+b[1].m3)-(a[1].mr+a[1].m3)).slice(0,10);
+      if (rolesTop.length){
+        const totRolMr = Object.values(porRol).reduce((a,v)=>a+v.mr,0);
+        const totRolM3 = Object.values(porRol).reduce((a,v)=>a+v.m3,0);
+        // Etiqueta: valor + % del total de esa unidad en todas las recepciones
+        const dlTopRoles = {
+          display: (ctx)=> (ctx.dataset.data[ctx.dataIndex]||0) > 0,
+          anchor:"end", align:"end", clamp:true, color:"#32363a", font:{ size:10, weight:"600" },
+          formatter: (v,ctx)=>{ const base = ctx.dataset.label==="MR" ? totRolMr : totRolM3; const pct = base ? Math.round(v/base*100) : 0; return fmt(v)+" ("+pct+"%)"; },
+        };
+        dibujarChart("chartTopRoles", {
+          type:"bar",
+          data:{ labels:rolesTop.map((e)=>e[0]),
+            datasets:[
+              { label:"MR", data:rolesTop.map((e)=>Math.round(e[1].mr)), backgroundColor:"#0a6ed1" },
+              { label:"M³", data:rolesTop.map((e)=>Math.round(e[1].m3)), backgroundColor:"#e9730c" },
+            ].filter((d)=>d.data.some((v)=>v>0)) },
+          options:{ responsive:true, indexAxis:"y",
+            plugins:{ legend:{position:"bottom"}, datalabels:dlTopRoles },
+            scales:{ x:{ beginAtZero:true, grace:"20%" } } }
+        });
+      } else if (charts["chartTopRoles"]){ charts["chartTopRoles"].destroy(); delete charts["chartTopRoles"]; }
 
       // --- Gráfico 2: avance de OC (recibido vs solicitado) [barras agrupadas] ---
       const ocTop = ocCache.slice(0,8);
@@ -2773,7 +2840,7 @@
             { label:"Solicitado", data:ocTop.map((o)=>o.solicitado?.metrosRuma||0), backgroundColor:"#c9d9ea" },
             { label:"Recibido", data:ocTop.map((o)=>o.recibido?.metrosRuma||0), backgroundColor:"#0a6ed1" },
           ] },
-        options:{ responsive:true, plugins:{legend:{position:"bottom"}}, scales:{ y:{beginAtZero:true} } }
+        options:{ responsive:true, plugins:{legend:{position:"bottom"}, datalabels:dlBarra}, scales:{ y:{beginAtZero:true, grace:"15%"} } }
       });
 
       // --- Gráfico 3: gastos por categoría [circular] ---
@@ -2783,7 +2850,7 @@
       dibujarChart("chartGastos", {
         type:"doughnut",
         data:{ labels:catE.map((e)=>e[0]), datasets:[{ data:catE.map((e)=>e[1]), backgroundColor:SAP_COLORS }] },
-        options:{ responsive:true, plugins:{legend:{position:"right"}} }
+        options:{ responsive:true, plugins:{legend:{position:"right"}, datalabels:dlDona("")} }
       });
 
       // --- Gráfico 4: volumen por mes [líneas: MR y M³] ---
@@ -2802,7 +2869,7 @@
             { label:"MR", data:mesesVol.map((m)=>Math.round(porMesMR[m]||0)), borderColor:"#0a6ed1", backgroundColor:"#0a6ed1", tension:0.3, fill:false },
             { label:"M³", data:mesesVol.map((m)=>Math.round(porMesM3[m]||0)), borderColor:"#e9730c", backgroundColor:"#e9730c", tension:0.3, fill:false },
           ] },
-        options:{ responsive:true, plugins:{legend:{position:"bottom"}}, scales:{ y:{beginAtZero:true} } }
+        options:{ responsive:true, plugins:{legend:{position:"bottom"}, datalabels:dlLinea}, scales:{ y:{beginAtZero:true, grace:"12%"} } }
       });
 
       // --- Gráficos 5 y 6: evolución mensual por planta (líneas), uno MR y otro M3 ---
