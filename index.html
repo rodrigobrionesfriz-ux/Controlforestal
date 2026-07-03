@@ -823,6 +823,15 @@
     let usuariosCache = [];   // para el editor de permisos
 
     const prodLabel = (p) => [p.especie, p.variedad, p.tipoProducto, p.largo ? p.largo + "m" : ""].filter(Boolean).join(" · ");
+    // Texto para mostrar un producto: SIEMPRE la descripción del catálogo; si no tiene, código + datos como respaldo.
+    const prodTexto = (p) => (p && p.descripcion && p.descripcion.trim()) ? p.descripcion.trim() : ((p && p.codigo ? p.codigo + " · " : "") + prodLabel(p || {}));
+    // Nombre de un producto guardado dentro de un negocio: busca la descripción actual del catálogo por productoId;
+    // si el producto ya no existe en el catálogo, usa el label guardado o el código.
+    function nombreProductoNeg(p){
+      const prod = p.productoId ? productosCache.find((x)=>x.id===p.productoId) : null;
+      if (prod) return prodTexto(prod);
+      return p.label || p.codigo || "—";
+    }
 
     // ================== AUTENTICACIÓN Y PERMISOS ==================
     // Permisos por TIPO (por defecto). Se usan cuando un usuario no tiene permisos granulares.
@@ -1351,12 +1360,8 @@
           return '<tr class="clickable-row" data-ver-prod="'+p.id+'"><td><strong>'+esc(p.codigo)+'</strong></td><td>'+esc(p.descripcion||"")+'</td><td>'+esc(p.especie)+'</td><td>'+esc(p.tipoProducto)+'</td><td class="num-cell">'+esc(p.largo)+'</td><td>'+esc(p.unidadMedida||"")+'</td></tr>';
         }).join("");
       t.querySelectorAll("[data-ver-prod]").forEach((row)=> row.addEventListener("click", ()=> verDetalleProd(row.dataset.verProd)));
-      setSelect($("ocProducto"), productosCache, (p)=>{
-        // Mostrar la descripción del catálogo; si no hay, el código y el label como respaldo.
-        const texto = p.descripcion && p.descripcion.trim() ? p.descripcion : ((p.codigo?p.codigo+" · ":"") + prodLabel(p));
-        return '<option value="'+p.id+'">'+esc(texto)+'</option>';
-      }, "— Selecciona producto —");
-      setSelect($("npProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodLabel(p))+'</option>', "— Selecciona producto —");
+      setSelect($("ocProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodTexto(p))+'</option>', "— Selecciona producto —");
+      setSelect($("npProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodTexto(p))+'</option>', "— Selecciona producto —");
     }, ()=>{});
 
     function verDetalleProd(id){
@@ -1412,7 +1417,7 @@
       const p = productosCache.find((x)=>x.id===id); if (!p) return;
       const usadoRec = recepcionesCache.some((r)=>r.productoId===id);
       const usadoOC = ocCache.some((o)=>o.productoId===id);
-      let aviso = "¿Eliminar el producto \""+(p.codigo||"")+" · "+prodLabel(p)+"\"?";
+      let aviso = "¿Eliminar el producto \""+prodTexto(p)+"\"?";
       if (usadoRec || usadoOC) aviso += "\n\n⚠️ Atención: este producto está usado en "+(usadoRec?"recepciones":"")+(usadoRec&&usadoOC?" y ":"")+(usadoOC?"órdenes de compra":"")+". Esos registros quedarán sin producto asociado, pero NO se borran.";
       if (!confirm(aviso)) return;
       try { await deleteDoc(doc(db,"productos",id)); }
@@ -1499,7 +1504,7 @@
       const prods = n.productos || [];
       if (prods.length){
         prodHtml = '<div style="margin-top:16px"><div class="k" style="font-weight:700; color:var(--ink); margin-bottom:8px">Productos ('+prods.length+')</div>'
-          + prods.map((p)=>'<div style="padding:8px 12px; background:var(--bg); border-radius:6px; margin-bottom:6px; font-size:13px"><strong>'+esc(p.label||p.codigo||"")+'</strong>'
+          + prods.map((p)=>'<div style="padding:8px 12px; background:var(--bg); border-radius:6px; margin-bottom:6px; font-size:13px"><strong>'+esc(nombreProductoNeg(p))+'</strong>'
               + (p.tipo?' · '+esc(p.tipo):'') + (p.especie?' · '+esc(p.especie):'') + (p.largo!=null?' · '+esc(p.largo)+' m':'')
               + ' · <strong>'+fmt(p.mr||0)+' MR</strong> · <strong>'+fmt(p.m3||0)+' M³</strong></div>').join("")
           + '</div>';
@@ -1574,7 +1579,7 @@
       if (!prod){ $("negMsg").textContent="Selecciona un producto."; $("negMsg").className="msg err"; return; }
       const mr = parseFloat($("npMr").value)||0, m3 = parseFloat($("npM3").value)||0;
       if (mr<=0 && m3<=0){ $("negMsg").textContent="Ingresa volumen MR o M³ para el producto."; $("negMsg").className="msg err"; return; }
-      prodNegTemp.push({ productoId: prod.id, label: prodLabel(prod), codigo: prod.codigo||"", tipo: prod.tipoProducto||"", especie: prod.especie||"", largo: prod.largo??null, mr, m3 });
+      prodNegTemp.push({ productoId: prod.id, label: prodTexto(prod), codigo: prod.codigo||"", tipo: prod.tipoProducto||"", especie: prod.especie||"", largo: prod.largo??null, mr, m3 });
       $("npProducto").value=""; $("npMr").value=""; $("npM3").value=""; $("npInfo").textContent="";
       $("negMsg").textContent=""; renderProdNegTemp();
     });
@@ -1584,7 +1589,7 @@
       if (!prodNegTemp.length){ cont.innerHTML = '<p class="hint">Aún no has agregado productos.</p>'; return; }
       const totMr = prodNegTemp.reduce((a,p)=>a+(p.mr||0),0), totM3 = prodNegTemp.reduce((a,p)=>a+(p.m3||0),0);
       cont.innerHTML = '<table><thead><tr><th>Producto</th><th>Tipo</th><th>Especie</th><th class="num-cell">Largo</th><th class="num-cell">MR</th><th class="num-cell">M³</th><th></th></tr></thead><tbody>'
-        + prodNegTemp.map((p,i)=>'<tr><td><strong>'+esc(p.label||p.codigo)+'</strong></td><td>'+esc(p.tipo||"—")+'</td><td>'+esc(p.especie||"—")+'</td><td class="num-cell">'+esc(p.largo!=null?p.largo:"—")+'</td><td class="num-cell">'+fmt(p.mr||0)+'</td><td class="num-cell">'+fmt(p.m3||0)+'</td><td><button class="act del" data-del-prodneg="'+i+'">Quitar</button></td></tr>').join("")
+        + prodNegTemp.map((p,i)=>'<tr><td><strong>'+esc(nombreProductoNeg(p))+'</strong></td><td>'+esc(p.tipo||"—")+'</td><td>'+esc(p.especie||"—")+'</td><td class="num-cell">'+esc(p.largo!=null?p.largo:"—")+'</td><td class="num-cell">'+fmt(p.mr||0)+'</td><td class="num-cell">'+fmt(p.m3||0)+'</td><td><button class="act del" data-del-prodneg="'+i+'">Quitar</button></td></tr>').join("")
         + '<tr style="border-top:2px solid var(--line)"><td colspan="4"><strong>Totales</strong></td><td class="num-cell"><strong>'+fmt(totMr)+'</strong></td><td class="num-cell"><strong>'+fmt(totM3)+'</strong></td><td></td></tr>'
         + '</tbody></table>';
       cont.querySelectorAll("[data-del-prodneg]").forEach((b)=> b.addEventListener("click", ()=>{ prodNegTemp.splice(parseInt(b.dataset.delProdneg),1); renderProdNegTemp(); }));
@@ -1691,7 +1696,7 @@
         incluyeCosecha: $("nTipo").value==="bosque_en_pie", incluyeFlete: $("nTipo").value==="bosque_en_pie",
         fechaInicio: $("nFechaInicio").value||null, fechaTermino: $("nFechaTermino").value||null,
         precioCompra: parseFloat($("nPrecio").value)||0, precioVenta: parseFloat($("nPrecioVenta").value)||0,
-        productos: prodNegTemp.map((p)=>({ productoId:p.productoId, label:p.label, codigo:p.codigo, tipo:p.tipo, especie:p.especie, largo:p.largo, mr:p.mr||0, m3:p.m3||0 })),
+        productos: prodNegTemp.map((p)=>({ productoId:p.productoId, label:nombreProductoNeg(p), codigo:p.codigo, tipo:p.tipo, especie:p.especie, largo:p.largo, mr:p.mr||0, m3:p.m3||0 })),
         volumenMR: totMr, volumenEstimadoM3: totM3,
         especie: especies[0] || null, especies,
         facturasProveedor: factProvTemp.map((f)=>({ numero:f.numero, monto:f.monto||0, fecha:f.fecha||null, proveedor:f.proveedor||"" })),
@@ -1712,7 +1717,7 @@
 
     // Poblar el selector de productos del negocio cuando cambian los productos
     function poblarProductosNeg(){
-      setSelect($("npProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodLabel(p))+'</option>', "— Selecciona producto —");
+      setSelect($("npProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodTexto(p))+'</option>', "— Selecciona producto —");
     }
 
     // ---- ÓRDENES DE COMPRA ----
@@ -1869,7 +1874,7 @@
       const datos = {
         numero:$("ocNumero").value.trim()||("OC-"+Date.now()),
         negocioId:negId, rolId:neg.rolId, numeroRol:neg.numeroRol,
-        productoId:prodId, productoLabel:(prod && prod.descripcion && prod.descripcion.trim() ? prod.descripcion : prodLabel(prod)),
+        productoId:prodId, productoLabel:(prod ? prodTexto(prod) : null),
         plantaId:$("ocPlanta").value||null, plantaNombre:planta?planta.nombre:null,
         bodegaId:$("ocBodega").value||null, bodegaNombre:bodega?bodega.nombre:null,
         solicitado:{ metrosRuma:parseFloat($("ocMr").value)||0, m3:parseFloat($("ocM3").value)||0 },
@@ -2141,7 +2146,7 @@
           else if (f.duplicado==="existe") estado = '<span class="tag completada">ya existe</span>';
           else if (f.duplicado==="repetido") estado = '<span class="tag completada">repetido en archivo</span>';
           else estado = '<span class="tag abierta">✓ nueva</span>';
-          const prodTxt = f.prod ? prodLabel(f.prod) : f.codigoProd;
+          const prodTxt = f.prod ? prodTexto(f.prod) : f.codigoProd;
           return '<tr><td>'+f.fila+'</td><td>'+esc(f.numeroRol)+'</td><td>'+esc(prodTxt)+'</td><td>'+esc(f.bodega)+'</td><td class="num-cell">'+fmt(f.mr)+'</td><td class="num-cell">'+fmt(f.m3)+'</td><td>'+esc(f.guia)+'</td><td>'+estado+'</td></tr>';
         }).join("") + (filasPreview.length>200 ? '<tr><td colspan="8" class="empty">… mostrando 200 de '+filasPreview.length+' filas. Todas se procesarán al importar.</td></tr>' : '');
         renderFaltantes();
@@ -2364,7 +2369,7 @@
             await setDoc(doc(db,"recepciones", docIdDe(f)), {
               rolId: f.rol.id, numeroRol: f.rol.numeroRol,
               productoId: f.prod ? f.prod.id : null,
-              productoLabel: f.prod ? prodLabel(f.prod) : null,
+              productoLabel: f.prod ? prodTexto(f.prod) : null,
               codigoProducto: f.codigoProd || null,
               descripcionProducto: f.descProducto || null, unidadMedida: f.unidadMedida || null,
               especie: f.especieRow || null, planta: f.plantaRow || null,
