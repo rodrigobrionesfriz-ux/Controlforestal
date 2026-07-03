@@ -1595,6 +1595,16 @@
     let ocDetalleId = null;
     let editandoOCId = null;
 
+    // Nombre del producto de una OC: prioriza la descripción actual del catálogo,
+    // luego el label guardado, luego el código. Así la lista siempre muestra el nombre correcto.
+    function nombreProductoOC(o){
+      const prod = o.productoId ? productosCache.find((p)=>p.id===o.productoId) : null;
+      if (prod && prod.descripcion && prod.descripcion.trim()) return prod.descripcion;
+      if (o.productoLabel) return o.productoLabel;
+      if (prod) return (prod.codigo?prod.codigo+" · ":"") + prodLabel(prod);
+      return "—";
+    }
+
     function estadoOC(o){
       const recMr=o.recibido?.metrosRuma||0, solMr=o.solicitado?.metrosRuma||0;
       const recM3=o.recibido?.m3||0, solM3=o.solicitado?.m3||0;
@@ -1623,7 +1633,7 @@
         const recMr=o.recibido?.metrosRuma||0, solMr=o.solicitado?.metrosRuma||0;
         const recM3=o.recibido?.m3||0, solM3=o.solicitado?.m3||0;
         const pMr=solMr?Math.min(100,recMr/solMr*100):0; const barCls = e.est==="completada"?"full":(e.est==="por_completar"?"warn":"");
-        return '<tr class="clickable-row" data-ver-oc="'+o.id+'"><td><strong>'+esc(o.numero)+'</strong></td><td>'+esc(o.numeroRol)+'</td><td>'+esc(o.productoLabel)+'</td><td>'+esc(o.plantaNombre||"—")+'</td>'+
+        return '<tr class="clickable-row" data-ver-oc="'+o.id+'"><td><strong>'+esc(o.numero)+'</strong></td><td>'+esc(o.numeroRol)+'</td><td>'+esc(nombreProductoOC(o))+'</td><td>'+esc(o.plantaNombre||"—")+'</td>'+
           '<td class="num-cell">'+fmt(recMr)+' / '+fmt(solMr)+'<div class="bar"><span class="'+barCls+'" style="width:'+pMr+'%"></span></div></td>'+
           '<td class="num-cell">'+fmt(recM3)+' / '+fmt(solM3)+'</td>'+
           '<td><span class="tag '+e.cls+'">'+e.txt+'</span></td></tr>';
@@ -1660,7 +1670,7 @@
       const recM3=o.recibido?.m3||0, solM3=o.solicitado?.m3||0;
       $("detalleOCBody").innerHTML =
           row("N° OC", o.numero) + row("Estado", e.txt) + row("Rol", o.numeroRol)
-        + row("Producto", o.productoLabel) + row("Planta", o.plantaNombre) + row("Bodega destino", o.bodegaNombre)
+        + row("Producto", nombreProductoOC(o)) + row("Planta", o.plantaNombre) + row("Bodega destino", o.bodegaNombre)
         + row("Solicitado MR", fmt(solMr)) + row("Recibido MR", fmt(recMr)) + row("Falta MR", fmt(Math.max(0,solMr-recMr)))
         + row("Solicitado M³", fmt(solM3)) + row("Recibido M³", fmt(recM3)) + row("Falta M³", fmt(Math.max(0,solM3-recM3)))
         + row("Umbral alerta", o.umbralAlerta);
@@ -1734,7 +1744,7 @@
       const datos = {
         numero:$("ocNumero").value.trim()||("OC-"+Date.now()),
         negocioId:negId, rolId:neg.rolId, numeroRol:neg.numeroRol,
-        productoId:prodId, productoLabel:prodLabel(prod),
+        productoId:prodId, productoLabel:(prod && prod.descripcion && prod.descripcion.trim() ? prod.descripcion : prodLabel(prod)),
         plantaId:$("ocPlanta").value||null, plantaNombre:planta?planta.nombre:null,
         bodegaId:$("ocBodega").value||null, bodegaNombre:bodega?bodega.nombre:null,
         solicitado:{ metrosRuma:parseFloat($("ocMr").value)||0, m3:parseFloat($("ocM3").value)||0 },
@@ -1765,7 +1775,7 @@
       if (!panel || !alertas.length){ if(panel) panel.classList.add("hidden"); return; }
       panel.classList.remove("hidden");
       list.innerHTML = alertas.map((o)=>{ const restMr=(o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0); const restM3=(o.solicitado?.m3||0)-(o.recibido?.m3||0);
-        return '<li><strong>'+esc(o.numero)+'</strong> ('+esc(o.numeroRol)+' · '+esc(o.productoLabel)+') — faltan '+fmt(Math.max(0,restMr))+' mr / '+fmt(Math.max(0,restM3))+' m³</li>'; }).join("");
+        return '<li><strong>'+esc(o.numero)+'</strong> ('+esc(o.numeroRol)+' · '+esc(nombreProductoOC(o))+') — faltan '+fmt(Math.max(0,restMr))+' mr / '+fmt(Math.max(0,restM3))+' m³</li>'; }).join("");
     }
 
     // ---- RECEPCIONES ----
