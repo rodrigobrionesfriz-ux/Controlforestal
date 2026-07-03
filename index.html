@@ -638,9 +638,39 @@
       </section>
       <section class="card">
         <h2><span class="num">02</span> Usuarios del sistema</h2>
-        <table><thead><tr><th>Nombre</th><th>Correo</th><th>Tipo</th><th>Estado</th><th>Acción</th></tr></thead>
+        <p class="sub">Haz clic en un usuario para ver o editar sus permisos por módulo.</p>
+        <table><thead><tr><th>Nombre</th><th>Correo</th><th>Tipo</th><th>Estado</th><th>Permisos</th></tr></thead>
         <tbody id="tablaUsuarios"><tr><td colspan="5" class="empty">Cargando…</td></tr></tbody></table>
       </section>
+    </div>
+
+    <!-- MODAL: permisos por usuario -->
+    <div class="modal-overlay" id="modalPermisos">
+      <div class="modal" style="max-width:680px">
+        <div class="modal-head"><h3 id="permTitulo">Permisos del usuario</h3><button class="modal-close" data-close-modal="modalPermisos">&times;</button></div>
+        <div class="modal-body">
+          <p class="hint" id="permSub" style="margin-top:0"></p>
+          <div style="margin:12px 0">
+            <label style="font-size:13px">Tipo de usuario</label>
+            <select id="permTipo" style="max-width:320px">
+              <option value="consulta">Consulta (solo ver)</option>
+              <option value="operador">Operador (ver y editar)</option>
+              <option value="admin">Administrador (todo)</option>
+            </select>
+            <div class="hint">El administrador siempre tiene acceso completo. Para permisos a medida, usa "operador" o "consulta" y ajusta la tabla.</div>
+          </div>
+          <div id="permMatrizWrap">
+            <table id="permMatriz"><thead><tr><th>Módulo</th><th style="text-align:center">Ver</th><th style="text-align:center">Editar</th><th style="text-align:center">Borrar</th></tr></thead>
+            <tbody id="permMatrizBody"></tbody></table>
+            <div class="hint" style="margin-top:8px">Marca qué puede hacer este usuario en cada módulo. "Editar" incluye crear y modificar. Si no marcas "Ver", el módulo no le aparecerá en el menú.</div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <span class="msg" id="permMsg" style="margin-right:auto"></span>
+          <button class="primary" id="btnCancelarPerm" style="background:var(--muted); border-color:var(--muted)">Cancelar</button>
+          <button class="primary" id="btnGuardarPerm">Guardar permisos</button>
+        </div>
+      </div>
     </div>
 
     <!-- EMPRESA (solo admin) -->
@@ -750,26 +780,74 @@
     const statusEl = $("status");
 
     let rolesCache = [], plantasCache = [], productosCache = [], negociosCache = [], ocCache = [], recepcionesCache = [];
+    let usuariosCache = [];   // para el editor de permisos
 
     const prodLabel = (p) => [p.especie, p.variedad, p.tipoProducto, p.largo ? p.largo + "m" : ""].filter(Boolean).join(" · ");
 
     // ================== AUTENTICACIÓN Y PERMISOS ==================
-    // Permisos por tipo: ver / editar / borrar. (borrar reservado para futuras acciones de borrado en la UI)
+    // Permisos por TIPO (por defecto). Se usan cuando un usuario no tiene permisos granulares.
     const PERMISOS = {
       admin:    { ver:true, editar:true, borrar:true, usuarios:true },
       operador: { ver:true, editar:true, borrar:false, usuarios:false },
       consulta: { ver:true, editar:false, borrar:false, usuarios:false },
     };
-    let usuarioActual = null;   // { uid, email, nombre, tipo }
-    const puede = (accion) => usuarioActual ? !!PERMISOS[usuarioActual.tipo]?.[accion] : false;
+    // Módulos sobre los que se pueden definir permisos granulares por usuario.
+    const MODULOS_PERM = [
+      { id:"roles", label:"Roles" },
+      { id:"plantas", label:"Plantas / Clientes" },
+      { id:"productos", label:"Productos" },
+      { id:"negocios", label:"Negocios" },
+      { id:"ordenesCompra", label:"Órdenes de compra" },
+      { id:"recepciones", label:"Recepciones" },
+      { id:"gastos", label:"Gastos" },
+    ];
+    let usuarioActual = null;   // { uid, email, nombre, tipo, permisos? }
 
-    // Aplica permisos a la interfaz: oculta pestaña usuarios si no es admin, deshabilita botones de guardar si no puede editar.
+    // puede(accion, modulo?):
+    //  - Admin: siempre true.
+    //  - Si el usuario tiene permisos granulares Y se especifica módulo: usa esos.
+    //  - Si no: usa los permisos por tipo (compatibilidad con el sistema anterior).
+    function puede(accion, modulo){
+      if (!usuarioActual) return false;
+      if (usuarioActual.tipo === "admin") return true;   // admin todopoderoso
+      if (accion === "usuarios") return false;           // gestionar usuarios: solo admin
+      const perm = usuarioActual.permisos;
+      if (modulo && perm && perm[modulo]){
+        return !!perm[modulo][accion];
+      }
+      // Sin permisos granulares (o sin módulo): permisos por tipo
+      return !!PERMISOS[usuarioActual.tipo]?.[accion];
+    }
+
+    // Mapa: data-tab del menú → id de módulo de permisos
+    const TAB_A_MODULO = { roles:"roles", plantas:"plantas", productos:"productos", negocios:"negocios", oc:"ordenesCompra", recepciones:"recepciones", gastos:"gastos", importar:"recepciones" };
+    // Mapa: botón de guardar/editar → módulo al que pertenece
+    const BOTON_A_MODULO = {
+      btnGuardar:"roles", btnGuardarPlanta:"plantas", btnGuardarProd:"productos",
+      btnGuardarNeg:"negocios", btnGuardarOC:"ordenesCompra",
+      btnImportar:"recepciones", btnPreview:"recepciones",
+      btnImportarGasto:"gastos", btnPreviewGasto:"gastos", btnRecalcularOC:"ordenesCompra",
+    };
+
+    // Aplica permisos a la interfaz: oculta pestañas que el usuario no puede ver,
+    // y deshabilita botones de guardar/editar según el permiso de cada módulo.
     function aplicarPermisos(){
       const esAdmin = puede("usuarios");
+      // Pestañas de solo-admin (usuarios, empresa, mantenimiento)
       document.querySelectorAll('nav.sidebar button[data-admin]').forEach((b)=> b.classList.toggle("tab-hidden", !esAdmin));
-      const editar = puede("editar");
-      const botonesEditar = ["btnGuardar","btnGuardarPlanta","btnGuardarProd","btnGuardarNeg","btnGuardarOC","btnImportar","btnPreview","btnImportarGasto","btnPreviewGasto"];
-      botonesEditar.forEach((id)=>{ const el=$(id); if(el){ el.disabled = !editar; el.title = editar?"":"No tienes permiso para editar"; } });
+      // Pestañas de módulos: ocultar si el usuario no puede "ver" ese módulo
+      document.querySelectorAll('nav.sidebar button[data-tab]').forEach((b)=>{
+        const tab = b.dataset.tab;
+        const modulo = TAB_A_MODULO[tab];
+        if (modulo){ b.classList.toggle("tab-hidden", !puede("ver", modulo)); }
+      });
+      // Botones de guardar/editar/importar: deshabilitar según permiso de editar del módulo
+      Object.keys(BOTON_A_MODULO).forEach((id)=>{
+        const el = $(id); if (!el) return;
+        const modulo = BOTON_A_MODULO[id];
+        const ok = puede("editar", modulo);
+        el.disabled = !ok; el.title = ok ? "" : "No tienes permiso para editar en este módulo";
+      });
       $("btnCrearUsuario").disabled = !esAdmin;
       $("btnGuardarEmpresa").disabled = !esAdmin;
     }
@@ -990,8 +1068,8 @@
         + row("Comuna", r.comuna) + row("Especie", r.especiePredominante)
         + row("Tipo de negocio", r.tipoNegocio==="bosque_en_pie"?"Bosque en pie":"Madera puesta en planta")
         + row("Georreferencia", geoTxt(r.georeferencia));
-      $("btnEditarRolDetalle").style.display = puede("editar") ? "inline-block" : "none";
-      $("btnEliminarRolDetalle").style.display = puede("borrar") ? "inline-block" : "none";
+      $("btnEditarRolDetalle").style.display = puede("editar","roles") ? "inline-block" : "none";
+      $("btnEliminarRolDetalle").style.display = puede("borrar","roles") ? "inline-block" : "none";
       abrirModal("modalRolDetalle");
     }
     $("btnEditarRolDetalle").addEventListener("click", ()=>{ cerrarModal("modalRolDetalle"); iniciarEdicionRol(rolDetalleId); });
@@ -1002,7 +1080,7 @@
       ["numeroRol","nombrePredio","propietario","comuna","rolGeo"].forEach((id)=>$(id).value="");
       $("especie").value="PINO"; $("tipoNegocio").value="bosque_en_pie";
       $("modalRolTitulo").textContent = "Nuevo rol de predio";
-      $("btnGuardar").textContent = "Guardar rol"; $("btnGuardar").disabled = !puede("editar");
+      $("btnGuardar").textContent = "Guardar rol"; $("btnGuardar").disabled = !puede("editar","roles");
       $("formMsg").textContent = "";
       abrirModal("modalRolForm");
     });
@@ -1019,7 +1097,7 @@
       $("especie").value = up(r.especiePredominante)||"PINO"; $("tipoNegocio").value = r.tipoNegocio||"bosque_en_pie";
       $("rolGeo").value = r.georeferencia ? geoTxt(r.georeferencia) : "";
       $("modalRolTitulo").textContent = "Editar rol " + (r.numeroRol||"");
-      $("btnGuardar").textContent = "Actualizar rol"; $("btnGuardar").disabled = !puede("editar");
+      $("btnGuardar").textContent = "Actualizar rol"; $("btnGuardar").disabled = !puede("editar","roles");
       $("formMsg").textContent = "";
       abrirModal("modalRolForm");
     }
@@ -1064,7 +1142,7 @@
           m.textContent="✓ Rol guardado."; m.className="msg ok";
           setTimeout(()=>cancelarEdicionRol(), 600);
         }
-      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardar").disabled = !puede("editar"); }
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardar").disabled = !puede("editar","roles"); }
     });
 
     // ---- PLANTAS ----
@@ -1112,8 +1190,8 @@
         + row("RUT", p.rut) + row("Contacto", p.contactoNombre) + row("Teléfono", p.contactoTelefono)
         + row("Comuna", p.comuna) + bodHtml;
       // Botón eliminar solo admin
-      $("btnEliminarDesdeDetalle").style.display = puede("borrar") ? "inline-block" : "none";
-      $("btnEditarDesdeDetalle").style.display = puede("editar") ? "inline-block" : "none";
+      $("btnEliminarDesdeDetalle").style.display = puede("borrar","plantas") ? "inline-block" : "none";
+      $("btnEditarDesdeDetalle").style.display = puede("editar","plantas") ? "inline-block" : "none";
       abrirModal("modalPlantaDetalle");
     }
 
@@ -1128,7 +1206,7 @@
       $("pEsPlanta").value="true"; bodegasTemp=[]; renderBodegasTemp();
       $("modalPlantaTitulo").textContent = "Nueva planta / cliente";
       $("btnGuardarPlanta").textContent = "Guardar ficha";
-      $("btnGuardarPlanta").disabled = !puede("editar");
+      $("btnGuardarPlanta").disabled = !puede("editar","plantas");
       $("plantaMsg").textContent="";
       abrirModal("modalPlantaForm");
     });
@@ -1170,7 +1248,7 @@
       bodegasTemp = (p.bodegas||[]).map((b)=>({ ...b })); renderBodegasTemp();
       $("modalPlantaTitulo").textContent = "Editar: " + (p.nombre||"");
       $("btnGuardarPlanta").textContent = "Actualizar ficha";
-      $("btnGuardarPlanta").disabled = !puede("editar");
+      $("btnGuardarPlanta").disabled = !puede("editar","plantas");
       $("plantaMsg").textContent = "";
       abrirModal("modalPlantaForm");
     }
@@ -1216,7 +1294,7 @@
           bodegasTemp = []; renderBodegasTemp();
           setTimeout(()=> cerrarModal("modalPlantaForm"), 700);  // cerrar tras confirmar
         }
-      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarPlanta").disabled = !puede("editar"); }
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarPlanta").disabled = !puede("editar","plantas"); }
     });
 
     // ---- PRODUCTOS ----
@@ -1244,8 +1322,8 @@
           row("Código", p.codigo) + row("Descripción", p.descripcion) + row("Especie", p.especie)
         + row("Variedad", p.variedad) + row("Tipo", p.tipoProducto) + row("Largo (m)", p.largo)
         + row("Diámetro mín. (cm)", p.diametroMin) + row("Calidad", p.calidad) + row("Unidad de medida", p.unidadMedida);
-      $("btnEditarProdDetalle").style.display = puede("editar") ? "inline-block" : "none";
-      $("btnEliminarProdDetalle").style.display = puede("borrar") ? "inline-block" : "none";
+      $("btnEditarProdDetalle").style.display = puede("editar","productos") ? "inline-block" : "none";
+      $("btnEliminarProdDetalle").style.display = puede("borrar","productos") ? "inline-block" : "none";
       abrirModal("modalProdDetalle");
     }
     $("btnEditarProdDetalle").addEventListener("click", ()=>{ cerrarModal("modalProdDetalle"); iniciarEdicionProd(prodDetalleId); });
@@ -1256,7 +1334,7 @@
       ["prodCodigo","prodVariedad","prodTipo","prodLargo","prodDiam","prodCalidad","prodDescripcion"].forEach((id)=>$(id).value="");
       $("prodEspecie").value="PINO"; $("prodUM").value="MR";
       $("modalProdTitulo").textContent = "Nuevo producto";
-      $("btnGuardarProd").textContent = "Guardar producto"; $("btnGuardarProd").disabled = !puede("editar");
+      $("btnGuardarProd").textContent = "Guardar producto"; $("btnGuardarProd").disabled = !puede("editar","productos");
       $("prodMsg").textContent="";
       abrirModal("modalProdForm");
     });
@@ -1269,7 +1347,7 @@
       $("prodLargo").value = p.largo??""; $("prodDiam").value = p.diametroMin??""; $("prodCalidad").value = p.calidad||"";
       $("prodUM").value = p.unidadMedida||"MR"; $("prodDescripcion").value = p.descripcion||"";
       $("modalProdTitulo").textContent = "Editar: " + (p.codigo||"");
-      $("btnGuardarProd").textContent = "Actualizar producto"; $("btnGuardarProd").disabled = !puede("editar");
+      $("btnGuardarProd").textContent = "Actualizar producto"; $("btnGuardarProd").disabled = !puede("editar","productos");
       $("prodMsg").textContent = "";
       abrirModal("modalProdForm");
     }
@@ -1309,7 +1387,7 @@
           m.textContent="✓ Producto guardado."; m.className="msg ok";
           setTimeout(()=>cancelarEdicionProd(), 600);
         }
-      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarProd").disabled = !puede("editar"); }
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarProd").disabled = !puede("editar","productos"); }
     });
 
     // ---- NEGOCIOS ----
@@ -1372,8 +1450,8 @@
         + row("Volumen total MR", fmt(totMr)) + row("Volumen total M³", fmt(totM3))
         + '<div class="detalle-row"><div class="k">Orden de compra</div><div class="v">'+(tieneOC?'<span style="color:var(--ok)">✓ Tiene OC asociada</span>':'<span style="color:var(--warn)">⚠️ Sin orden de compra</span>')+'</div></div>'
         + prodHtml;
-      $("btnEditarNegDetalle").style.display = puede("editar") ? "inline-block" : "none";
-      $("btnEliminarNegDetalle").style.display = puede("borrar") ? "inline-block" : "none";
+      $("btnEditarNegDetalle").style.display = puede("editar","negocios") ? "inline-block" : "none";
+      $("btnEliminarNegDetalle").style.display = puede("borrar","negocios") ? "inline-block" : "none";
       abrirModal("modalNegDetalle");
     }
     $("btnEditarNegDetalle").addEventListener("click", ()=>{ cerrarModal("modalNegDetalle"); iniciarEdicionNeg(negDetalleId); });
@@ -1426,7 +1504,7 @@
       $("nTipo").value="bosque_en_pie"; $("npProducto").value=""; $("npInfo").textContent="";
       renderProdNegTemp();
       $("modalNegTitulo").textContent = "Nuevo negocio";
-      $("btnGuardarNeg").textContent = "Guardar negocio"; $("btnGuardarNeg").disabled = !puede("editar");
+      $("btnGuardarNeg").textContent = "Guardar negocio"; $("btnGuardarNeg").disabled = !puede("editar","negocios");
       $("negMsg").textContent="";
       abrirModal("modalNegForm");
     });
@@ -1441,7 +1519,7 @@
       $("nPrecio").value = n.precioCompra??""; $("nPrecioVenta").value = n.precioVenta??"";
       prodNegTemp = (n.productos||[]).map((p)=>({ ...p })); renderProdNegTemp();
       $("modalNegTitulo").textContent = "Editar negocio · " + (n.numeroRol||"");
-      $("btnGuardarNeg").textContent = "Actualizar negocio"; $("btnGuardarNeg").disabled = !puede("editar");
+      $("btnGuardarNeg").textContent = "Actualizar negocio"; $("btnGuardarNeg").disabled = !puede("editar","negocios");
       $("negMsg").textContent = "";
       abrirModal("modalNegForm");
     }
@@ -1500,7 +1578,7 @@
           m.textContent="✓ Negocio guardado."; m.className="msg ok";
         }
         setTimeout(()=> cancelarEdicionNeg(), 600);
-      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarNeg").disabled = !puede("editar"); }
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarNeg").disabled = !puede("editar","negocios"); }
     });
 
     // Poblar el selector de productos del negocio cuando cambian los productos
@@ -1551,7 +1629,7 @@
     $("ocMostrarTodas").addEventListener("change", ()=>{ ocMostrarTodas = $("ocMostrarTodas").checked; renderOCTabla(); });
 
     $("btnRecalcularOC").addEventListener("click", async ()=>{
-      if (!puede("editar")){ $("ocRecalcMsg").textContent="No tienes permiso para recalcular."; $("ocRecalcMsg").className="msg err"; return; }
+      if (!puede("editar","ordenesCompra")){ $("ocRecalcMsg").textContent="No tienes permiso para recalcular."; $("ocRecalcMsg").className="msg err"; return; }
       const btn = $("btnRecalcularOC"); btn.disabled = true;
       $("ocRecalcMsg").textContent = "Recalculando avance de todas las OC…"; $("ocRecalcMsg").className="msg";
       try {
@@ -1577,8 +1655,8 @@
         + row("Solicitado MR", fmt(solMr)) + row("Recibido MR", fmt(recMr)) + row("Falta MR", fmt(Math.max(0,solMr-recMr)))
         + row("Solicitado M³", fmt(solM3)) + row("Recibido M³", fmt(recM3)) + row("Falta M³", fmt(Math.max(0,solM3-recM3)))
         + row("Umbral alerta", o.umbralAlerta);
-      $("btnEditarOCDetalle").style.display = puede("editar") ? "inline-block" : "none";
-      $("btnEliminarOCDetalle").style.display = puede("borrar") ? "inline-block" : "none";
+      $("btnEditarOCDetalle").style.display = puede("editar","ordenesCompra") ? "inline-block" : "none";
+      $("btnEliminarOCDetalle").style.display = puede("borrar","ordenesCompra") ? "inline-block" : "none";
       abrirModal("modalOCDetalle");
     }
     $("btnEditarOCDetalle").addEventListener("click", ()=>{ cerrarModal("modalOCDetalle"); iniciarEdicionOC(ocDetalleId); });
@@ -1610,7 +1688,7 @@
       $("ocNegocio").value=""; $("ocPlanta").value=""; $("ocProducto").value=""; $("ocBodega").innerHTML='<option value="">— Selecciona planta primero —</option>';
       $("ocProdInfo").style.display="none";
       $("modalOCTitulo").textContent="Nueva orden de compra";
-      $("btnGuardarOC").textContent="Guardar OC"; $("btnGuardarOC").disabled=!puede("editar");
+      $("btnGuardarOC").textContent="Guardar OC"; $("btnGuardarOC").disabled=!puede("editar","ordenesCompra");
       $("ocMsg").textContent="";
       abrirModal("modalOCForm");
     });
@@ -1624,7 +1702,7 @@
       $("ocNumero").value = o.numero||""; $("ocUmbral").value = o.umbralAlerta??300;
       $("ocMr").value = o.solicitado?.metrosRuma??""; $("ocM3").value = o.solicitado?.m3??"";
       $("modalOCTitulo").textContent = "Editar OC " + (o.numero||"");
-      $("btnGuardarOC").textContent = "Actualizar OC"; $("btnGuardarOC").disabled=!puede("editar");
+      $("btnGuardarOC").textContent = "Actualizar OC"; $("btnGuardarOC").disabled=!puede("editar","ordenesCompra");
       $("ocMsg").textContent="";
       abrirModal("modalOCForm");
     }
@@ -1665,7 +1743,7 @@
         setTimeout(()=> cerrarModal("modalOCForm"), 600);
         // Recalcular avance por si ya hay recepciones para este rol+producto
         setTimeout(()=>{ recalcularTodasLasOC().catch(()=>{}); }, 900);
-      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarOC").disabled = !puede("editar"); }
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarOC").disabled = !puede("editar","ordenesCompra"); }
     });
 
     function renderAlertas() {
@@ -1697,7 +1775,7 @@
       renderRecepcionesPorMes();
       // Recalcular el avance de las OC automáticamente (con debounce), para que el cruce
       // funcione sin importar el orden en que se crearon OC y recepciones.
-      if (puede("editar") && ocCache.length){
+      if (puede("editar","ordenesCompra") && ocCache.length){
         clearTimeout(_recalcTimer);
         _recalcTimer = setTimeout(()=>{ recalcularTodasLasOC().catch(()=>{}); }, 2500);
       }
@@ -2178,7 +2256,7 @@
           return '<tr><td>'+g.fila+'</td><td>'+esc(g.numeroRol)+'</td><td>'+esc(g.producto)+'</td><td>'+esc(g.descripcion)+'</td><td class="num-cell">'+fmt(g.cantidad)+'</td><td class="num-cell">'+fmt(g.costoUnit)+'</td><td class="num-cell">'+fmt(g.total)+'</td><td>'+estado+'</td></tr>';
         }).join("") + (gastosPreview.length>200?'<tr><td colspan="8" class="empty">… mostrando 200 de '+gastosPreview.length+'. Todas se importan.</td></tr>':'');
         $("gastoPreviewCard").style.display = "block";
-        $("btnImportarGasto").disabled = validas===0 || !puede("editar");
+        $("btnImportarGasto").disabled = validas===0 || !puede("editar","gastos");
         m.textContent = "";
       } catch(e){ m.textContent = "Error al leer: "+e.message; m.className="msg err"; }
     });
@@ -2269,15 +2347,18 @@
     regSnap(query(collection(db,"usuarios"), orderBy("fechaCreacion","desc")), (snap) => {
       const t = $("tablaUsuarios");
       if (snap.empty){ t.innerHTML = '<tr><td colspan="5" class="empty">Sin usuarios.</td></tr>'; return; }
-      t.innerHTML = snap.docs.map((d)=>{
-        const u = d.data();
+      usuariosCache = snap.docs.map((d)=>({ _id:d.id, ...d.data() }));
+      t.innerHTML = usuariosCache.map((u)=>{
         const esYo = usuarioActual && u.uid===usuarioActual.uid;
         const tipoSel = '<select data-uid="'+u.uid+'" class="u-tipo" '+(esYo?"disabled":"")+'>'
           + ['consulta','operador','admin'].map((tp)=>'<option value="'+tp+'"'+(u.tipo===tp?" selected":"")+'>'+tp+'</option>').join("") + '</select>';
         const estadoTag = u.estado==="inactivo" ? '<span class="tag completada">inactivo</span>' : '<span class="tag abierta">activo</span>';
-        const accion = esYo ? '<span class="hint">tú</span>'
-          : '<button class="mini" data-toggle="'+u.uid+'" data-estado="'+(u.estado||"activo")+'">'+(u.estado==="inactivo"?"Activar":"Desactivar")+'</button>';
-        return '<tr><td><strong>'+esc(u.nombre)+'</strong></td><td>'+esc(u.email)+'</td><td>'+tipoSel+'</td><td>'+estadoTag+'</td><td>'+accion+'</td></tr>';
+        const permBtn = u.tipo==="admin"
+          ? '<span class="hint">acceso total</span>'
+          : '<button class="mini" data-perm="'+u._id+'">Configurar</button>';
+        const toggleBtn = esYo ? ""
+          : ' <button class="mini" data-toggle="'+u.uid+'" data-estado="'+(u.estado||"activo")+'">'+(u.estado==="inactivo"?"Activar":"Desactivar")+'</button>';
+        return '<tr><td><strong>'+esc(u.nombre)+'</strong></td><td>'+esc(u.email)+'</td><td>'+tipoSel+'</td><td>'+estadoTag+'</td><td style="white-space:nowrap">'+permBtn+toggleBtn+'</td></tr>';
       }).join("");
       // Listeners de cambio de tipo y estado
       t.querySelectorAll(".u-tipo").forEach((s)=> s.addEventListener("change", async ()=>{
@@ -2287,7 +2368,79 @@
         const nuevo = b.dataset.estado==="inactivo" ? "activo" : "inactivo";
         try { await updateDoc(doc(db,"usuarios",b.dataset.toggle), { estado: nuevo }); } catch(e){ alert("Error: "+e.message); }
       }));
+      t.querySelectorAll("[data-perm]").forEach((b)=> b.addEventListener("click", ()=> abrirPermisos(b.dataset.perm)));
     }, ()=>{});
+
+    // ---- EDITOR DE PERMISOS POR USUARIO ----
+    let permEditUid = null;
+    function abrirPermisos(docId){
+      const u = usuariosCache.find((x)=>x._id===docId); if (!u) return;
+      permEditUid = docId;
+      $("permTitulo").textContent = "Permisos · " + (u.nombre||u.email);
+      $("permSub").textContent = u.email;
+      $("permTipo").value = u.tipo || "consulta";
+      renderMatrizPermisos(u);
+      $("permMsg").textContent = "";
+      abrirModal("modalPermisos");
+    }
+
+    // Dibuja la matriz de módulos × acciones con el estado actual del usuario
+    function renderMatrizPermisos(u){
+      const esAdmin = $("permTipo").value === "admin";
+      // Permisos efectivos: si el usuario tiene granulares, úsalos; si no, los de su tipo
+      const permUsuario = u.permisos || {};
+      const body = $("permMatrizBody");
+      body.innerHTML = MODULOS_PERM.map((mod)=>{
+        const p = permUsuario[mod.id] || {};
+        // Valor por defecto según tipo si no hay granular
+        const def = PERMISOS[$("permTipo").value] || PERMISOS.consulta;
+        const ver = p.ver !== undefined ? p.ver : def.ver;
+        const editar = p.editar !== undefined ? p.editar : def.editar;
+        const borrar = p.borrar !== undefined ? p.borrar : def.borrar;
+        const chk = (accion, val)=> '<input type="checkbox" class="perm-chk" data-mod="'+mod.id+'" data-acc="'+accion+'"'+(val?" checked":"")+(esAdmin?" disabled":"")+' style="width:auto">';
+        return '<tr><td>'+esc(mod.label)+'</td>'
+          + '<td style="text-align:center">'+chk("ver",ver)+'</td>'
+          + '<td style="text-align:center">'+chk("editar",editar)+'</td>'
+          + '<td style="text-align:center">'+chk("borrar",borrar)+'</td></tr>';
+      }).join("");
+      $("permMatrizWrap").style.opacity = esAdmin ? "0.5" : "1";
+    }
+    $("permTipo").addEventListener("change", ()=>{
+      const u = usuariosCache.find((x)=>x._id===permEditUid); if (u) renderMatrizPermisos(u);
+    });
+
+    $("btnCancelarPerm").addEventListener("click", ()=> cerrarModal("modalPermisos"));
+
+    $("btnGuardarPerm").addEventListener("click", async ()=>{
+      if (!permEditUid) return;
+      const tipo = $("permTipo").value;
+      const m = $("permMsg");
+      // Construir objeto de permisos desde las casillas
+      const permisos = {};
+      MODULOS_PERM.forEach((mod)=>{ permisos[mod.id] = { ver:false, editar:false, borrar:false }; });
+      $("permMatrizBody").querySelectorAll(".perm-chk").forEach((chk)=>{
+        permisos[chk.dataset.mod][chk.dataset.acc] = chk.checked;
+      });
+      // Coherencia: si puede editar o borrar, debe poder ver
+      MODULOS_PERM.forEach((mod)=>{ if (permisos[mod.id].editar || permisos[mod.id].borrar) permisos[mod.id].ver = true; });
+      $("btnGuardarPerm").disabled = true; m.textContent = "Guardando…"; m.className="msg";
+      try {
+        const datos = { tipo };
+        // Solo guardar permisos granulares si NO es admin (admin tiene todo)
+        if (tipo === "admin"){ datos.permisos = null; }
+        else { datos.permisos = permisos; }
+        await updateDoc(doc(db,"usuarios",permEditUid), datos);
+        m.textContent = "✓ Permisos guardados."; m.className="msg ok";
+        // Si edité mis propios permisos, refrescar la interfaz
+        const u = usuariosCache.find((x)=>x._id===permEditUid);
+        if (u && usuarioActual && u.uid===usuarioActual.uid){
+          usuarioActual.tipo = tipo; usuarioActual.permisos = (tipo==="admin"?null:permisos);
+          aplicarPermisos();
+        }
+        setTimeout(()=> cerrarModal("modalPermisos"), 700);
+      } catch(e){ m.textContent = "Error: "+e.message; m.className="msg err"; }
+      finally { $("btnGuardarPerm").disabled = false; }
+    });
 
     // ================== EMPRESA ==================
     let logoBase64 = null;  // logo en memoria mientras se edita
