@@ -1309,7 +1309,11 @@
           return '<tr class="clickable-row" data-ver-prod="'+p.id+'"><td><strong>'+esc(p.codigo)+'</strong></td><td>'+esc(p.descripcion||"")+'</td><td>'+esc(p.especie)+'</td><td>'+esc(p.tipoProducto)+'</td><td class="num-cell">'+esc(p.largo)+'</td><td>'+esc(p.unidadMedida||"")+'</td></tr>';
         }).join("");
       t.querySelectorAll("[data-ver-prod]").forEach((row)=> row.addEventListener("click", ()=> verDetalleProd(row.dataset.verProd)));
-      setSelect($("ocProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(p.descripcion || prodLabel(p))+'</option>', "— Selecciona producto —");
+      setSelect($("ocProducto"), productosCache, (p)=>{
+        // Mostrar la descripción del catálogo; si no hay, el código y el label como respaldo.
+        const texto = p.descripcion && p.descripcion.trim() ? p.descripcion : ((p.codigo?p.codigo+" · ":"") + prodLabel(p));
+        return '<option value="'+p.id+'">'+esc(texto)+'</option>';
+      }, "— Selecciona producto —");
       setSelect($("npProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodLabel(p))+'</option>', "— Selecciona producto —");
     }, ()=>{});
 
