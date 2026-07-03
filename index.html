@@ -2136,19 +2136,31 @@
       return false;
     }
 
+    // Normaliza un número de rol para comparar: quita TODOS los espacios, unifica guiones
+    // (– — - ) a "-", pasa a minúsculas. Así "1523-1", "1523 - 1", "1523–1" son iguales.
+    function normRol(s){
+      return (s??"").toString()
+        .replace(/[\u2010-\u2015\u2212]/g, "-")  // guiones unicode → guion normal
+        .replace(/\s+/g, "")                       // quitar todos los espacios
+        .toLowerCase()
+        .trim();
+    }
+
     // Compara el rol de una recepción con el de una OC: por ID interno O por número de rol.
-    // Esto cubre el caso de que el rolId difiera (rol duplicado o importado distinto) pero
-    // el número de rol visible sea el mismo.
     function mismoRol(rec, oc){
       if (oc.rolId && rec.rolId && rec.rolId === oc.rolId) return true;
-      const nOC = (oc.numeroRol||"").toString().trim().toLowerCase();
-      const nRec = (rec.numeroRol||"").toString().trim().toLowerCase();
+      const nOC = normRol(oc.numeroRol);
+      const nRec = normRol(rec.numeroRol);
       return !!nOC && nOC === nRec;
     }
 
     async function recalcularTodasLasOC(){
       let actualizadas = 0, sinCruce = 0;
       const diagnostico = [];
+      // [DIAGNÓSTICO TEMPORAL] Mostrar los numeroRol reales para comparar
+      console.log("[DIAG] OC numeroRol:", ocCache.map((o)=>JSON.stringify(o.numeroRol)));
+      console.log("[DIAG] Recep numeroRol (únicos):", [...new Set(recepcionesCache.map((r)=>JSON.stringify(r.numeroRol)))]);
+      console.log("[DIAG] Recep con rolId (primeras 3):", recepcionesCache.slice(0,3).map((r)=>({numeroRol:r.numeroRol, rolId:r.rolId, m3:r.m3, mr:r.metrosRuma})));
       for (const oc of ocCache){
         const prodOC = oc.productoId ? productosCache.find((p)=>p.id===oc.productoId) : null;
         // Cruce por rol (flexible: id o número) + producto (flexible: id, código o descripción).
