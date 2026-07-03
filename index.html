@@ -98,6 +98,7 @@
     /* Meses desplegables de recepciones */
     .mes-group { border: 1px solid var(--line); border-radius: 6px; margin-bottom: 10px; overflow: hidden; }
     .mes-header { background: var(--bg); padding: 12px 16px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
+    .rol-subhead td { background: #eaf2fb; border-top: 2px solid var(--sap-blue); font-size: 12.5px; padding: 7px 12px; color: #1c4c98; font-variant-numeric: tabular-nums; }
     .mes-header:hover { background: var(--paper-2); }
     .mes-header .mes-titulo { font-weight: 700; font-size: 14px; }
     .mes-header .mes-stats { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -641,10 +642,38 @@
         <h2><span class="num">03</span> Gastos registrados</h2>
         <div class="actions" style="margin-top:0; margin-bottom:14px">
           <select id="gFiltroRol" style="max-width:280px"><option value="">Todos los roles</option></select>
+          <button class="primary" id="btnNuevoGasto">+ Registrar gasto</button>
         </div>
         <table><thead><tr><th>Rol</th><th>Producto</th><th>Descripción</th><th>Cuenta</th><th>Proveedor</th><th class="num-cell">Total $</th></tr></thead>
         <tbody id="tablaGastos"><tr><td colspan="6" class="empty">Cargando…</td></tr></tbody></table>
       </section>
+    </div>
+
+    <!-- Modal: registro manual de gasto -->
+    <div class="modal-overlay" id="modalGastoForm">
+      <div class="modal">
+        <div class="modal-head"><h3>Registrar gasto</h3><button class="modal-close" data-close-modal="modalGastoForm">&times;</button></div>
+        <div class="modal-body">
+          <div class="grid">
+            <div><label>Rol de predio *</label><select id="gmRol"><option value="">— Selecciona rol —</option></select></div>
+            <div><label>Fecha</label><input id="gmFecha" type="date" /></div>
+            <div><label>Producto</label><input id="gmProducto" placeholder="Código o nombre del producto" /></div>
+            <div><label>Descripción *</label><input id="gmDescripcion" placeholder="Detalle del gasto" /></div>
+            <div><label>Cantidad</label><input id="gmCantidad" type="number" step="0.01" placeholder="0" /></div>
+            <div><label>Costo unitario $</label><input id="gmCostoUnit" type="number" step="1" placeholder="0" /></div>
+            <div><label>Total $ *</label><input id="gmTotal" type="number" step="1" placeholder="Se calcula con cantidad × costo unit." /></div>
+            <div><label>Centro de costo</label><input id="gmCentroCosto" placeholder="Ej: 105-13 FAENA" /></div>
+            <div><label>Cuenta / categoría</label><input id="gmCuenta" placeholder="Ej: COSECHA, FLETE, COMBUSTIBLE" /></div>
+            <div><label>Proveedor</label><input id="gmProveedor" placeholder="Nombre del proveedor" /></div>
+          </div>
+          <p class="hint" style="margin-top:10px">El total se calcula solo al ingresar cantidad y costo unitario, pero puedes escribirlo directamente.</p>
+        </div>
+        <div class="modal-foot">
+          <span class="msg" id="gastoManualMsg" style="margin-right:auto"></span>
+          <button data-close-modal="modalGastoForm">Cancelar</button>
+          <button class="primary" id="btnGuardarGasto">Guardar gasto</button>
+        </div>
+      </div>
     </div>
 
     <!-- USUARIOS (solo admin) -->
@@ -848,6 +877,12 @@
       if (prod) return prodTexto(prod);
       return p.label || p.codigo || "—";
     }
+    // Nombre del predio de un rol: busca por rolId y, si no, por número de rol normalizado.
+    function nombrePredioDe(numeroRol, rolId){
+      let r = rolId ? rolesCache.find((x)=>x.id===rolId) : null;
+      if (!r && numeroRol){ const n = normRol(numeroRol); if (n) r = rolesCache.find((x)=>normRol(x.numeroRol)===n); }
+      return (r && r.nombrePredio) ? r.nombrePredio : "";
+    }
 
     // ================== AUTENTICACIÓN Y PERMISOS ==================
     // Permisos por TIPO (por defecto). Se usan cuando un usuario no tiene permisos granulares.
@@ -891,7 +926,7 @@
       btnGuardar:"roles", btnGuardarPlanta:"plantas", btnGuardarProd:"productos",
       btnGuardarNeg:"negocios", btnGuardarOC:"ordenesCompra",
       btnImportar:"recepciones", btnPreview:"recepciones",
-      btnImportarGasto:"gastos", btnPreviewGasto:"gastos", btnRecalcularOC:"ordenesCompra",
+      btnImportarGasto:"gastos", btnPreviewGasto:"gastos", btnNuevoGasto:"gastos", btnGuardarGasto:"gastos", btnRecalcularOC:"ordenesCompra",
     };
 
     // Aplica permisos a la interfaz: oculta pestañas que el usuario no puede ver,
@@ -1097,6 +1132,7 @@
       setSelect($("rRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona rol —");
       setSelect($("gRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona rol —");
       setSelect($("gFiltroRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "Todos los roles");
+      setSelect($("gmRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona rol —");
     }, (e)=>{
       if (e.code === "permission-denied" || /insufficient permissions/i.test(e.message||"")){
         statusEl.innerHTML = '<span class="dot"></span>Conectando…';
@@ -1976,23 +2012,37 @@
         const totalMr = recs.reduce((a,r)=>a+(r.metrosRuma||0),0);
         const totalM3 = recs.reduce((a,r)=>a+(r.m3||0),0);
         const abierto = (idx===0 && !_recFiltro) ? "" : "";  // todos cerrados por defecto
-        const filas = recs.map((r)=>{
-          return '<tr>'
-            + '<td>'+esc(r.nroGMM||"")+'</td>'
-            + '<td>'+esc(r.fechaIngreso||"")+'</td>'
-            + '<td>'+esc(r.numeroGuia||"")+'</td>'
-            + '<td>'+esc(r.camion||r.patente||"")+'</td>'
-            + '<td class="num-cell">'+fmt((r.metrosRuma||0) || (r.m3||0))+'</td>'
-            + '<td>'+esc(r.comuna||"")+'</td>'
-            + '<td>'+esc(r.nombreDestino||r.nombreBodega||"")+'</td>'
-            + '<td><strong>'+esc(r.numeroRol||"")+'</strong></td>'
-            + '<td>'+esc(r.descripPredio||"")+'</td>'
-            + '<td>'+esc(r.descripcionProducto||r.productoLabel||"")+'</td>'
-            + '<td>'+esc(r.unidadMedida||"")+'</td>'
-            + '<td>'+esc(r.especie||"")+'</td>'
-            + '<td>'+esc(r.planta||"")+'</td>'
-            + '<td>'+esc(r.coordenadasOrigen||"")+'</td>'
-            + '</tr>';
+        // Sub-agrupar por rol dentro del mes
+        const porRol = {};
+        recs.forEach((r)=>{ const k = ((r.numeroRol||"").toString().trim()) || "(SIN ROL)"; (porRol[k] = porRol[k] || []).push(r); });
+        const rolesMes = Object.keys(porRol).sort((a,b)=>a.localeCompare(b, "es", {numeric:true}));
+        const filas = rolesMes.map((rol)=>{
+          const rrs = porRol[rol].slice().sort((a,b)=>(a.fechaIngreso||"").localeCompare(b.fechaIngreso||""));
+          const subMr = rrs.reduce((a,r)=>a+(r.metrosRuma||0),0);
+          const subM3 = rrs.reduce((a,r)=>a+(r.m3||0),0);
+          const predio = rrs.find((r)=>r.descripPredio)?.descripPredio || "";
+          const sub = '<tr class="rol-subhead"><td colspan="14">Rol <strong>'+esc(rol)+'</strong>'
+            + (predio?' · '+esc(predio):'')
+            + ' <span class="hint">('+rrs.length+' recepción'+(rrs.length!==1?'es':'')+')</span>'
+            + '<span style="float:right">'+fmt(Math.round(subMr))+' mr · '+fmt(Math.round(subM3))+' m³</span></td></tr>';
+          return sub + rrs.map((r)=>{
+            return '<tr>'
+              + '<td>'+esc(r.nroGMM||"")+'</td>'
+              + '<td>'+esc(r.fechaIngreso||"")+'</td>'
+              + '<td>'+esc(r.numeroGuia||"")+'</td>'
+              + '<td>'+esc(r.camion||r.patente||"")+'</td>'
+              + '<td class="num-cell">'+fmt((r.metrosRuma||0) || (r.m3||0))+'</td>'
+              + '<td>'+esc(r.comuna||"")+'</td>'
+              + '<td>'+esc(r.nombreDestino||r.nombreBodega||"")+'</td>'
+              + '<td><strong>'+esc(r.numeroRol||"")+'</strong></td>'
+              + '<td>'+esc(r.descripPredio||"")+'</td>'
+              + '<td>'+esc(r.descripcionProducto||r.productoLabel||"")+'</td>'
+              + '<td>'+esc(r.unidadMedida||"")+'</td>'
+              + '<td>'+esc(r.especie||"")+'</td>'
+              + '<td>'+esc(r.planta||"")+'</td>'
+              + '<td>'+esc(r.coordenadasOrigen||"")+'</td>'
+              + '</tr>';
+          }).join("");
         }).join("");
         return '<div class="mes-group'+abierto+'">'
           + '<div class="mes-header" data-mes-toggle>'
@@ -2504,6 +2554,53 @@
 
     $("gFiltroRol").addEventListener("change", renderGastos);
 
+    // ---- REGISTRO MANUAL DE GASTOS (operador y admin) ----
+    $("btnNuevoGasto").addEventListener("click", ()=>{
+      if (!puede("editar","gastos")) return;
+      ["gmRol","gmProducto","gmDescripcion","gmCantidad","gmCostoUnit","gmTotal","gmCentroCosto","gmCuenta","gmProveedor"].forEach((id)=>$(id).value="");
+      $("gmFecha").value = new Date().toISOString().slice(0,10);
+      $("gastoManualMsg").textContent="";
+      abrirModal("modalGastoForm");
+    });
+
+    // Total automático = cantidad × costo unitario (editable a mano)
+    function calcTotalGasto(){
+      const c = parseFloat($("gmCantidad").value), u = parseFloat($("gmCostoUnit").value);
+      if (c>0 && u>0) $("gmTotal").value = Math.round(c*u);
+    }
+    $("gmCantidad").addEventListener("input", calcTotalGasto);
+    $("gmCostoUnit").addEventListener("input", calcTotalGasto);
+
+    $("btnGuardarGasto").addEventListener("click", async ()=>{
+      const m = $("gastoManualMsg");
+      if (!puede("editar","gastos")){ m.textContent="No tienes permiso para registrar gastos."; m.className="msg err"; return; }
+      const rol = rolesCache.find((r)=>r.id===$("gmRol").value);
+      const descripcion = up($("gmDescripcion").value);
+      const monto = parseFloat($("gmTotal").value)||0;
+      if (!rol){ m.textContent="Selecciona el rol de predio."; m.className="msg err"; return; }
+      if (!descripcion){ m.textContent="Ingresa la descripción del gasto."; m.className="msg err"; return; }
+      if (monto<=0){ m.textContent="Ingresa el total del gasto (mayor a 0)."; m.className="msg err"; return; }
+      const fecha = $("gmFecha").value || new Date().toISOString().slice(0,10);
+      $("btnGuardarGasto").disabled = true;
+      try {
+        await addDoc(collection(db,"gastos"), {
+          rolId: rol.id, numeroRol: rol.numeroRol,
+          producto: up($("gmProducto").value), descripcion,
+          cantidad: parseFloat($("gmCantidad").value)||0,
+          costoUnitario: parseFloat($("gmCostoUnit").value)||0,
+          monto, moneda: "CLP",
+          centroCosto: up($("gmCentroCosto").value), cuenta: up($("gmCuenta").value),
+          proveedor: up($("gmProveedor").value),
+          categoria: up($("gmCuenta").value) || "SIN CATEGORÍA",
+          fecha, periodo: fecha.slice(0,7),
+          origen: "manual", fechaCreacion: serverTimestamp(),
+        });
+        m.textContent="✓ Gasto registrado."; m.className="msg ok";
+        setTimeout(()=>{ cerrarModal("modalGastoForm"); }, 600);
+      } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; }
+      finally { $("btnGuardarGasto").disabled = !puede("editar","gastos"); }
+    });
+
     regSnap(query(collection(db,"gastos"), orderBy("fechaCreacion","desc")), (snap) => {
       gastosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       renderGastos();
@@ -2515,7 +2612,7 @@
       const lista = filtro ? gastosCache.filter((g)=>g.rolId===filtro) : gastosCache;
       const t = $("tablaGastos");
       if (!lista.length){ t.innerHTML = '<tr><td colspan="6" class="empty">Sin gastos'+(filtro?" para este rol":"")+'.</td></tr>'; return; }
-      t.innerHTML = lista.slice(0,500).map((g)=>'<tr><td><strong>'+esc(g.numeroRol)+'</strong></td><td>'+esc(g.producto||"")+'</td><td>'+esc(g.descripcion)+'</td><td>'+esc(g.cuenta||g.categoria||"")+'</td><td>'+esc(g.proveedor)+'</td><td class="num-cell">'+fmt(g.monto)+'</td></tr>').join("")
+      t.innerHTML = lista.slice(0,500).map((g)=>{ const pr=nombrePredioDe(g.numeroRol,g.rolId); return '<tr><td><strong>'+esc(g.numeroRol)+'</strong>'+(pr?' <span class="hint">· '+esc(pr)+'</span>':'')+'</td><td>'+esc(g.producto||"")+'</td><td>'+esc(g.descripcion)+'</td><td>'+esc(g.cuenta||g.categoria||"")+'</td><td>'+esc(g.proveedor)+'</td><td class="num-cell">'+fmt(g.monto)+'</td></tr>'; }).join("")
         + (lista.length>500?'<tr><td colspan="6" class="empty">… mostrando 500 de '+lista.length+'.</td></tr>':'');
     }
 
@@ -2530,7 +2627,7 @@
       });
       const filas = Object.entries(porRol).sort((a,b)=>b[1].total-a[1].total);
       const granTotal = filas.reduce((a,[,v])=>a+v.total,0);
-      t.innerHTML = filas.map(([rol,v])=>'<tr><td><strong>'+esc(rol)+'</strong></td><td class="num-cell">'+v.count+'</td><td class="num-cell">'+fmt(v.total)+'</td></tr>').join("")
+      t.innerHTML = filas.map(([rol,v])=>{ const pr=nombrePredioDe(rol,null); return '<tr><td><strong>'+esc(rol)+'</strong>'+(pr?' <span class="hint">· '+esc(pr)+'</span>':'')+'</td><td class="num-cell">'+v.count+'</td><td class="num-cell">'+fmt(v.total)+'</td></tr>'; }).join("")
         + '<tr style="border-top:2px solid var(--line)"><td><strong>Total general</strong></td><td class="num-cell"><strong>'+gastosCache.length+'</strong></td><td class="num-cell"><strong>'+fmt(granTotal)+'</strong></td></tr>';
     }
 
@@ -2823,7 +2920,7 @@
         };
         dibujarChart("chartTopRoles", {
           type:"bar",
-          data:{ labels:rolesTop.map((e)=>e[0]),
+          data:{ labels:rolesTop.map((e)=>{ const pr=nombrePredioDe(e[0],null); return pr ? e[0]+" · "+(pr.length>16?pr.slice(0,16)+"…":pr) : e[0]; }),
             datasets:[
               { label:"MR", data:rolesTop.map((e)=>Math.round(e[1].mr)), backgroundColor:"#0a6ed1" },
               { label:"M³", data:rolesTop.map((e)=>Math.round(e[1].m3)), backgroundColor:"#e9730c" },
