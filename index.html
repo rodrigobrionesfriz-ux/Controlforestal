@@ -2755,12 +2755,15 @@
       const plantaDe = (r) => (r.planta || r.nombreBodega || "(SIN PLANTA)").toString().trim().toUpperCase();
 
       // --- Estilos de etiquetas de datos (valor + porcentaje) ---
-      // Donas: valor y % dentro de cada porción; se ocultan porciones menores al 4% para no tapar el gráfico.
+      // Donas: valor y % fuera de la torta, junto a cada porción; se ocultan porciones menores al 4%.
       const dlDona = (unidad) => ({
         display: (ctx)=>{ const d=ctx.dataset.data; const tot=d.reduce((a,b)=>a+b,0); return tot>0 && d[ctx.dataIndex]/tot >= 0.04; },
-        color:"#fff", textAlign:"center", font:{ weight:"700", size:11 },
+        anchor:"end", align:"end", offset:6, clamp:true,
+        color:"#32363a", textAlign:"center", font:{ weight:"700", size:10 },
         formatter: (v,ctx)=>{ const tot=ctx.dataset.data.reduce((a,b)=>a+b,0); const pct=tot?Math.round(v/tot*100):0; return fmt(v)+(unidad?" "+unidad:"")+"\n"+pct+"%"; },
       });
+      // Espacio alrededor de las donas para que las etiquetas externas no se corten
+      const donaLayout = { padding: { top:24, bottom:24, left:12, right:12 } };
       // Barras: valor sobre la barra (oculta ceros).
       const dlBarra = {
         display: (ctx)=> (ctx.dataset.data[ctx.dataIndex]||0) > 0,
@@ -2787,7 +2790,7 @@
         dibujarChart("chartPlantaMR", {
           type:"doughnut",
           data:{ labels:mrE.map((e)=>e[0]), datasets:[{ data:mrE.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS }] },
-          options:{ responsive:true, plugins:{ legend:{position:"right"}, datalabels:dlDona("mr"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" mr" } } } }
+          options:{ responsive:true, layout:donaLayout, plugins:{ legend:{position:"right"}, datalabels:dlDona("mr"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" mr" } } } }
         });
       } else if (charts["chartPlantaMR"]){ charts["chartPlantaMR"].destroy(); delete charts["chartPlantaMR"]; }
       // Dona M³ (solo plantas con M³ > 0)
@@ -2796,7 +2799,7 @@
         dibujarChart("chartPlantaM3", {
           type:"doughnut",
           data:{ labels:m3E.map((e)=>e[0]), datasets:[{ data:m3E.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS }] },
-          options:{ responsive:true, plugins:{ legend:{position:"right"}, datalabels:dlDona("m³"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" m³" } } } }
+          options:{ responsive:true, layout:donaLayout, plugins:{ legend:{position:"right"}, datalabels:dlDona("m³"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" m³" } } } }
         });
       } else if (charts["chartPlantaM3"]){ charts["chartPlantaM3"].destroy(); delete charts["chartPlantaM3"]; }
 
@@ -2850,7 +2853,7 @@
       dibujarChart("chartGastos", {
         type:"doughnut",
         data:{ labels:catE.map((e)=>e[0]), datasets:[{ data:catE.map((e)=>e[1]), backgroundColor:SAP_COLORS }] },
-        options:{ responsive:true, plugins:{legend:{position:"right"}, datalabels:dlDona("")} }
+        options:{ responsive:true, layout:donaLayout, plugins:{legend:{position:"right"}, datalabels:dlDona("")} }
       });
 
       // --- Gráfico 4: volumen por mes [líneas: MR y M³] ---
