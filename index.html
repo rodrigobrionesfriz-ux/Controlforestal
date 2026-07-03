@@ -2974,7 +2974,12 @@
       renderIngresos();
       renderIngTotales();
       programarResumen();
-    }, ()=>{});
+    }, (e)=>{
+      if (e.code === "permission-denied" || /insufficient permissions/i.test(e.message||"")){
+        $("ingresosAgrupados").innerHTML = '<p class="empty" style="color:var(--warn)">⚠️ Sin permiso para leer ingresos. Agrega la colección <b>ingresos</b> a las reglas de Firestore.</p>';
+        $("tablaIngTotales").innerHTML = '<tr><td colspan="3" class="empty">Sin permiso.</td></tr>';
+      }
+    });
 
     $("ingFiltroProveedor").addEventListener("change", renderIngresos);
 
