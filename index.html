@@ -484,7 +484,9 @@
         </div>
         <div class="actions" style="margin-top:16px; margin-bottom:12px">
           <label style="display:inline-flex; align-items:center; gap:6px; margin:0; font-weight:500"><input type="checkbox" id="ocMostrarTodas" style="width:auto" /> Mostrar también las completadas</label>
+          <button class="primary" id="btnRecalcularOC" style="background:var(--muted); border-color:var(--muted)">↻ Recalcular avance</button>
           <span class="hint" id="ocCount"></span>
+          <span class="msg" id="ocRecalcMsg"></span>
         </div>
         <table><thead><tr><th>OC</th><th>Rol</th><th>Producto</th><th>Planta</th><th class="num-cell">Mr (rec/sol)</th><th class="num-cell">m³ (rec/sol)</th><th>Estado</th></tr></thead>
         <tbody id="tablaOC"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
@@ -1548,6 +1550,19 @@
     }
     $("ocMostrarTodas").addEventListener("change", ()=>{ ocMostrarTodas = $("ocMostrarTodas").checked; renderOCTabla(); });
 
+    $("btnRecalcularOC").addEventListener("click", async ()=>{
+      if (!puede("editar")){ $("ocRecalcMsg").textContent="No tienes permiso para recalcular."; $("ocRecalcMsg").className="msg err"; return; }
+      const btn = $("btnRecalcularOC"); btn.disabled = true;
+      $("ocRecalcMsg").textContent = "Recalculando avance de todas las OC…"; $("ocRecalcMsg").className="msg";
+      try {
+        const r = await recalcularTodasLasOC();
+        let txt = "✓ Listo. "+r.actualizadas+" OC actualizadas de "+r.total+".";
+        if (r.sinCruce>0) txt += " ⚠️ "+r.sinCruce+" OC sin recepciones que crucen (revisa que rol y producto coincidan).";
+        $("ocRecalcMsg").textContent = txt; $("ocRecalcMsg").className = r.sinCruce>0 ? "msg warn" : "msg ok";
+      } catch(e){ $("ocRecalcMsg").textContent = "Error: "+e.message; $("ocRecalcMsg").className="msg err"; }
+      finally { btn.disabled = false; }
+    });
+
     function verDetalleOC(id){
       const o = ocCache.find((x)=>x.id===id); if (!o) return;
       ocDetalleId = id;
@@ -1648,6 +1663,8 @@
           m.textContent="✓ OC guardada."; m.className="msg ok";
         }
         setTimeout(()=> cerrarModal("modalOCForm"), 600);
+        // Recalcular avance por si ya hay recepciones para este rol+producto
+        setTimeout(()=>{ recalcularTodasLasOC().catch(()=>{}); }, 900);
       } catch(e){ m.textContent="Error: "+e.message; m.className="msg err"; } finally { $("btnGuardarOC").disabled = !puede("editar"); }
     });
 
@@ -1674,9 +1691,16 @@
     });
 
     let _recFiltro = "";
+    let _recalcTimer = null;
     regSnap(query(collection(db,"recepciones"), orderBy("fechaCreacion","desc")), (snap) => {
       recepcionesCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       renderRecepcionesPorMes();
+      // Recalcular el avance de las OC automáticamente (con debounce), para que el cruce
+      // funcione sin importar el orden en que se crearon OC y recepciones.
+      if (puede("editar") && ocCache.length){
+        clearTimeout(_recalcTimer);
+        _recalcTimer = setTimeout(()=>{ recalcularTodasLasOC().catch(()=>{}); }, 2500);
+      }
     }, ()=>{});
 
     const MESES_NOMBRE = ["","Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -1991,6 +2015,36 @@
         else if (restMr<=um || restM3<=um) estado="por_completar";
         await updateDoc(doc(db,"ordenesCompra",oc.id), { "recibido.metrosRuma":sumMr, "recibido.m3":sumM3, estado });
       }
+    }
+
+    // Recalcula el avance de TODAS las OC contra TODAS las recepciones.
+    // Esto hace que el cruce funcione sin importar el orden (crear OC antes o después de importar).
+    // Devuelve un resumen para diagnóstico.
+    async function recalcularTodasLasOC(){
+      let actualizadas = 0, sinCruce = 0;
+      for (const oc of ocCache){
+        // Cruce por rol + producto. Si la OC no tiene producto, cruza solo por rol.
+        const recs = recepcionesCache.filter((r)=>{
+          if (r.rolId !== oc.rolId) return false;
+          if (oc.productoId) return r.productoId === oc.productoId;
+          return true;  // OC sin producto: suma todas las recepciones del rol
+        });
+        const sumMr = recs.reduce((a,r)=>a+(r.metrosRuma||0),0);
+        const sumM3 = recs.reduce((a,r)=>a+(r.m3||0),0);
+        const solMr = oc.solicitado?.metrosRuma||0, solM3 = oc.solicitado?.m3||0, um = oc.umbralAlerta??300;
+        const restMr = solMr-sumMr, restM3 = solM3-sumM3;
+        let estado="abierta";
+        if (restMr<=0 && restM3<=0) estado="completada";
+        else if (restMr<=um || restM3<=um) estado="por_completar";
+        if (recs.length===0) sinCruce++;
+        // Solo actualizar si cambió algo (evita escrituras innecesarias)
+        const yaMr = oc.recibido?.metrosRuma||0, yaM3 = oc.recibido?.m3||0;
+        if (yaMr!==sumMr || yaM3!==sumM3 || oc.estado!==estado){
+          await updateDoc(doc(db,"ordenesCompra",oc.id), { "recibido.metrosRuma":sumMr, "recibido.m3":sumM3, estado });
+          actualizadas++;
+        }
+      }
+      return { total: ocCache.length, actualizadas, sinCruce };
     }
 
     $("btnImportar").addEventListener("click", async () => {
