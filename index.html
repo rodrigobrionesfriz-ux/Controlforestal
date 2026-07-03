@@ -201,7 +201,7 @@
       <button data-tab="negocios"><span class="ico">🤝</span><span class="label">Negocios</span></button>
       <button data-tab="oc"><span class="ico">📋</span><span class="label">Órdenes de compra</span></button>
       <button data-tab="recepciones"><span class="ico">🚚</span><span class="label">Recepciones</span></button>
-      <button data-tab="importar"><span class="ico">📥</span><span class="label">Importar Excel</span></button>
+      <button data-tab="importar" data-admin><span class="ico">📥</span><span class="label">Importar Excel</span></button>
       <button data-tab="gastos"><span class="ico">💰</span><span class="label">Gastos</span></button>
       <div class="sep"></div>
       <button data-tab="usuarios" data-admin="1"><span class="ico">👥</span><span class="label">Usuarios</span></button>
@@ -220,13 +220,13 @@
         <div class="kpi"><div class="label">Metros cúbicos</div><div class="value" id="kpiM3">0 <span class="unit">m³</span></div></div>
       </div>
       <div class="kpi-grid">
-        <div class="kpi"><div class="label">Gastos totales</div><div class="value" id="kpiGastos">0 <span class="unit">$</span></div></div>
+        <div class="kpi"><div class="label">Gastos totales</div><div class="value" id="kpiGastos"><span class="unit">$</span> 0</div></div>
         <div class="kpi"><div class="label">Plantas / Clientes</div><div class="value" id="kpiPlantas">0</div></div>
         <div class="kpi"><div class="label">Productos</div><div class="value" id="kpiProd">0</div></div>
         <div class="kpi"><div class="label">Órdenes de compra</div><div class="value" id="kpiOC">0</div></div>
       </div>
       <div class="kpi-grid">
-        <div class="kpi"><div class="label">OC por completar</div><div class="value" id="kpiOCAlerta" style="color:var(--warn)">0</div></div>
+        <div class="kpi" id="kpiOCAlertaCard" style="cursor:pointer" title="Ver órdenes de compra pendientes"><div class="label">OC por completar</div><div class="value" id="kpiOCAlerta" style="color:var(--warn)">0</div></div>
       </div>
       <div class="chart-grid">
         <div class="chart-box"><h3>Recepciones por planta — MR</h3><canvas id="chartPlantaMR"></canvas></div>
@@ -619,14 +619,13 @@
 
     <!-- GASTOS -->
     <div class="view" id="view-gastos">
-      <section class="card">
+      <section class="card" id="secImportarGastos">
         <h2><span class="num">01</span> Importar gastos desde Excel</h2>
-        <p class="sub">Carga el archivo de gastos. Se asocian al rol de predio indicado en la columna ROL.</p>
         <div class="actions" style="margin-top:0">
           <input type="file" id="gastoFile" accept=".xlsx,.xls" style="max-width:340px" />
           <button class="primary" id="btnPreviewGasto" disabled>Analizar archivo</button>
         </div>
-        <div class="hint" style="margin-top:8px">Columnas esperadas: NÚMERO · PRODUCTO · DESCRIPCIÓN · CANTIDAD · COSTO UNITARIO · TOTAL · CENTRO COSTO · CUENTA · PROVEEDOR · ROL. El rol se toma de la columna ROL (o del inicio de CENTRO COSTO si viene con formato "105-13 …").</div>
+        <div class="hint" style="margin-top:8px">Columnas esperadas: FECHA · NÚMERO · PRODUCTO · DESCRIPCIÓN · CANTIDAD · COSTO UNITARIO · TOTAL · CENTRO COSTO · CUENTA · PROVEEDOR · ROL. La fecha se toma de la columna FECHA (columna A). El rol se toma de la columna ROL (o del inicio de CENTRO COSTO si viene con formato "105-13 …").</div>
         <div id="gastoPreviewCard" style="display:none; margin-top:18px">
           <p class="msg" id="gastoPreviewResumen"></p>
           <div style="max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:6px; margin-top:10px">
@@ -650,9 +649,21 @@
           <select id="gFiltroRol" style="max-width:280px"><option value="">Todos los roles</option></select>
           <button class="primary" id="btnNuevoGasto">+ Registrar gasto</button>
         </div>
-        <table><thead><tr><th>Rol</th><th>Producto</th><th>Descripción</th><th>Cuenta</th><th>Proveedor</th><th class="num-cell">Total $</th></tr></thead>
-        <tbody id="tablaGastos"><tr><td colspan="6" class="empty">Cargando…</td></tr></tbody></table>
+        <div id="gastosAgrupados" style="max-height:calc(100vh - 260px); overflow-y:auto; overflow-x:hidden; padding-right:4px">
+          <p class="empty">Cargando…</p>
+        </div>
       </section>
+    </div>
+
+    <!-- Modal: detalle de gastos de un rol -->
+    <div class="modal-overlay" id="modalGastoDetalle">
+      <div class="modal" style="max-width:820px">
+        <div class="modal-head"><h3 id="gastoDetTitulo">Gastos del rol</h3><button class="modal-close" data-close-modal="modalGastoDetalle">&times;</button></div>
+        <div class="modal-body" id="gastoDetBody" style="max-height:60vh; overflow-y:auto"></div>
+        <div class="modal-foot">
+          <button data-close-modal="modalGastoDetalle">Cerrar</button>
+        </div>
+      </div>
     </div>
 
     <!-- Modal: registro manual de gasto -->
@@ -956,6 +967,9 @@
       });
       $("btnCrearUsuario").disabled = !esAdmin;
       $("btnGuardarEmpresa").disabled = !esAdmin;
+      // Importadores Excel: solo admin
+      if ($("secImportarGastos")) $("secImportarGastos").style.display = esAdmin ? "" : "none";
+      if ($("btnIrImportar")) $("btnIrImportar").style.display = esAdmin ? "" : "none";
     }
 
     // Login / registro
@@ -1113,6 +1127,12 @@
         b.classList.add("active");
         $("view-" + b.dataset.tab).classList.add("active");
       });
+    });
+
+    // Clic en KPI "OC por completar" → ir a la pestaña de OC
+    $("kpiOCAlertaCard").addEventListener("click", ()=>{
+      const btn = document.querySelector('nav.sidebar button[data-tab="oc"]');
+      if (btn) btn.click();
     });
 
     function setSelect(sel, items, mapFn, placeholder) {
@@ -2514,12 +2534,28 @@
           const total = parseFloat(pick(row, ["total"])) || 0;
           const cantidad = parseFloat(pick(row, ["cantidad"])) || 0;
           const costoUnit = parseFloat(pick(row, ["costo_unitario","costo_unit."])) || 0;
+          // Fecha: columna FECHA (puede venir como texto "dd/mm/yyyy", "yyyy-mm-dd", o serial de Excel)
+          let fechaRaw = pick(row, ["fecha"]).toString().trim();
+          let fecha = "";
+          if (fechaRaw){
+            // Intentar parsear formatos comunes
+            let dp = fechaRaw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+            if (dp) fecha = dp[3]+"-"+dp[2].padStart(2,"0")+"-"+dp[1].padStart(2,"0");
+            else { dp = fechaRaw.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/); if (dp) fecha = dp[1]+"-"+dp[2].padStart(2,"0")+"-"+dp[3].padStart(2,"0"); }
+            // Serial de Excel (número > 30000)
+            if (!fecha && !isNaN(fechaRaw) && parseFloat(fechaRaw)>30000){
+              const d = new Date(Math.round((parseFloat(fechaRaw)-25569)*86400*1000));
+              if (!isNaN(d.getTime())) fecha = d.toISOString().slice(0,10);
+            }
+            if (!fecha) fecha = fechaRaw; // dejar tal cual si no se pudo parsear
+          }
+          const periodo = fecha.length>=7 ? fecha.slice(0,7) : "";
           const errores = [];
           if (!numeroRol) errores.push("falta rol");
           else if (!rol) errores.push("rol no existe");
           if (total<=0 && costoUnit<=0) errores.push("sin monto");
           return {
-            fila: i+2, numeroRol, rol,
+            fila: i+2, numeroRol, rol, fecha, periodo,
             numero: pick(row, ["numero","número","n°","nro"]).toString().trim(),
             producto: pick(row, ["producto"]).toString().trim(),
             descripcion: pick(row, ["descripcion","descripción"]).toString().trim(),
@@ -2559,7 +2595,8 @@
             centroCosto: up(g.centroCosto), cuenta: up(g.cuenta),
             proveedor: up(g.proveedor),
             categoria: up(g.cuenta) || "SIN CATEGORÍA",
-            periodo: new Date().toISOString().slice(0,7),
+            fecha: g.fecha || null,
+            periodo: g.periodo || new Date().toISOString().slice(0,7),
             origen: "importacion_excel", fechaCreacion: serverTimestamp(),
           });
           ok++; if (ok%50===0) m.textContent = "Importando… "+ok+" de "+validas.length;
@@ -2627,10 +2664,66 @@
     function renderGastos(){
       const filtro = $("gFiltroRol").value;
       const lista = filtro ? gastosCache.filter((g)=>g.rolId===filtro) : gastosCache;
-      const t = $("tablaGastos");
-      if (!lista.length){ t.innerHTML = '<tr><td colspan="6" class="empty">Sin gastos'+(filtro?" para este rol":"")+'.</td></tr>'; return; }
-      t.innerHTML = lista.slice(0,500).map((g)=>{ const pr=nombrePredioDe(g.numeroRol,g.rolId); return '<tr><td><strong>'+esc(g.numeroRol)+'</strong>'+(pr?' <span class="hint">· '+esc(pr)+'</span>':'')+'</td><td>'+esc(g.producto||"")+'</td><td>'+esc(g.descripcion)+'</td><td>'+esc(g.cuenta||g.categoria||"")+'</td><td>'+esc(g.proveedor)+'</td><td class="num-cell">'+fmt(g.monto)+'</td></tr>'; }).join("")
-        + (lista.length>500?'<tr><td colspan="6" class="empty">… mostrando 500 de '+lista.length+'.</td></tr>':'');
+      const cont = $("gastosAgrupados");
+      if (!lista.length){ cont.innerHTML = '<p class="empty">Sin gastos'+(filtro?" para este rol":"")+'.</p>'; return; }
+
+      // 1) Agrupar por rol
+      const porRol = {};
+      lista.forEach((g)=>{
+        const k = (g.numeroRol||"").toString().trim() || "(sin rol)";
+        (porRol[k] = porRol[k] || []).push(g);
+      });
+      const rolesOrd = Object.keys(porRol).sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
+
+      cont.innerHTML = rolesOrd.map((rol, ri)=>{
+        const gastos = porRol[rol];
+        const totalRol = gastos.reduce((a,g)=>a+(g.monto||0),0);
+        const predio = nombrePredioDe(rol, gastos[0]?.rolId);
+
+        return '<div class="mes-group" style="margin-bottom:8px; cursor:pointer" data-gasto-ver-rol="'+esc(rol)+'">'
+          +'<div class="mes-header">'
+          +'<span class="mes-titulo">'+esc(rol)+(predio?' · '+esc(predio):'')
+          +' <span class="hint">('+gastos.length+' gasto'+(gastos.length!==1?'s':'')+')</span></span>'
+          +'<span class="mes-stats"><span class="unit">$</span> '+fmt(totalRol)+'</span>'
+          +'</div></div>';
+      }).join("");
+
+      // Listener: clic en rol abre modal de detalle
+      cont.querySelectorAll("[data-gasto-ver-rol]").forEach((div)=> div.addEventListener("click", ()=>{
+        const rolNum = div.dataset.gastoVerRol;
+        abrirDetalleGastoRol(rolNum);
+      }));
+    }
+
+    function abrirDetalleGastoRol(rolNum){
+      const gastos = gastosCache.filter((g)=>(g.numeroRol||"").toString().trim()===rolNum);
+      const predio = nombrePredioDe(rolNum, gastos[0]?.rolId);
+      $("gastoDetTitulo").textContent = "Gastos · Rol "+rolNum+(predio?" · "+predio:"");
+
+      // Ordenar por fecha (más reciente primero)
+      const ordenados = gastos.slice().sort((a,b)=>(b.fecha||b.periodo||"").localeCompare(a.fecha||a.periodo||""));
+      const totalRol = ordenados.reduce((a,g)=>a+(g.monto||0),0);
+
+      // Agrupar por mes
+      const porMes = {};
+      ordenados.forEach((g)=>{ const m = g.periodo || g.fecha?.slice(0,7) || "Sin fecha"; (porMes[m] = porMes[m] || []).push(g); });
+      const mesesOrd = Object.keys(porMes).sort((a,b)=>b.localeCompare(a));
+
+      let html = '<div style="margin-bottom:12px;font-size:14px"><strong>Total: <span class="unit">$</span> '+fmt(totalRol)+'</strong> · '+ordenados.length+' gasto'+(ordenados.length!==1?'s':'')+'</div>';
+
+      html += mesesOrd.map((mes)=>{
+        const gs = porMes[mes];
+        const totalMes = gs.reduce((a,g)=>a+(g.monto||0),0);
+        return '<div style="margin-bottom:14px">'
+          +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--sap-blue)">'+esc(nombreMes(mes))
+          +' <span style="font-weight:400;color:var(--muted)">('+gs.length+') · <span class="unit">$</span> '+fmt(totalMes)+'</span></div>'
+          +'<table style="font-size:13px"><thead><tr><th>Fecha</th><th>Producto</th><th>Descripción</th><th>Cuenta</th><th>Proveedor</th><th class="num-cell">Total $</th></tr></thead>'
+          +'<tbody>'+gs.map((g)=>'<tr><td>'+esc(g.fecha||"")+'</td><td>'+esc(g.producto||"")+'</td><td>'+esc(g.descripcion||"")+'</td><td>'+esc(g.cuenta||g.categoria||"")+'</td><td>'+esc(g.proveedor||"")+'</td><td class="num-cell">'+fmt(g.monto||0)+'</td></tr>').join("")
+          +'</tbody></table></div>';
+      }).join("");
+
+      $("gastoDetBody").innerHTML = html;
+      abrirModal("modalGastoDetalle");
     }
 
     function renderTotales(){
@@ -2859,7 +2952,7 @@
       const totalM3 = recepcionesCache.reduce((a,r)=>a+(r.m3||0),0);
       $("kpiM3").innerHTML = fmt(Math.round(totalM3)) + ' <span class="unit">m³</span>';
       const totalGastos = gastosCache.reduce((a,g)=>a+(g.monto||0),0);
-      $("kpiGastos").innerHTML = fmt(totalGastos) + ' <span class="unit">$</span>';
+      $("kpiGastos").innerHTML = '<span class="unit">$</span> ' + fmt(totalGastos);
       const ocAlerta = ocCache.filter((o)=>{ const rm=(o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0); const r3=(o.solicitado?.m3||0)-(o.recibido?.m3||0); const u=o.umbralAlerta??300; return (rm>0||r3>0)&&(rm<=u||r3<=u); }).length;
       $("kpiOCAlerta").textContent = fmt(ocAlerta);
 
