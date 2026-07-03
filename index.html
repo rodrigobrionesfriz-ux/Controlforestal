@@ -98,7 +98,13 @@
     /* Meses desplegables de recepciones */
     .mes-group { border: 1px solid var(--line); border-radius: 6px; margin-bottom: 10px; overflow: hidden; }
     .mes-header { background: var(--bg); padding: 12px 16px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
-    .rol-subhead td { background: #eaf2fb; border-top: 2px solid var(--sap-blue); font-size: 12.5px; padding: 7px 12px; color: #1c4c98; font-variant-numeric: tabular-nums; }
+    .rol-subhead td { background: #eaf2fb; border-top: 2px solid var(--sap-blue); font-size: 12.5px; padding: 7px 12px; color: #1c4c98; font-variant-numeric: tabular-nums; cursor: pointer; user-select: none; }
+    .rol-subhead td:hover { background: #d6e7f9; }
+    .rol-subhead .rol-flecha { transition: transform .2s; display: inline-block; margin-right: 6px; font-size: 10px; color: #5b738b; }
+    .rol-subhead.rol-abierto .rol-flecha { transform: rotate(90deg); }
+    .rol-detalle { display: none; }
+    .rol-subhead.rol-abierto ~ .rol-detalle { display: table-row; }
+    #recMeses { max-height: calc(100vh - 230px); overflow-y: auto; overflow-x: hidden; padding-right: 4px; }
     .mes-header:hover { background: var(--paper-2); }
     .mes-header .mes-titulo { font-weight: 700; font-size: 14px; }
     .mes-header .mes-stats { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -227,7 +233,7 @@
         <div class="chart-box"><h3>Recepciones por planta — M³</h3><canvas id="chartPlantaM3"></canvas></div>
         <div class="chart-box"><h3>Recepciones por rol — Top 10</h3><canvas id="chartTopRoles"></canvas></div>
         <div class="chart-box"><h3>Avance de OC (recibido vs solicitado)</h3><canvas id="chartOC"></canvas></div>
-        <div class="chart-box"><h3>Gastos por categoría</h3><canvas id="chartGastos"></canvas></div>
+        <div class="chart-box"><h3>Gastos por rol</h3><canvas id="chartGastos"></canvas></div>
         <div class="chart-box"><h3>Volumen por mes</h3><canvas id="chartMes"></canvas></div>
       </div>
       <div class="chart-grid" style="margin-top:18px">
@@ -2016,17 +2022,18 @@
         const porRol = {};
         recs.forEach((r)=>{ const k = ((r.numeroRol||"").toString().trim()) || "(SIN ROL)"; (porRol[k] = porRol[k] || []).push(r); });
         const rolesMes = Object.keys(porRol).sort((a,b)=>a.localeCompare(b, "es", {numeric:true}));
-        const filas = rolesMes.map((rol)=>{
+        const filas = rolesMes.map((rol, ri)=>{
           const rrs = porRol[rol].slice().sort((a,b)=>(a.fechaIngreso||"").localeCompare(b.fechaIngreso||""));
           const subMr = rrs.reduce((a,r)=>a+(r.metrosRuma||0),0);
           const subM3 = rrs.reduce((a,r)=>a+(r.m3||0),0);
           const predio = rrs.find((r)=>r.descripPredio)?.descripPredio || "";
-          const sub = '<tr class="rol-subhead"><td colspan="14">Rol <strong>'+esc(rol)+'</strong>'
+          const gid = p+"-"+ri;
+          const sub = '<tbody><tr class="rol-subhead" data-rol-toggle="'+gid+'"><td colspan="14"><span class="rol-flecha">▶</span>Rol <strong>'+esc(rol)+'</strong>'
             + (predio?' · '+esc(predio):'')
             + ' <span class="hint">('+rrs.length+' recepción'+(rrs.length!==1?'es':'')+')</span>'
-            + '<span style="float:right">'+fmt(Math.round(subMr))+' mr · '+fmt(Math.round(subM3))+' m³</span></td></tr>';
-          return sub + rrs.map((r)=>{
-            return '<tr>'
+            + '<span style="float:right">'+fmt(Math.round(subMr))+' mr · '+fmt(Math.round(subM3))+' m³</span></td></tr></tbody>';
+          const detRows = rrs.map((r)=>{
+            return '<tr class="rol-detalle" data-rol-group="'+gid+'">'
               + '<td>'+esc(r.nroGMM||"")+'</td>'
               + '<td>'+esc(r.fechaIngreso||"")+'</td>'
               + '<td>'+esc(r.numeroGuia||"")+'</td>'
@@ -2043,6 +2050,7 @@
               + '<td>'+esc(r.coordenadasOrigen||"")+'</td>'
               + '</tr>';
           }).join("");
+          return sub + '<tbody>'+detRows+'</tbody>';
         }).join("");
         return '<div class="mes-group'+abierto+'">'
           + '<div class="mes-header" data-mes-toggle>'
@@ -2051,12 +2059,21 @@
           + '</div>'
           + '<div class="mes-body"><table><thead><tr>'
           +   '<th>NºGMM</th><th>Fecha Ing</th><th>NºG/D</th><th>Camión</th><th class="num-cell">Cant</th><th>Comuna</th><th>Destino</th><th>Rol</th><th>Predio</th><th>Descripción</th><th>UM</th><th>Especie</th><th>Planta</th><th>Coord. origen</th>'
-          + '</tr></thead><tbody>'+filas+'</tbody></table></div>'
+          + '</tr></thead>'+filas+'</table></div>'
           + '</div>';
       }).join("");
 
-      // Listeners de despliegue
+      // Listeners de despliegue de mes
       cont.querySelectorAll("[data-mes-toggle]").forEach((h)=> h.addEventListener("click", ()=> h.parentElement.classList.toggle("abierto")));
+      // Listeners de despliegue de rol dentro de cada mes
+      cont.querySelectorAll("[data-rol-toggle]").forEach((tr)=> tr.addEventListener("click", ()=>{
+        tr.classList.toggle("rol-abierto");
+        const gid = tr.dataset.rolToggle;
+        // El tbody siguiente contiene los detalles; alternamos display
+        const detRows = cont.querySelectorAll('[data-rol-group="'+gid+'"]');
+        const show = tr.classList.contains("rol-abierto");
+        detRows.forEach((r)=> r.style.display = show ? "table-row" : "none");
+      }));
     }
 
     $("btnBuscarRec").addEventListener("click", ()=>{ _recFiltro = $("recBuscar").value.trim(); renderRecepcionesPorMes(); });
@@ -2860,7 +2877,7 @@
         formatter: (v,ctx)=>{ const tot=ctx.dataset.data.reduce((a,b)=>a+b,0); const pct=tot?Math.round(v/tot*100):0; return fmt(v)+(unidad?" "+unidad:"")+"\n"+pct+"%"; },
       });
       // Espacio alrededor de las donas para que las etiquetas externas no se corten
-      const donaLayout = { padding: { top:26, bottom:10, left:34, right:34 } };
+      const donaLayout = { padding: { top:26, bottom:40, left:34, right:34 } };
       // Barras: valor sobre la barra (oculta ceros).
       const dlBarra = {
         display: (ctx)=> (ctx.dataset.data[ctx.dataIndex]||0) > 0,
@@ -2943,15 +2960,43 @@
         options:{ responsive:true, plugins:{legend:{position:"bottom"}, datalabels:dlBarra}, scales:{ y:{beginAtZero:true, grace:"15%"} } }
       });
 
-      // --- Gráfico 3: gastos por categoría [circular] ---
-      const porCat = {};
-      gastosCache.forEach((g)=>{ const k=g.categoria||"SIN CATEGORÍA"; porCat[k]=(porCat[k]||0)+(g.monto||0); });
-      const catE = Object.entries(porCat).sort((a,b)=>b[1]-a[1]);
-      dibujarChart("chartGastos", {
-        type:"doughnut",
-        data:{ labels:catE.map((e)=>e[0]), datasets:[{ data:catE.map((e)=>e[1]), backgroundColor:SAP_COLORS }] },
-        options:{ responsive:true, layout:donaLayout, plugins:{legend:{position:"bottom", labels:{boxWidth:14}}, datalabels:dlDona("")} }
+      // --- Gráfico 3: gastos por rol [líneas, etiquetas en M$ con 2 decimales] ---
+      // Formato M$: dividir por 1.000.000 y mostrar con 2 decimales + " M$"
+      const fmtM = (v)=> (v/1000000).toFixed(2) + " M$";
+      // Agrupar gastos por rol y por periodo (mes)
+      const gastosRolMes = {};
+      const mesesGasto = new Set();
+      gastosCache.forEach((g)=>{
+        const rol = g.numeroRol || "(sin rol)";
+        const mes = g.periodo || g.fecha?.slice(0,7) || "s/f";
+        mesesGasto.add(mes);
+        if (!gastosRolMes[rol]) gastosRolMes[rol] = {};
+        gastosRolMes[rol][mes] = (gastosRolMes[rol][mes]||0) + (g.monto||0);
       });
+      const mesesGastoArr = [...mesesGasto].sort();
+      // Top 10 roles por gasto total
+      const rolesTotalGasto = Object.entries(gastosRolMes).map(([rol,meses])=>({ rol, total:Object.values(meses).reduce((a,v)=>a+v,0) }))
+        .sort((a,b)=>b.total-a.total).slice(0,10);
+      const dlGastoLinea = {
+        display: (ctx)=> (ctx.dataset.data[ctx.dataIndex]||0) > 0,
+        align:"top", clamp:true, color: (ctx)=>ctx.dataset.borderColor, font:{ size:9, weight:"600" },
+        formatter: (v)=>fmtM(v),
+      };
+      if (rolesTotalGasto.length && mesesGastoArr.length){
+        dibujarChart("chartGastos", {
+          type:"line",
+          data:{ labels:mesesGastoArr.map((m)=>nombreMes(m)),
+            datasets: rolesTotalGasto.map((rt,i)=>{
+              const c = SAP_COLORS[i%SAP_COLORS.length];
+              const pr = nombrePredioDe(rt.rol, null);
+              return { label: rt.rol+(pr?" · "+pr:""), data:mesesGastoArr.map((m)=>gastosRolMes[rt.rol][m]||0),
+                borderColor:c, backgroundColor:c+"33", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3 };
+            }) },
+          options:{ responsive:true, plugins:{ legend:{position:"bottom", labels:{boxWidth:14}}, datalabels:dlGastoLinea,
+            tooltip:{ callbacks:{ label:(c)=>c.dataset.label+": "+fmtM(c.parsed.y) } } },
+            scales:{ y:{ beginAtZero:true, grace:"15%", ticks:{ callback:(v)=>fmtM(v) } } } }
+        });
+      } else if (charts["chartGastos"]){ charts["chartGastos"].destroy(); delete charts["chartGastos"]; }
 
       // --- Gráfico 4: volumen por mes [líneas: MR y M³] ---
       const porMesMR = {}, porMesM3 = {};
