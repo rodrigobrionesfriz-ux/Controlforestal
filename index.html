@@ -51,7 +51,8 @@
     .card .sub { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
     .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
     .grid.g3 { grid-template-columns: repeat(3, 1fr); }
-    @media (max-width: 760px) { nav.sidebar { width: 56px; } nav.sidebar button .label { display: none; } main { padding: 16px; } .grid, .grid.g3 { grid-template-columns: 1fr; } }
+    .grid.g4 { grid-template-columns: repeat(4, 1fr); }
+    @media (max-width: 760px) { nav.sidebar { width: 56px; } nav.sidebar button .label { display: none; } main { padding: 16px; } .grid, .grid.g3, .grid.g4 { grid-template-columns: 1fr; } }
     label { display: block; font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 5px; }
     input, select { width: 100%; padding: 9px 11px; border: 1px solid var(--line-2); border-radius: 4px; font-size: 14px; font-family: inherit; background: var(--surface); }
     input:focus, select:focus { outline: 2px solid var(--sap-blue); border-color: transparent; }
@@ -221,10 +222,11 @@
         <div class="kpi"><div class="label">OC por completar</div><div class="value" id="kpiOCAlerta" style="color:var(--warn)">0</div></div>
       </div>
       <div class="chart-grid">
-        <div class="chart-box"><h3>Recepciones por planta (mr)</h3><canvas id="chartPlanta"></canvas></div>
+        <div class="chart-box"><h3>Recepciones por planta — MR</h3><canvas id="chartPlantaMR"></canvas></div>
+        <div class="chart-box"><h3>Recepciones por planta — M³</h3><canvas id="chartPlantaM3"></canvas></div>
         <div class="chart-box"><h3>Avance de OC (recibido vs solicitado)</h3><canvas id="chartOC"></canvas></div>
         <div class="chart-box"><h3>Gastos por categoría</h3><canvas id="chartGastos"></canvas></div>
-        <div class="chart-box"><h3>Metros ruma por mes</h3><canvas id="chartMes"></canvas></div>
+        <div class="chart-box"><h3>Volumen por mes</h3><canvas id="chartMes"></canvas></div>
       </div>
       <div class="chart-grid" style="margin-top:18px">
         <div class="chart-box"><h3>Evolución mensual MR por planta</h3><canvas id="chartLineaMR"></canvas></div>
@@ -416,7 +418,7 @@
           </div>
           <button class="primary" id="btnNuevoNeg">+ Agregar negocio</button>
         </div>
-        <table style="margin-top:18px"><thead><tr><th>Rol</th><th>Proveedor</th><th>Especie</th><th class="num-cell">MR</th><th class="num-cell">M³</th><th>Planta</th><th>OC</th></tr></thead>
+        <table style="margin-top:18px"><thead><tr><th>Rol</th><th>Proveedor</th><th>Especie</th><th class="num-cell">MR (rec/comp)</th><th class="num-cell">M³ (rec/comp)</th><th>Planta</th><th>OC</th></tr></thead>
         <tbody id="tablaNeg"><tr><td colspan="7" class="empty">Cargando&hellip;</td></tr></tbody></table>
       </section>
     </div>
@@ -450,6 +452,32 @@
             <div id="npInfo" class="hint" style="margin-top:6px"></div>
             <div class="actions" style="margin-top:12px"><button class="mini" id="btnAddProdNeg" type="button">+ Agregar producto</button></div>
             <div id="prodNegLista" style="margin-top:12px"></div>
+          </div>
+
+          <div style="margin-top:20px; padding-top:18px; border-top:1px solid var(--line)">
+            <label style="font-size:13px">Facturas de proveedor / compra</label>
+            <p class="hint" style="margin-top:0; margin-bottom:12px">Registra las facturas de compra asociadas a este negocio.</p>
+            <div class="grid g4">
+              <div><label>N° factura</label><input id="fpNumero" placeholder="F-12345" /></div>
+              <div><label>Monto</label><input id="fpMonto" type="number" step="1" placeholder="1500000" /></div>
+              <div><label>Fecha</label><input id="fpFecha" type="date" /></div>
+              <div><label>Proveedor</label><input id="fpProveedor" placeholder="Nombre proveedor" /></div>
+            </div>
+            <div class="actions" style="margin-top:12px"><button class="mini" id="btnAddFactProv" type="button">+ Agregar factura de proveedor</button></div>
+            <div id="factProvLista" style="margin-top:12px"></div>
+          </div>
+
+          <div style="margin-top:20px; padding-top:18px; border-top:1px solid var(--line)">
+            <label style="font-size:13px">Facturas de intermediario / comisionista</label>
+            <p class="hint" style="margin-top:0; margin-bottom:12px">Solo si el negocio se hace a través de un tercero. Registra las facturas del intermediario.</p>
+            <div class="grid g4">
+              <div><label>N° factura</label><input id="fiNumero" placeholder="F-67890" /></div>
+              <div><label>Monto</label><input id="fiMonto" type="number" step="1" placeholder="500000" /></div>
+              <div><label>Fecha</label><input id="fiFecha" type="date" /></div>
+              <div><label>Intermediario</label><input id="fiProveedor" placeholder="Nombre intermediario" /></div>
+            </div>
+            <div class="actions" style="margin-top:12px"><button class="mini" id="btnAddFactInt" type="button">+ Agregar factura de intermediario</button></div>
+            <div id="factIntLista" style="margin-top:12px"></div>
           </div>
         </div>
         <div class="modal-foot">
@@ -770,6 +798,18 @@
     const auth2 = getAuth(app2);
 
     const $ = (id) => document.getElementById(id);
+
+    // Alerta al intentar salir/cerrar/recargar la página (evita perder trabajo por error).
+    // El navegador muestra su propio cuadro de confirmación. Nota: en móvil, minimizar el
+    // navegador o cambiar de app normalmente NO lo dispara (lo impide el sistema operativo);
+    // sí funciona al cerrar la pestaña o recargar.
+    let _protegerSalida = false;
+    window.addEventListener("beforeunload", (e)=>{
+      if (!_protegerSalida) return;
+      e.preventDefault();
+      e.returnValue = "";   // requerido por los navegadores para mostrar el aviso
+      return "";
+    });
     const esc = (s) => (s ?? "").toString().replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
     const fmt = (n) => (n == null || n === "") ? "0" : Number(n).toLocaleString("es-CL");
     // Parsea "lat, lng" -> {lat,lng} o null
@@ -908,6 +948,7 @@
     onAuthStateChanged(auth, async (user) => {
       if (!user){
         usuarioActual = null;
+        _protegerSalida = false;   // ya no hay sesión: permitir salir sin aviso
         detenerListeners();   // detener consultas a Firestore al cerrar sesión
         $("loginScreen").classList.remove("app-hidden");
         $("userbar").style.display = "none";
@@ -940,6 +981,7 @@
       $("userInfo").textContent = usuarioActual.nombre || usuarioActual.email;
       $("userBadge").textContent = usuarioActual.tipo;
       aplicarPermisos();
+      _protegerSalida = true;   // sesión activa: avisar antes de salir
       // Asegurar que el token esté propagado antes de consultar Firestore.
       try { await user.getIdToken(); } catch(e){}
       arrancarCuandoListo();
@@ -1398,6 +1440,18 @@
     let editandoNegId = null;
     let negDetalleId = null;
     let prodNegTemp = [];  // array temporal de productos del negocio {productoId, label, tipo, especie, largo, mr, m3}
+    let factProvTemp = []; // facturas de proveedor {numero, monto, fecha, proveedor}
+    let factIntTemp = [];  // facturas de intermediario {numero, monto, fecha, proveedor}
+
+    // Avance de volumen recepcionado del negocio: suma TODAS las recepciones del rol del negocio.
+    function avanceVolumenNegocio(neg){
+      const recs = recepcionesCache.filter((r)=> mismoRol(r, neg));
+      const recMr = recs.reduce((a,r)=>a+(r.metrosRuma||0),0);
+      const recM3 = recs.reduce((a,r)=>a+(r.m3||0),0);
+      const compMr = (neg.productos||[]).reduce((a,p)=>a+(p.mr||0),0) || neg.volumenMR || 0;
+      const compM3 = (neg.productos||[]).reduce((a,p)=>a+(p.m3||0),0) || neg.volumenEstimadoM3 || 0;
+      return { recMr, recM3, compMr, compM3, nRecs: recs.length };
+    }
 
     // ¿Existe una OC para el rol de este negocio? (vínculo automático)
     function negocioTieneOC(neg){
@@ -1415,13 +1469,19 @@
       const t = $("tablaNeg");
       if (!negociosCache.length){ t.innerHTML = '<tr><td colspan="7" class="empty">Aún no hay negocios. Pulsa "Agregar" para crear uno.</td></tr>'; return; }
       t.innerHTML = negociosCache.map((n)=>{
-        // Volúmenes totales (suma de productos, o campos antiguos)
+        // Volúmenes comprometidos (suma de productos, o campos antiguos)
         const totMr = (n.productos||[]).reduce((a,p)=>a+(p.mr||0), 0) || n.volumenMR || 0;
         const totM3 = (n.productos||[]).reduce((a,p)=>a+(p.m3||0), 0) || n.volumenEstimadoM3 || 0;
         const especies = [...new Set((n.productos||[]).map((p)=>p.especie).filter(Boolean))].join(", ") || n.especie || "—";
         const tieneOC = negocioTieneOC(n);
         const ocCell = tieneOC ? '<span title="Tiene orden de compra" style="color:var(--ok); font-size:16px">✓</span>' : '<span title="Sin orden de compra" style="color:var(--warn); font-size:16px">⚠️</span>';
-        return '<tr class="clickable-row" data-ver-neg="'+n.id+'"><td><strong>'+esc(n.numeroRol)+'</strong></td><td>'+esc(n.proveedor)+'</td><td>'+esc(especies)+'</td><td class="num-cell">'+fmt(totMr)+'</td><td class="num-cell">'+fmt(totM3)+'</td><td>'+esc(n.plantaDestinoNombre||"—")+'</td><td style="text-align:center">'+ocCell+'</td></tr>';
+        // Avance recepcionado por rol
+        const av = avanceVolumenNegocio(n);
+        const barMr = totMr>0 ? Math.min(100, av.recMr/totMr*100) : 0;
+        const barM3 = totM3>0 ? Math.min(100, av.recM3/totM3*100) : 0;
+        const celdaMr = fmt(Math.round(av.recMr))+' / '+fmt(Math.round(totMr))+'<div class="bar"><span style="width:'+barMr+'%"></span></div>';
+        const celdaM3 = fmt(Math.round(av.recM3))+' / '+fmt(Math.round(totM3))+'<div class="bar"><span style="width:'+barM3+'%; background:#e9730c"></span></div>';
+        return '<tr class="clickable-row" data-ver-neg="'+n.id+'"><td><strong>'+esc(n.numeroRol)+'</strong></td><td>'+esc(n.proveedor)+'</td><td>'+esc(especies)+'</td><td class="num-cell">'+celdaMr+'</td><td class="num-cell">'+celdaM3+'</td><td>'+esc(n.plantaDestinoNombre||"—")+'</td><td style="text-align:center">'+ocCell+'</td></tr>';
       }).join("");
       t.querySelectorAll("[data-ver-neg]").forEach((row)=> row.addEventListener("click", ()=> verDetalleNeg(row.dataset.verNeg)));
     }
@@ -1444,6 +1504,33 @@
               + ' · <strong>'+fmt(p.mr||0)+' MR</strong> · <strong>'+fmt(p.m3||0)+' M³</strong></div>').join("")
           + '</div>';
       }
+      // Avance de volumen recepcionado (por rol del negocio)
+      const av = avanceVolumenNegocio(n);
+      const barra = (rec, comp, unidad, color)=>{
+        const pct = comp>0 ? Math.min(100, rec/comp*100) : (rec>0?100:0);
+        return '<div style="margin-bottom:10px"><div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:3px">'
+          + '<span>'+unidad+'</span><strong>'+fmt(Math.round(rec))+' / '+fmt(Math.round(comp))+'</strong></div>'
+          + '<div class="bar"><span style="width:'+pct+'%; background:'+color+'"></span></div></div>';
+      };
+      const avanceHtml = '<div style="margin-top:16px; padding:12px; background:var(--bg); border-radius:8px">'
+        + '<div class="k" style="font-weight:700; color:var(--ink); margin-bottom:10px">Avance de volumen recepcionado ('+av.nRecs+' recepción/es del rol)</div>'
+        + barra(av.recMr, av.compMr, "Metros ruma (MR)", "#0a6ed1")
+        + barra(av.recM3, av.compM3, "Metros cúbicos (M³)", "#e9730c")
+        + '</div>';
+
+      // Facturas de proveedor e intermediario
+      function tablaFacturas(titulo, arr){
+        if (!arr || !arr.length) return "";
+        const tot = arr.reduce((a,f)=>a+(f.monto||0),0);
+        return '<div style="margin-top:16px"><div class="k" style="font-weight:700; color:var(--ink); margin-bottom:8px">'+titulo+' ('+arr.length+')</div>'
+          + '<table><thead><tr><th>N° factura</th><th class="num-cell">Monto</th><th>Fecha</th><th>Nombre</th></tr></thead><tbody>'
+          + arr.map((f)=>'<tr><td><strong>'+esc(f.numero)+'</strong></td><td class="num-cell">'+fmt(f.monto||0)+'</td><td>'+esc(f.fecha||"—")+'</td><td>'+esc(f.proveedor||"—")+'</td></tr>').join("")
+          + '<tr style="border-top:2px solid var(--line)"><td><strong>Total</strong></td><td class="num-cell"><strong>'+fmt(tot)+'</strong></td><td colspan="2"></td></tr>'
+          + '</tbody></table></div>';
+      }
+      const factHtml = tablaFacturas("Facturas de proveedor / compra", n.facturasProveedor)
+                     + tablaFacturas("Facturas de intermediario / comisionista", n.facturasIntermediario);
+
       $("detalleNegBody").innerHTML =
           row("Rol", n.numeroRol) + row("Proveedor", n.proveedor)
         + row("Planta destino", n.plantaDestinoNombre) + row("Bodega destino", n.bodegaDestinoNombre)
@@ -1451,9 +1538,11 @@
         + row("Tipo de negocio", n.tipoNegocio==="bosque_en_pie"?"Bosque en pie":"Madera puesta en planta")
         + row("Fecha inicio", n.fechaInicio) + row("Fecha término", n.fechaTermino)
         + row("Precio compra", n.precioCompra!=null?fmt(n.precioCompra):"") + row("Precio venta", n.precioVenta!=null?fmt(n.precioVenta):"")
-        + row("Volumen total MR", fmt(totMr)) + row("Volumen total M³", fmt(totM3))
+        + row("Volumen comprometido MR", fmt(totMr)) + row("Volumen comprometido M³", fmt(totM3))
         + '<div class="detalle-row"><div class="k">Orden de compra</div><div class="v">'+(tieneOC?'<span style="color:var(--ok)">✓ Tiene OC asociada</span>':'<span style="color:var(--warn)">⚠️ Sin orden de compra</span>')+'</div></div>'
-        + prodHtml;
+        + avanceHtml
+        + prodHtml
+        + factHtml;
       $("btnEditarNegDetalle").style.display = puede("editar","negocios") ? "inline-block" : "none";
       $("btnEliminarNegDetalle").style.display = puede("borrar","negocios") ? "inline-block" : "none";
       abrirModal("modalNegDetalle");
@@ -1501,12 +1590,44 @@
       cont.querySelectorAll("[data-del-prodneg]").forEach((b)=> b.addEventListener("click", ()=>{ prodNegTemp.splice(parseInt(b.dataset.delProdneg),1); renderProdNegTemp(); }));
     }
 
+    // --- Facturas de proveedor ---
+    $("btnAddFactProv").addEventListener("click", ()=>{
+      const numero = $("fpNumero").value.trim();
+      const monto = parseFloat($("fpMonto").value)||0;
+      if (!numero){ $("negMsg").textContent="Ingresa el número de factura de proveedor."; $("negMsg").className="msg err"; return; }
+      factProvTemp.push({ numero, monto, fecha: $("fpFecha").value||null, proveedor: up($("fpProveedor").value) });
+      ["fpNumero","fpMonto","fpFecha","fpProveedor"].forEach((id)=>$(id).value="");
+      $("negMsg").textContent=""; renderFacturas("factProvLista", factProvTemp, "factprov");
+    });
+
+    // --- Facturas de intermediario ---
+    $("btnAddFactInt").addEventListener("click", ()=>{
+      const numero = $("fiNumero").value.trim();
+      const monto = parseFloat($("fiMonto").value)||0;
+      if (!numero){ $("negMsg").textContent="Ingresa el número de factura de intermediario."; $("negMsg").className="msg err"; return; }
+      factIntTemp.push({ numero, monto, fecha: $("fiFecha").value||null, proveedor: up($("fiProveedor").value) });
+      ["fiNumero","fiMonto","fiFecha","fiProveedor"].forEach((id)=>$(id).value="");
+      $("negMsg").textContent=""; renderFacturas("factIntLista", factIntTemp, "factint");
+    });
+
+    // Render de una lista de facturas (reutilizable para proveedor e intermediario)
+    function renderFacturas(contId, arr, tipo){
+      const cont = $(contId);
+      if (!arr.length){ cont.innerHTML = '<p class="hint">Sin facturas agregadas.</p>'; return; }
+      const tot = arr.reduce((a,f)=>a+(f.monto||0),0);
+      cont.innerHTML = '<table><thead><tr><th>N° factura</th><th class="num-cell">Monto</th><th>Fecha</th><th>'+(tipo==="factint"?"Intermediario":"Proveedor")+'</th><th></th></tr></thead><tbody>'
+        + arr.map((f,i)=>'<tr><td><strong>'+esc(f.numero)+'</strong></td><td class="num-cell">'+fmt(f.monto||0)+'</td><td>'+esc(f.fecha||"—")+'</td><td>'+esc(f.proveedor||"—")+'</td><td><button class="act del" data-fidx="'+i+'">Quitar</button></td></tr>').join("")
+        + '<tr style="border-top:2px solid var(--line)"><td><strong>Total</strong></td><td class="num-cell"><strong>'+fmt(tot)+'</strong></td><td colspan="3"></td></tr>'
+        + '</tbody></table>';
+      cont.querySelectorAll("[data-fidx]").forEach((b)=> b.addEventListener("click", ()=>{ arr.splice(parseInt(b.dataset.fidx),1); renderFacturas(contId, arr, tipo); }));
+    }
+
     $("btnNuevoNeg").addEventListener("click", ()=>{
-      editandoNegId = null; prodNegTemp = [];
-      ["nProveedor","nSupervisor","nFechaInicio","nFechaTermino","nPrecio","nPrecioVenta","npMr","npM3"].forEach((id)=>$(id).value="");
+      editandoNegId = null; prodNegTemp = []; factProvTemp = []; factIntTemp = [];
+      ["nProveedor","nSupervisor","nFechaInicio","nFechaTermino","nPrecio","nPrecioVenta","npMr","npM3","fpNumero","fpMonto","fpFecha","fpProveedor","fiNumero","fiMonto","fiFecha","fiProveedor"].forEach((id)=>$(id).value="");
       $("nRol").value=""; $("nPlanta").value=""; $("nBodega").innerHTML='<option value="">— Selecciona planta primero —</option>';
       $("nTipo").value="bosque_en_pie"; $("npProducto").value=""; $("npInfo").textContent="";
-      renderProdNegTemp();
+      renderProdNegTemp(); renderFacturas("factProvLista", factProvTemp, "factprov"); renderFacturas("factIntLista", factIntTemp, "factint");
       $("modalNegTitulo").textContent = "Nuevo negocio";
       $("btnGuardarNeg").textContent = "Guardar negocio"; $("btnGuardarNeg").disabled = !puede("editar","negocios");
       $("negMsg").textContent="";
@@ -1522,6 +1643,8 @@
       $("nFechaInicio").value = n.fechaInicio||""; $("nFechaTermino").value = n.fechaTermino||"";
       $("nPrecio").value = n.precioCompra??""; $("nPrecioVenta").value = n.precioVenta??"";
       prodNegTemp = (n.productos||[]).map((p)=>({ ...p })); renderProdNegTemp();
+      factProvTemp = (n.facturasProveedor||[]).map((f)=>({ ...f })); renderFacturas("factProvLista", factProvTemp, "factprov");
+      factIntTemp = (n.facturasIntermediario||[]).map((f)=>({ ...f })); renderFacturas("factIntLista", factIntTemp, "factint");
       $("modalNegTitulo").textContent = "Editar negocio · " + (n.numeroRol||"");
       $("btnGuardarNeg").textContent = "Actualizar negocio"; $("btnGuardarNeg").disabled = !puede("editar","negocios");
       $("negMsg").textContent = "";
@@ -1529,10 +1652,10 @@
     }
 
     function cancelarEdicionNeg(){
-      editandoNegId = null; prodNegTemp = [];
-      ["nProveedor","nSupervisor","nFechaInicio","nFechaTermino","nPrecio","nPrecioVenta","npMr","npM3"].forEach((id)=>$(id).value="");
+      editandoNegId = null; prodNegTemp = []; factProvTemp = []; factIntTemp = [];
+      ["nProveedor","nSupervisor","nFechaInicio","nFechaTermino","nPrecio","nPrecioVenta","npMr","npM3","fpNumero","fpMonto","fpFecha","fpProveedor","fiNumero","fiMonto","fiFecha","fiProveedor"].forEach((id)=>$(id).value="");
       $("nRol").value=""; $("nPlanta").value=""; $("nTipo").value="bosque_en_pie"; $("npProducto").value=""; $("npInfo").textContent="";
-      renderProdNegTemp();
+      renderProdNegTemp(); renderFacturas("factProvLista", factProvTemp, "factprov"); renderFacturas("factIntLista", factIntTemp, "factint");
       $("btnGuardarNeg").textContent = "Guardar negocio";
       $("negMsg").textContent = "";
       cerrarModal("modalNegForm");
@@ -1571,6 +1694,8 @@
         productos: prodNegTemp.map((p)=>({ productoId:p.productoId, label:p.label, codigo:p.codigo, tipo:p.tipo, especie:p.especie, largo:p.largo, mr:p.mr||0, m3:p.m3||0 })),
         volumenMR: totMr, volumenEstimadoM3: totM3,
         especie: especies[0] || null, especies,
+        facturasProveedor: factProvTemp.map((f)=>({ numero:f.numero, monto:f.monto||0, fecha:f.fecha||null, proveedor:f.proveedor||"" })),
+        facturasIntermediario: factIntTemp.map((f)=>({ numero:f.numero, monto:f.monto||0, fecha:f.fecha||null, proveedor:f.proveedor||"" })),
       };
       $("btnGuardarNeg").disabled=true; m.textContent="Guardando…"; m.className="msg";
       try {
@@ -1792,6 +1917,7 @@
     regSnap(query(collection(db,"recepciones"), orderBy("fechaCreacion","desc")), (snap) => {
       recepcionesCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       renderRecepcionesPorMes();
+      if (typeof renderNegociosTabla==="function") renderNegociosTabla();  // actualizar avance de volumen
       // Recalcular el avance de las OC automáticamente (con debounce), para que el cruce
       // funcione sin importar el orden en que se crearon OC y recepciones.
       if (puede("editar","ordenesCompra") && ocCache.length){
@@ -2157,10 +2283,6 @@
     async function recalcularTodasLasOC(){
       let actualizadas = 0, sinCruce = 0;
       const diagnostico = [];
-      // [DIAGNÓSTICO TEMPORAL] Mostrar los numeroRol reales para comparar
-      console.log("[DIAG] OC numeroRol:", ocCache.map((o)=>JSON.stringify(o.numeroRol)));
-      console.log("[DIAG] Recep numeroRol (únicos):", [...new Set(recepcionesCache.map((r)=>JSON.stringify(r.numeroRol)))]);
-      console.log("[DIAG] Recep con rolId (primeras 3):", recepcionesCache.slice(0,3).map((r)=>({numeroRol:r.numeroRol, rolId:r.rolId, m3:r.m3, mr:r.metrosRuma})));
       for (const oc of ocCache){
         const prodOC = oc.productoId ? productosCache.find((p)=>p.id===oc.productoId) : null;
         // Cruce por rol (flexible: id o número) + producto (flexible: id, código o descripción).
@@ -2611,15 +2733,31 @@
       // Helper: nombre de planta de una recepción (usa campo planta; si no, la bodega o el rol)
       const plantaDe = (r) => (r.planta || r.nombreBodega || "(SIN PLANTA)").toString().trim().toUpperCase();
 
-      // --- Gráfico 1: recepciones por planta (mr) [barras] ---
-      const porPlanta = {};
-      recepcionesCache.forEach((r)=>{ const k=plantaDe(r); porPlanta[k]=(porPlanta[k]||0)+(r.metrosRuma||0); });
-      const plantaTop = Object.entries(porPlanta).sort((a,b)=>b[1]-a[1]).slice(0,8);
-      dibujarChart("chartPlanta", {
-        type:"bar",
-        data:{ labels:plantaTop.map((e)=>e[0]), datasets:[{ label:"mr", data:plantaTop.map((e)=>Math.round(e[1])), backgroundColor:"#0a6ed1" }] },
-        options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true} } }
+      // --- Gráficos 1a y 1b: recepciones por planta, MR y M³ [circular/dona] ---
+      const porPlantaMR = {}, porPlantaM3 = {};
+      recepcionesCache.forEach((r)=>{
+        const k = plantaDe(r);
+        porPlantaMR[k] = (porPlantaMR[k]||0) + (r.metrosRuma||0);
+        porPlantaM3[k] = (porPlantaM3[k]||0) + (r.m3||0);
       });
+      // Dona MR (solo plantas con MR > 0)
+      const mrE = Object.entries(porPlantaMR).filter((e)=>e[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,8);
+      if (mrE.length){
+        dibujarChart("chartPlantaMR", {
+          type:"doughnut",
+          data:{ labels:mrE.map((e)=>e[0]), datasets:[{ data:mrE.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS }] },
+          options:{ responsive:true, plugins:{ legend:{position:"right"}, tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" mr" } } } }
+        });
+      } else if (charts["chartPlantaMR"]){ charts["chartPlantaMR"].destroy(); delete charts["chartPlantaMR"]; }
+      // Dona M³ (solo plantas con M³ > 0)
+      const m3E = Object.entries(porPlantaM3).filter((e)=>e[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,8);
+      if (m3E.length){
+        dibujarChart("chartPlantaM3", {
+          type:"doughnut",
+          data:{ labels:m3E.map((e)=>e[0]), datasets:[{ data:m3E.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS }] },
+          options:{ responsive:true, plugins:{ legend:{position:"right"}, tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" m³" } } } }
+        });
+      } else if (charts["chartPlantaM3"]){ charts["chartPlantaM3"].destroy(); delete charts["chartPlantaM3"]; }
 
       // --- Gráfico 2: avance de OC (recibido vs solicitado) [barras agrupadas] ---
       const ocTop = ocCache.slice(0,8);
@@ -2643,14 +2781,23 @@
         options:{ responsive:true, plugins:{legend:{position:"right"}} }
       });
 
-      // --- Gráfico 4: metros ruma por mes [barras] ---
-      const porMes = {};
-      recepcionesCache.forEach((r)=>{ const k=r.periodo||"s/f"; porMes[k]=(porMes[k]||0)+(r.metrosRuma||0); });
-      const mesE = Object.entries(porMes).sort((a,b)=>a[0].localeCompare(b[0]));
+      // --- Gráfico 4: volumen por mes [líneas: MR y M³] ---
+      const porMesMR = {}, porMesM3 = {};
+      recepcionesCache.forEach((r)=>{
+        const k = r.periodo || "s/f";
+        porMesMR[k] = (porMesMR[k]||0) + (r.metrosRuma||0);
+        porMesM3[k] = (porMesM3[k]||0) + (r.m3||0);
+      });
+      // Eje X común: todos los meses ordenados
+      const mesesVol = [...new Set([...Object.keys(porMesMR), ...Object.keys(porMesM3)])].sort((a,b)=>a.localeCompare(b));
       dibujarChart("chartMes", {
-        type:"bar",
-        data:{ labels:mesE.map((e)=>e[0]), datasets:[{ label:"mr", data:mesE.map((e)=>Math.round(e[1])), backgroundColor:"#107e3e" }] },
-        options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true} } }
+        type:"line",
+        data:{ labels:mesesVol.map((m)=>nombreMes(m)),
+          datasets:[
+            { label:"MR", data:mesesVol.map((m)=>Math.round(porMesMR[m]||0)), borderColor:"#0a6ed1", backgroundColor:"#0a6ed1", tension:0.3, fill:false },
+            { label:"M³", data:mesesVol.map((m)=>Math.round(porMesM3[m]||0)), borderColor:"#e9730c", backgroundColor:"#e9730c", tension:0.3, fill:false },
+          ] },
+        options:{ responsive:true, plugins:{legend:{position:"bottom"}}, scales:{ y:{beginAtZero:true} } }
       });
 
       // --- Gráficos 5 y 6: evolución mensual por planta (líneas), uno MR y otro M3 ---
