@@ -667,6 +667,7 @@
           <button class="primary" id="btnPreviewIngreso" disabled>Analizar archivo</button>
         </div>
         <div class="hint" style="margin-top:8px">Columnas esperadas: FECHA · PROVEEDOR · MOTIVO · DESCRIPCIÓN · CANTIDAD · C.UNIT · NETO2. Los ingresos duplicados (misma fecha + proveedor + descripción + neto) se detectan y no se reimportan.</div>
+        <p class="msg" id="ingresoAnalisisMsg" style="margin-top:10px"></p>
         <div id="ingresoPreviewCard" style="display:none; margin-top:18px">
           <p class="msg" id="ingresoPreviewResumen"></p>
           <div style="max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:6px; margin-top:10px">
@@ -2863,20 +2864,39 @@
     $("ingresoFile").addEventListener("change", ()=>{ $("btnPreviewIngreso").disabled = !$("ingresoFile").files.length; });
 
     $("btnPreviewIngreso").addEventListener("click", async () => {
-      const file = $("ingresoFile").files[0]; const m = $("ingresoImportMsg");
+      const file = $("ingresoFile").files[0]; const m = $("ingresoAnalisisMsg");
       if (!file) return;
       m.textContent = "Leyendo archivo…"; m.className = "msg";
+      $("ingresoPreviewCard").style.display = "none";
       try {
         await cargarXLSX();
         const buf = await file.arrayBuffer();
         const wb = XLSX.read(buf, { type:"array" });
-        // Buscar hoja BASEINGRESOS (case-insensitive)
-        const hojaName = wb.SheetNames.find((n)=>n.trim().toUpperCase()==="BASEINGRESOS");
-        if (!hojaName){ m.textContent = 'No se encontró la hoja "BASEINGRESOS" en el archivo.'; m.className="msg err"; return; }
+        // Buscar hoja BASEINGRESOS (case-insensitive, sin espacios extra)
+        const norm = (s)=>s.trim().toUpperCase().replace(/\s+/g,"");
+        let hojaName = wb.SheetNames.find((n)=>norm(n)==="BASEINGRESOS");
+        // Si no encuentra, buscar una que contenga "INGRESO"
+        if (!hojaName) hojaName = wb.SheetNames.find((n)=>norm(n).includes("INGRESO"));
+        // Si no encuentra, usar la primera hoja y avisar
+        if (!hojaName){
+          m.innerHTML = '⚠️ No se encontró una hoja llamada "BASEINGRESOS". Hojas disponibles: <strong>'+wb.SheetNames.map((n)=>esc(n)).join(", ")+'</strong>. Se usará la primera hoja.';
+          m.className = "msg err";
+          hojaName = wb.SheetNames[0];
+        }
         const ws = wb.Sheets[hojaName];
         const filas = XLSX.utils.sheet_to_json(ws, { defval:"", raw:false });
         const filasRaw = XLSX.utils.sheet_to_json(ws, { defval:"", raw:true, cellDates:true });
-        if (!filas.length){ m.textContent="La hoja BASEINGRESOS no tiene filas."; m.className="msg err"; return; }
+        if (!filas.length){ m.textContent="La hoja "+hojaName+" no tiene filas."; m.className="msg err"; return; }
+
+        // Mostrar las columnas detectadas
+        const colsDetectadas = filas.length ? Object.keys(filas[0]).join(", ") : "";
+        if (!hojaName.toUpperCase().includes("INGRESO")){
+          m.innerHTML = 'Usando hoja "<strong>'+esc(hojaName)+'</strong>" · Columnas: '+esc(colsDetectadas);
+          m.className = "msg";
+        } else {
+          m.innerHTML = 'Hoja "<strong>'+esc(hojaName)+'</strong>" encontrada · Columnas: '+esc(colsDetectadas);
+          m.className = "msg ok";
+        }
 
         // Helper parseMonto (reutilizar si ya existe en scope, si no definir aquí)
         function parseMontoIng(rawVal, txtVal){
@@ -2947,7 +2967,7 @@
 
     $("btnImportarIngreso").addEventListener("click", async () => {
       const validas = ingresosPreview.filter((g)=>g.valida);
-      const m = $("ingresoImportMsg");
+      const m = $("ingresoAnalisisMsg");
       if (!validas.length) return;
       $("btnImportarIngreso").disabled = true; m.textContent = "Importando "+validas.length+" ingresos…"; m.className="msg";
       let ok=0, err=0;
