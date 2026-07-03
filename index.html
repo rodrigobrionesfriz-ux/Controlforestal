@@ -2136,14 +2136,24 @@
       return false;
     }
 
+    // Compara el rol de una recepción con el de una OC: por ID interno O por número de rol.
+    // Esto cubre el caso de que el rolId difiera (rol duplicado o importado distinto) pero
+    // el número de rol visible sea el mismo.
+    function mismoRol(rec, oc){
+      if (oc.rolId && rec.rolId && rec.rolId === oc.rolId) return true;
+      const nOC = (oc.numeroRol||"").toString().trim().toLowerCase();
+      const nRec = (rec.numeroRol||"").toString().trim().toLowerCase();
+      return !!nOC && nOC === nRec;
+    }
+
     async function recalcularTodasLasOC(){
       let actualizadas = 0, sinCruce = 0;
       const diagnostico = [];
       for (const oc of ocCache){
         const prodOC = oc.productoId ? productosCache.find((p)=>p.id===oc.productoId) : null;
-        // Cruce por rol + producto (flexible). Si la OC no tiene producto, cruza solo por rol.
+        // Cruce por rol (flexible: id o número) + producto (flexible: id, código o descripción).
         const recs = recepcionesCache.filter((r)=>{
-          if (r.rolId !== oc.rolId) return false;
+          if (!mismoRol(r, oc)) return false;
           if (!oc.productoId && !oc.productoLabel) return true;  // OC sin producto: todas las del rol
           return recepcionCruzaProducto(r, oc, prodOC);
         });
@@ -2157,7 +2167,7 @@
         if (recs.length===0){
           sinCruce++;
           // Diagnóstico: ¿hay recepciones del rol aunque no crucen por producto?
-          const recsDelRol = recepcionesCache.filter((r)=>r.rolId===oc.rolId);
+          const recsDelRol = recepcionesCache.filter((r)=>mismoRol(r, oc));
           diagnostico.push({
             numero: oc.numero, rol: oc.numeroRol,
             recsDelRol: recsDelRol.length,
