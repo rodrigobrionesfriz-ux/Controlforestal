@@ -1309,7 +1309,7 @@
           return '<tr class="clickable-row" data-ver-prod="'+p.id+'"><td><strong>'+esc(p.codigo)+'</strong></td><td>'+esc(p.descripcion||"")+'</td><td>'+esc(p.especie)+'</td><td>'+esc(p.tipoProducto)+'</td><td class="num-cell">'+esc(p.largo)+'</td><td>'+esc(p.unidadMedida||"")+'</td></tr>';
         }).join("");
       t.querySelectorAll("[data-ver-prod]").forEach((row)=> row.addEventListener("click", ()=> verDetalleProd(row.dataset.verProd)));
-      setSelect($("ocProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodLabel(p))+'</option>', "— Selecciona producto —");
+      setSelect($("ocProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(p.descripcion || prodLabel(p))+'</option>', "— Selecciona producto —");
       setSelect($("npProducto"), productosCache, (p)=>'<option value="'+p.id+'">'+esc(prodLabel(p))+'</option>', "— Selecciona producto —");
     }, ()=>{});
 
@@ -1635,8 +1635,13 @@
       try {
         const r = await recalcularTodasLasOC();
         let txt = "✓ Listo. "+r.actualizadas+" OC actualizadas de "+r.total+".";
-        if (r.sinCruce>0) txt += " ⚠️ "+r.sinCruce+" OC sin recepciones que crucen (revisa que rol y producto coincidan).";
-        $("ocRecalcMsg").textContent = txt; $("ocRecalcMsg").className = r.sinCruce>0 ? "msg warn" : "msg ok";
+        if (r.sinCruce>0){
+          txt += " ⚠️ "+r.sinCruce+" OC sin cruce:";
+          const det = (r.diagnostico||[]).slice(0,5).map((d)=>" · OC "+(d.numero||"")+" (rol "+(d.rol||"")+"): "+d.motivo).join("");
+          txt += det;
+          if ((r.diagnostico||[]).length>5) txt += " …y más.";
+        }
+        $("ocRecalcMsg").innerHTML = txt; $("ocRecalcMsg").className = r.sinCruce>0 ? "msg warn" : "msg ok";
       } catch(e){ $("ocRecalcMsg").textContent = "Error: "+e.message; $("ocRecalcMsg").className="msg err"; }
       finally { btn.disabled = false; }
     });
@@ -2098,14 +2103,35 @@
     // Recalcula el avance de TODAS las OC contra TODAS las recepciones.
     // Esto hace que el cruce funcione sin importar el orden (crear OC antes o después de importar).
     // Devuelve un resumen para diagnóstico.
+    // Normaliza texto para comparar (minúsculas, sin espacios extra ni tildes)
+    function normProd(s){ return (s??"").toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," "); }
+
+    // Determina si una recepción corresponde al producto de una OC.
+    // Cruza por: mismo productoId, O mismo código, O misma descripción/nombre.
+    function recepcionCruzaProducto(rec, oc, prodOC){
+      // 1) por ID directo
+      if (oc.productoId && rec.productoId && rec.productoId === oc.productoId) return true;
+      // Datos del producto de la OC (desde el catálogo, o desde el label guardado)
+      const codOC = prodOC ? normProd(prodOC.codigo) : "";
+      const descOC = prodOC ? normProd(prodOC.descripcion) : normProd(oc.productoLabel);
+      // 2) por código
+      if (codOC && normProd(rec.codigoProducto) === codOC) return true;
+      // 3) por descripción / nombre
+      const descRec = normProd(rec.descripcionProducto || rec.productoLabel);
+      if (descOC && descRec && descOC === descRec) return true;
+      return false;
+    }
+
     async function recalcularTodasLasOC(){
       let actualizadas = 0, sinCruce = 0;
+      const diagnostico = [];
       for (const oc of ocCache){
-        // Cruce por rol + producto. Si la OC no tiene producto, cruza solo por rol.
+        const prodOC = oc.productoId ? productosCache.find((p)=>p.id===oc.productoId) : null;
+        // Cruce por rol + producto (flexible). Si la OC no tiene producto, cruza solo por rol.
         const recs = recepcionesCache.filter((r)=>{
           if (r.rolId !== oc.rolId) return false;
-          if (oc.productoId) return r.productoId === oc.productoId;
-          return true;  // OC sin producto: suma todas las recepciones del rol
+          if (!oc.productoId && !oc.productoLabel) return true;  // OC sin producto: todas las del rol
+          return recepcionCruzaProducto(r, oc, prodOC);
         });
         const sumMr = recs.reduce((a,r)=>a+(r.metrosRuma||0),0);
         const sumM3 = recs.reduce((a,r)=>a+(r.m3||0),0);
@@ -2114,7 +2140,16 @@
         let estado="abierta";
         if (restMr<=0 && restM3<=0) estado="completada";
         else if (restMr<=um || restM3<=um) estado="por_completar";
-        if (recs.length===0) sinCruce++;
+        if (recs.length===0){
+          sinCruce++;
+          // Diagnóstico: ¿hay recepciones del rol aunque no crucen por producto?
+          const recsDelRol = recepcionesCache.filter((r)=>r.rolId===oc.rolId);
+          diagnostico.push({
+            numero: oc.numero, rol: oc.numeroRol,
+            recsDelRol: recsDelRol.length,
+            motivo: recsDelRol.length ? "hay "+recsDelRol.length+" recep. del rol pero el producto no coincide" : "no hay recepciones para este rol",
+          });
+        }
         // Solo actualizar si cambió algo (evita escrituras innecesarias)
         const yaMr = oc.recibido?.metrosRuma||0, yaM3 = oc.recibido?.m3||0;
         if (yaMr!==sumMr || yaM3!==sumM3 || oc.estado!==estado){
@@ -2122,7 +2157,7 @@
           actualizadas++;
         }
       }
-      return { total: ocCache.length, actualizadas, sinCruce };
+      return { total: ocCache.length, actualizadas, sinCruce, diagnostico };
     }
 
     $("btnImportar").addEventListener("click", async () => {
@@ -2353,9 +2388,7 @@
         const tipoSel = '<select data-uid="'+u.uid+'" class="u-tipo" '+(esYo?"disabled":"")+'>'
           + ['consulta','operador','admin'].map((tp)=>'<option value="'+tp+'"'+(u.tipo===tp?" selected":"")+'>'+tp+'</option>').join("") + '</select>';
         const estadoTag = u.estado==="inactivo" ? '<span class="tag completada">inactivo</span>' : '<span class="tag abierta">activo</span>';
-        const permBtn = u.tipo==="admin"
-          ? '<span class="hint">acceso total</span>'
-          : '<button class="mini" data-perm="'+u._id+'">Configurar</button>';
+        const permBtn = '<button class="mini" data-perm="'+u._id+'">Configurar permisos</button>';
         const toggleBtn = esYo ? ""
           : ' <button class="mini" data-toggle="'+u.uid+'" data-estado="'+(u.estado||"activo")+'">'+(u.estado==="inactivo"?"Activar":"Desactivar")+'</button>';
         return '<tr><td><strong>'+esc(u.nombre)+'</strong></td><td>'+esc(u.email)+'</td><td>'+tipoSel+'</td><td>'+estadoTag+'</td><td style="white-space:nowrap">'+permBtn+toggleBtn+'</td></tr>';
@@ -2404,6 +2437,9 @@
           + '<td style="text-align:center">'+chk("borrar",borrar)+'</td></tr>';
       }).join("");
       $("permMatrizWrap").style.opacity = esAdmin ? "0.5" : "1";
+      $("permMsg").innerHTML = esAdmin
+        ? '<span style="color:var(--muted)">El administrador tiene acceso total a todos los módulos. Cambia el tipo a "operador" o "consulta" para definir permisos a medida.</span>'
+        : "";
     }
     $("permTipo").addEventListener("change", ()=>{
       const u = usuariosCache.find((x)=>x._id===permEditUid); if (u) renderMatrizPermisos(u);
@@ -2631,10 +2667,28 @@
     // ================== MANTENIMIENTO (admin) ==================
     // Parsea coordenadas "lat; lng" (acepta ; y coma decimal) -> {lat,lng} o null
     function parseCoordSemi(txt){
-      if (!txt || txt.toString().trim()==="") return null;
-      const s = txt.toString().trim().replace(/,/g, ".");
-      const parts = s.split(";").map((x)=>parseFloat(x.trim()));
-      return (parts.length===2 && !isNaN(parts[0]) && !isNaN(parts[1])) ? { lat:parts[0], lng:parts[1] } : null;
+      if (txt===null || txt===undefined || txt.toString().trim()==="") return null;
+      let s = txt.toString().trim();
+      let lat, lng;
+      if (s.includes(";")){
+        // Formato "lat; lng" — la coma puede ser separador decimal
+        const p = s.split(";").map((x)=>parseFloat(x.trim().replace(",", ".")));
+        lat = p[0]; lng = p[1];
+      } else if ((s.match(/,/g)||[]).length === 1){
+        // Un solo separador coma: "lat, lng" (coma separa coordenadas, punto es decimal)
+        const p = s.split(",").map((x)=>parseFloat(x.trim()));
+        lat = p[0]; lng = p[1];
+      } else if ((s.match(/,/g)||[]).length >= 2){
+        // Varias comas: probablemente decimales con coma → "-37,46, -72,35"
+        // tomar por espacios como separador de coordenadas
+        const p = s.split(/\s+/).map((x)=>parseFloat(x.trim().replace(",", ".")));
+        lat = p[0]; lng = p[1];
+      } else {
+        // Separado por espacio
+        const p = s.split(/\s+/).map((x)=>parseFloat(x.trim().replace(",", ".")));
+        lat = p[0]; lng = p[1];
+      }
+      return (!isNaN(lat) && !isNaN(lng)) ? { lat, lng } : null;
     }
 
     // Borra todos los documentos de una colección en lotes de 400.
