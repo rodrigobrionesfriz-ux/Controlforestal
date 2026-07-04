@@ -2164,6 +2164,10 @@
     // Normaliza encabezados: minúsculas, sin acentos, espacios->_
     function normHeader(h){ return (h??"").toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_"); }
     function pick(row, claves){ for (const k of claves){ const kk=Object.keys(row).find((x)=>normHeader(x)===k); if (kk!==undefined && row[kk]!=="") return row[kk]; } return ""; }
+    // Convertir Date a "yyyy-mm-dd" sin desfase UTC (usa componentes UTC para fechas de XLSX)
+    function dateToYmd(d){ return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0"); }
+    // Formatear "yyyy-mm-dd" → "dd/mm/yyyy" para mostrar al usuario
+    function fmtFecha(f){ if (!f || f.length<10) return f||""; const p=f.split("-"); return p.length===3 ? p[2]+"/"+p[1]+"/"+p[0] : f; }
 
     async function leerArchivo(file){
       await cargarXLSX();
@@ -2626,12 +2630,12 @@
           let fecha = "";
           // 1) Si raw es Date object (cellDates:true convierte seriales a Date)
           if (fechaValRaw instanceof Date && !isNaN(fechaValRaw.getTime())){
-            fecha = fechaValRaw.toISOString().slice(0,10);
+            fecha = dateToYmd(fechaValRaw);
           }
           // 2) Si raw es número (serial de Excel sin cellDates)
           if (!fecha && typeof fechaValRaw === "number" && fechaValRaw > 100){
             const d = new Date(Math.round((fechaValRaw - 25569) * 86400 * 1000));
-            if (!isNaN(d.getTime())) fecha = d.toISOString().slice(0,10);
+            if (!isNaN(d.getTime())) fecha = dateToYmd(d);
           }
           // 3) Texto dd/mm/yyyy o dd-mm-yyyy (formato chileno)
           if (!fecha){
@@ -2687,7 +2691,7 @@
           + (duplicados ? ' · <strong style="color:var(--warn)">'+duplicados+' duplicado'+(duplicados!==1?'s':'')+' (ya existen)</strong>' : '')+'.';
         $("gastoTablaPreview").innerHTML = gastosPreview.slice(0,200).map((g)=>{
           const estado = g.valida ? '<span class="tag abierta">✓</span>' : '<span class="tag alerta">'+esc(g.errores.join(", "))+'</span>';
-          return '<tr><td>'+g.fila+'</td><td>'+esc(g.fecha)+'</td><td>'+esc(g.numeroRol)+'</td><td>'+esc(g.producto)+'</td><td>'+esc(g.descripcion)+'</td><td class="num-cell">'+fmt(g.cantidad)+'</td><td class="num-cell">'+fmt(g.costoUnit)+'</td><td class="num-cell">'+fmt(g.total)+'</td><td>'+estado+'</td></tr>';
+          return '<tr><td>'+g.fila+'</td><td>'+esc(fmtFecha(g.fecha))+'</td><td>'+esc(g.numeroRol)+'</td><td>'+esc(g.producto)+'</td><td>'+esc(g.descripcion)+'</td><td class="num-cell">'+fmt(g.cantidad)+'</td><td class="num-cell">'+fmt(g.costoUnit)+'</td><td class="num-cell">'+fmt(g.total)+'</td><td>'+estado+'</td></tr>';
         }).join("") + (gastosPreview.length>200?'<tr><td colspan="9" class="empty">… mostrando 200 de '+gastosPreview.length+'. Todas se importan.</td></tr>':'');
         $("gastoPreviewCard").style.display = "block";
         $("btnImportarGasto").disabled = validas===0 || !puede("editar","gastos");
@@ -2835,7 +2839,7 @@
           +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--sap-blue)">'+esc(nombreMes(mes))
           +' <span style="font-weight:400;color:var(--muted)">('+gs.length+') · <span class="unit">$</span> '+fmt(totalMes)+'</span></div>'
           +'<table style="font-size:13px"><thead><tr><th>Fecha</th><th>Producto</th><th>Descripción</th><th>Cuenta</th><th>Proveedor</th><th class="num-cell">Total $</th></tr></thead>'
-          +'<tbody>'+gs.map((g)=>'<tr><td>'+esc(g.fecha||"")+'</td><td>'+esc(g.producto||"")+'</td><td>'+esc(g.descripcion||"")+'</td><td>'+esc(g.cuenta||g.categoria||"")+'</td><td>'+esc(g.proveedor||"")+'</td><td class="num-cell">'+fmt(g.monto||0)+'</td></tr>').join("")
+          +'<tbody>'+gs.map((g)=>'<tr><td>'+esc(fmtFecha(g.fecha)||"")+'</td><td>'+esc(g.producto||"")+'</td><td>'+esc(g.descripcion||"")+'</td><td>'+esc(g.cuenta||g.categoria||"")+'</td><td>'+esc(g.proveedor||"")+'</td><td class="num-cell">'+fmt(g.monto||0)+'</td></tr>').join("")
           +'</tbody></table></div>';
       }).join("");
 
@@ -2909,10 +2913,10 @@
         }
         function parseFechaIng(rawVal, txtVal){
           let fecha = "";
-          if (rawVal instanceof Date && !isNaN(rawVal.getTime())) return rawVal.toISOString().slice(0,10);
+          if (rawVal instanceof Date && !isNaN(rawVal.getTime())) return dateToYmd(rawVal);
           if (typeof rawVal === "number" && rawVal > 100){
             const d = new Date(Math.round((rawVal - 25569) * 86400 * 1000));
-            if (!isNaN(d.getTime())) return d.toISOString().slice(0,10);
+            if (!isNaN(d.getTime())) return dateToYmd(d);
           }
           const txt = (txtVal||"").toString().trim();
           let dp = txt.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
@@ -2958,7 +2962,7 @@
           + (duplicados ? ' · <strong style="color:var(--warn)">'+duplicados+' duplicado'+(duplicados!==1?'s':'')+'</strong>' : '')+'.';
         $("ingresoTablaPreview").innerHTML = ingresosPreview.slice(0,200).map((g)=>{
           const estado = g.valida ? '<span class="tag abierta">✓</span>' : '<span class="tag alerta">'+esc(g.errores.join(", "))+'</span>';
-          return '<tr><td>'+g.fila+'</td><td>'+esc(g.fecha)+'</td><td>'+esc(g.proveedor)+'</td><td>'+esc(g.motivo)+'</td><td>'+esc(g.descripcion)+'</td><td class="num-cell">'+fmt(g.cantidad)+'</td><td class="num-cell">'+fmt(g.cUnit)+'</td><td class="num-cell">'+fmt(g.neto)+'</td><td>'+estado+'</td></tr>';
+          return '<tr><td>'+g.fila+'</td><td>'+esc(fmtFecha(g.fecha))+'</td><td>'+esc(g.proveedor)+'</td><td>'+esc(g.motivo)+'</td><td>'+esc(g.descripcion)+'</td><td class="num-cell">'+fmt(g.cantidad)+'</td><td class="num-cell">'+fmt(g.cUnit)+'</td><td class="num-cell">'+fmt(g.neto)+'</td><td>'+estado+'</td></tr>';
         }).join("") + (ingresosPreview.length>200?'<tr><td colspan="9" class="empty">… mostrando 200 de '+ingresosPreview.length+'.</td></tr>':'');
         $("ingresoPreviewCard").style.display = "block";
         $("btnImportarIngreso").disabled = validas===0 || !puede("editar","ingresos");
@@ -3056,7 +3060,7 @@
           +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#107e3e">'+esc(nombreMes(mes))
           +' <span style="font-weight:400;color:var(--muted)">('+gs.length+') · <span class="unit">$</span> '+fmt(totalMes)+'</span></div>'
           +'<table style="font-size:13px"><thead><tr><th>Fecha</th><th>Motivo</th><th>Descripción</th><th class="num-cell">Cantidad</th><th class="num-cell">C.Unit</th><th class="num-cell">Neto $</th></tr></thead>'
-          +'<tbody>'+gs.map((g)=>'<tr><td>'+esc(g.fecha||"")+'</td><td>'+esc(g.motivo||"")+'</td><td>'+esc(g.descripcion||"")+'</td><td class="num-cell">'+fmt(g.cantidad||0)+'</td><td class="num-cell">'+fmt(g.costoUnitario||0)+'</td><td class="num-cell">'+fmt(g.neto||0)+'</td></tr>').join("")
+          +'<tbody>'+gs.map((g)=>'<tr><td>'+esc(fmtFecha(g.fecha)||"")+'</td><td>'+esc(g.motivo||"")+'</td><td>'+esc(g.descripcion||"")+'</td><td class="num-cell">'+fmt(g.cantidad||0)+'</td><td class="num-cell">'+fmt(g.costoUnitario||0)+'</td><td class="num-cell">'+fmt(g.neto||0)+'</td></tr>').join("")
           +'</tbody></table></div>';
       }).join("");
       $("ingresoDetBody").innerHTML = html;
