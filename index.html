@@ -247,8 +247,8 @@
       <div class="chart-grid">
         <div class="chart-box"><h3>Recepciones por planta — MR</h3><canvas id="chartPlantaMR"></canvas></div>
         <div class="chart-box"><h3>Recepciones por planta — M³</h3><canvas id="chartPlantaM3"></canvas></div>
-        <div class="chart-box"><h3>Recepciones por rol — Top 10</h3><canvas id="chartTopRoles"></canvas></div>
-        <div class="chart-box"><h3>Avance de OC (recibido vs solicitado)</h3><canvas id="chartOC"></canvas></div>
+        <div class="chart-box" style="grid-column:1/-1"><h3>Recepciones por rol — Top 10</h3><canvas id="chartTopRoles" style="max-height:340px"></canvas></div>
+        <div class="chart-box" style="grid-column:1/-1"><h3>Avance de OC (recibido vs solicitado)</h3><canvas id="chartOC" style="max-height:340px"></canvas></div>
         <div class="chart-box" style="grid-column:1/-1"><h3 style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">Gastos por rol <select id="filtroMesGasto" style="width:auto;font-size:12px;padding:4px 8px"><option value="">Todos los meses</option></select></h3><canvas id="chartGastos" style="max-height:340px"></canvas></div>
         <div class="chart-box"><h3>Volumen por mes</h3><canvas id="chartMes"></canvas></div>
       </div>
@@ -3508,29 +3508,22 @@
       });
       const rolesTop = Object.entries(porRol).filter((e)=>e[1].mr>0||e[1].m3>0).sort((a,b)=>(b[1].mr+b[1].m3)-(a[1].mr+a[1].m3)).slice(0,10);
       if (rolesTop.length){
-        const totRolMr = Object.values(porRol).reduce((a,v)=>a+v.mr,0);
-        const totRolM3 = Object.values(porRol).reduce((a,v)=>a+v.m3,0);
-        // Etiqueta: valor + % del total de esa unidad en todas las recepciones
-        const dlTopRoles = {
-          display: (ctx)=> (ctx.dataset.data[ctx.dataIndex]||0) > 0,
-          anchor:"end", align:"end", clamp:true, color:"#32363a", font:{ size:10, weight:"600" },
-          formatter: (v,ctx)=>{ const base = ctx.dataset.label==="MR" ? totRolMr : totRolM3; const pct = base ? Math.round(v/base*100) : 0; return fmt(v)+" ("+pct+"%)"; },
-        };
         dibujarChart("chartTopRoles", {
-          type:"bar",
-          data:{ labels:rolesTop.map((e)=>{ const pr=nombrePredioDe(e[0],null); return pr ? e[0]+" · "+(pr.length>16?pr.slice(0,16)+"…":pr) : e[0]; }),
+          type:"line",
+          data:{ labels:rolesTop.map((e)=>{ const pr=nombrePredioDe(e[0],null); return pr ? e[0]+"\n"+(pr.length>16?pr.slice(0,16)+"…":pr) : e[0]; }),
             datasets:[
-              { label:"MR", data:rolesTop.map((e)=>Math.round(e[1].mr)), backgroundColor:"#0a6ed1" },
-              { label:"M³", data:rolesTop.map((e)=>Math.round(e[1].m3)), backgroundColor:"#e9730c" },
+              { label:"MR", data:rolesTop.map((e)=>Math.round(e[1].mr)), borderColor:"#0a6ed1", backgroundColor:"#0a6ed122", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 },
+              { label:"M³", data:rolesTop.map((e)=>Math.round(e[1].m3)), borderColor:"#e9730c", backgroundColor:"#e9730c22", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 },
             ].filter((d)=>d.data.some((v)=>v>0)) },
-          options:{ responsive:true, indexAxis:"y",
-            plugins:{ legend:{position:"bottom"}, datalabels:dlTopRoles },
-            scales:{ x:{ beginAtZero:true, grace:"28%" } } }
+          options:{ responsive:true, maintainAspectRatio:true, aspectRatio:2.5,
+            plugins:{ legend:{position:"bottom", labels:{boxWidth:14}}, datalabels:{display:false},
+              tooltip:{ callbacks:{ label:(c)=>c.dataset.label+": "+fmt(c.parsed.y) } } },
+            scales:{ y:{ beginAtZero:true }, x:{ ticks:{ font:{size:9}, maxRotation:45, minRotation:0 } } } }
         });
       } else if (charts["chartTopRoles"]){ charts["chartTopRoles"].destroy(); delete charts["chartTopRoles"]; }
 
-      // --- Gráfico 2: avance de OC (recibido vs solicitado) [barras agrupadas] ---
-      const ocTop = ocCache.slice(0,8);
+      // --- Gráfico 2: avance de OC (recibido vs solicitado) [barras dobles, ancho completo] ---
+      const ocTop = ocCache.slice(0,12);
       dibujarChart("chartOC", {
         type:"bar",
         data:{ labels:ocTop.map((o)=>o.numero||o.numeroRol||""),
@@ -3538,7 +3531,9 @@
             { label:"Solicitado", data:ocTop.map((o)=>o.solicitado?.metrosRuma||0), backgroundColor:"#c9d9ea" },
             { label:"Recibido", data:ocTop.map((o)=>o.recibido?.metrosRuma||0), backgroundColor:"#0a6ed1" },
           ] },
-        options:{ responsive:true, plugins:{legend:{position:"bottom"}, datalabels:dlBarra}, scales:{ y:{beginAtZero:true, grace:"15%"} } }
+        options:{ responsive:true, maintainAspectRatio:true, aspectRatio:2.5,
+          plugins:{legend:{position:"bottom"}, datalabels:{display:false}},
+          scales:{ y:{beginAtZero:true} } }
       });
 
       // --- Gráfico 3: gastos por rol [barras, eje X=roles, eje Y=M$, filtro de mes] ---
@@ -3565,20 +3560,15 @@
         const porRolG = {};
         gastosFilt.forEach((g)=>{ const k = g.numeroRol || "(sin rol)"; porRolG[k] = (porRolG[k]||0) + (g.monto||0); });
         const rolesGasto = Object.entries(porRolG).sort((a,b)=>b[1]-a[1]).slice(0,15);
-        const dlGastoBarra = {
-          display: (ctx)=> (ctx.dataset.data[ctx.dataIndex]||0) > 0,
-          anchor:"end", align:"end", clamp:true, color:"#32363a", font:{ size:10, weight:"600" },
-          formatter: (v)=>fmtM(v),
-        };
         if (rolesGasto.length){
           dibujarChart("chartGastos", {
-            type:"bar",
+            type:"line",
             data:{ labels:rolesGasto.map((e)=>{ const pr=nombrePredioDe(e[0],null); return pr ? e[0]+"\n"+pr.slice(0,18) : e[0]; }),
-              datasets:[{ label:"Gasto", data:rolesGasto.map((e)=>e[1]), backgroundColor:SAP_COLORS.slice(0,rolesGasto.length) }] },
-            options:{ responsive:true,
-              plugins:{ legend:{display:false}, datalabels:dlGastoBarra,
+              datasets:[{ label:"Gasto", data:rolesGasto.map((e)=>e[1]), borderColor:"#bb0000", backgroundColor:"#bb000022", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 }] },
+            options:{ responsive:true, maintainAspectRatio:true, aspectRatio:2.5,
+              plugins:{ legend:{display:false}, datalabels:{display:false},
                 tooltip:{ callbacks:{ label:(c)=>fmtM(c.parsed.y) } } },
-              scales:{ y:{ beginAtZero:true, grace:"18%", ticks:{ callback:(v)=>fmtM(v) } },
+              scales:{ y:{ beginAtZero:true, ticks:{ callback:(v)=>fmtM(v) } },
                        x:{ ticks:{ font:{size:10}, maxRotation:45, minRotation:0 } } } }
           });
         } else if (charts["chartGastos"]){ charts["chartGastos"].destroy(); delete charts["chartGastos"]; }
@@ -3709,9 +3699,9 @@
               ] },
             options:{ responsive:true, maintainAspectRatio:true, aspectRatio:1.8,
               plugins:{ legend:{position:"bottom", labels:{boxWidth:14}},
-                datalabels:{ display:(ctx)=>(ctx.dataset.data[ctx.dataIndex]||0)>0, align:"top", clamp:true, color:(ctx)=>ctx.dataset.borderColor, font:{size:9,weight:"600"}, formatter:(v)=>fmtM2(v) },
+                datalabels:{ display:false },
                 tooltip:{ callbacks:{ label:(c)=>c.dataset.label+": "+fmtM2(c.parsed.y) } } },
-              scales:{ y:{ beginAtZero:true, grace:"15%", ticks:{ callback:(v)=>fmtM2(v) } }, x:{ ticks:{ font:{size:9}, maxRotation:45, minRotation:0 } } } }
+              scales:{ y:{ beginAtZero:true, ticks:{ callback:(v)=>fmtM2(v) } }, x:{ ticks:{ font:{size:9}, maxRotation:45, minRotation:0 } } } }
           });
         } else if (charts["chartRentabilidad"]){ charts["chartRentabilidad"].destroy(); delete charts["chartRentabilidad"]; }
       }
