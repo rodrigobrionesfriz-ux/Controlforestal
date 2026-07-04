@@ -3074,15 +3074,18 @@
       const mesesOrd = Object.keys(porMes).sort((a,b)=>b.localeCompare(a));
       const granTotal = ingresosCache.reduce((a,g)=>a+(g.neto||0),0);
 
-      cont.innerHTML = '<div style="margin-bottom:12px;font-size:14px"><strong>Total general: <span class="unit">$</span> '+fmt(granTotal)+'</strong> · '+ingresosCache.length+' ingreso'+(ingresosCache.length!==1?'s':'')+'</div>'
+      cont.innerHTML = '<div style="margin-bottom:12px;font-size:14px"><strong>Total general: <span class="unit">$</span> '+fmt(Math.round(granTotal))+'</strong> · '+ingresosCache.length+' ingreso'+(ingresosCache.length!==1?'s':'')+'</div>'
         + mesesOrd.map((mes)=>{
           const items = porMes[mes];
           const totalMes = items.reduce((a,g)=>a+(g.neto||0),0);
+          // Contar roles distintos en el mes
+          const rolesEnMes = [...new Set(items.map((g)=>(g.numeroRol||"").trim()).filter(Boolean))];
+          const resumenRoles = rolesEnMes.length ? rolesEnMes.length+' rol'+(rolesEnMes.length!==1?'es':'') : '';
           return '<div class="mes-group" style="margin-bottom:8px; cursor:pointer" data-ing-ver-mes="'+esc(mes)+'">'
             +'<div class="mes-header">'
             +'<span class="mes-titulo">'+esc(nombreMes(mes))
-            +' <span class="hint">('+items.length+' ingreso'+(items.length!==1?'s':'')+')</span></span>'
-            +'<span class="mes-stats"><span class="unit">$</span> '+fmt(totalMes)+'</span>'
+            +' <span class="hint">('+items.length+' ingreso'+(items.length!==1?'s':'')+(resumenRoles?' · '+resumenRoles:'')+')</span></span>'
+            +'<span class="mes-stats"><span class="unit">$</span> '+fmt(Math.round(totalMes))+'</span>'
             +'</div></div>';
         }).join("");
 
@@ -3097,20 +3100,22 @@
       const ordenados = items.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
       const totalMes = ordenados.reduce((a,g)=>a+(g.neto||0),0);
 
-      // Sub-agrupar por proveedor dentro del mes
-      const porProv = {};
-      ordenados.forEach((g)=>{ const k = (g.proveedor||"").trim() || "(sin proveedor)"; (porProv[k] = porProv[k] || []).push(g); });
-      const provsOrd = Object.keys(porProv).sort((a,b)=>a.localeCompare(b,"es"));
+      // Sub-agrupar por rol dentro del mes
+      const porRol = {};
+      ordenados.forEach((g)=>{ const k = (g.numeroRol||"").trim() || "(sin rol)"; (porRol[k] = porRol[k] || []).push(g); });
+      const rolesOrd = Object.keys(porRol).sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
 
-      let html = '<div style="margin-bottom:12px;font-size:14px"><strong>Total: <span class="unit">$</span> '+fmt(totalMes)+'</strong> · '+ordenados.length+' ingreso'+(ordenados.length!==1?'s':'')+'</div>';
-      html += provsOrd.map((prov)=>{
-        const gs = porProv[prov];
-        const totalProv = gs.reduce((a,g)=>a+(g.neto||0),0);
+      let html = '<div style="margin-bottom:12px;font-size:14px"><strong>Total: <span class="unit">$</span> '+fmt(Math.round(totalMes))+'</strong> · '+ordenados.length+' ingreso'+(ordenados.length!==1?'s':'')+'</div>';
+      html += rolesOrd.map((rol)=>{
+        const gs = porRol[rol];
+        const totalRol = gs.reduce((a,g)=>a+(g.neto||0),0);
+        const predio = nombrePredioDe(rol, gs[0]?.rolId);
         return '<div style="margin-bottom:14px">'
-          +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#107e3e">'+esc(prov)
-          +' <span style="font-weight:400;color:var(--muted)">('+gs.length+') · <span class="unit">$</span> '+fmt(totalProv)+'</span></div>'
-          +'<table style="font-size:13px"><thead><tr><th>Fecha</th><th>Motivo</th><th>Descripción</th><th class="num-cell">Cantidad</th><th class="num-cell">C.Unit</th><th class="num-cell">Neto $</th></tr></thead>'
-          +'<tbody>'+gs.map((g)=>'<tr><td>'+esc(fmtFecha(g.fecha)||"")+'</td><td>'+esc(g.motivo||"")+'</td><td>'+esc(g.descripcion||"")+'</td><td class="num-cell">'+fmt(g.cantidad||0)+'</td><td class="num-cell">'+fmt(g.costoUnitario||0)+'</td><td class="num-cell">'+fmt(g.neto||0)+'</td></tr>').join("")
+          +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#107e3e">'
+          +'Rol '+esc(rol)+(predio?' · '+esc(predio):'')
+          +' <span style="font-weight:400;color:var(--muted)">('+gs.length+') · <span class="unit">$</span> '+fmt(Math.round(totalRol))+'</span></div>'
+          +'<table style="font-size:13px"><thead><tr><th>Fecha</th><th>Proveedor</th><th>Motivo</th><th>Descripción</th><th class="num-cell">Cantidad</th><th class="num-cell">C.Unit</th><th class="num-cell">Neto $</th></tr></thead>'
+          +'<tbody>'+gs.map((g)=>'<tr><td>'+esc(fmtFecha(g.fecha)||"")+'</td><td>'+esc(g.proveedor||"")+'</td><td>'+esc(g.motivo||"")+'</td><td>'+esc(g.descripcion||"")+'</td><td class="num-cell">'+fmt(g.cantidad||0)+'</td><td class="num-cell">'+fmt(g.costoUnitario||0)+'</td><td class="num-cell">'+fmt(g.neto||0)+'</td></tr>').join("")
           +'</tbody></table></div>';
       }).join("");
       $("ingresoDetBody").innerHTML = html;
