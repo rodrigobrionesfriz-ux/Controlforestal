@@ -217,6 +217,7 @@
         <div><h2 style="margin:0">Resumen general</h2><p class="sub" style="margin:4px 0 0">Vista consolidada del negocio forestal.</p></div>
         <div style="position:relative">
           <button id="btnFiltroMesGlobal" class="secondary" style="font-size:13px;padding:6px 14px;cursor:pointer">📅 Todos los meses ▾</button>
+          <button id="btnActualizar" class="secondary" style="font-size:13px;padding:6px 14px;cursor:pointer" title="Recargar datos desde la base de datos">🔄 Actualizar</button>
           <div id="panelMesesGlobal" style="display:none;position:absolute;right:0;top:100%;z-index:20;margin-top:4px">
             <div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px 16px;max-height:300px;overflow-y:auto;min-width:200px">
               <label style="display:block;margin-bottom:8px;font-size:13px;font-weight:700;cursor:pointer"><input type="checkbox" id="chkTodosMesesGlobal" checked style="margin-right:6px" />Todos los meses</label>
@@ -1164,30 +1165,94 @@
       if (_arranquePendiente){ _arranquePendiente = false; iniciarListeners(); }
     }
 
-    // Registra los listeners de Firestore. Las DEFINICIONES se guardan permanentemente
-    // (para re-registrar en cada login); las desuscripciones se guardan para poder detenerlos.
-    let _listenersIniciados = false;
-    const _defsSnap = [];   // definiciones permanentes de todos los listeners
-    const _unsubs = [];     // funciones de desuscripción de los onSnapshot activos
-    function regSnap(...args){
-      _defsSnap.push(args);   // se guarda siempre (permanente)
-      if (_listenersIniciados){ try { const u = onSnapshot(...args); if (typeof u==="function") _unsubs.push(u); } catch(e){} }
-    }
-    function iniciarListeners(){
-      if (_listenersIniciados) return;
-      _listenersIniciados = true;
-      _defsSnap.forEach((args)=>{ try { const u = onSnapshot(...args); if (typeof u==="function") _unsubs.push(u); } catch(e){} });
-    }
-    // Detener todos los listeners al cerrar sesión (evita el error "insufficient permissions"
-    // por listeners que siguen consultando Firestore sin sesión).
-    function detenerListeners(){
-      _unsubs.forEach((u)=>{ try { u(); } catch(e){} });
-      _unsubs.length = 0;
-      _listenersIniciados = false;
+    // ---- CARGA DE DATOS BAJO DEMANDA ----
+    // Los datos se cargan con getDocs (lectura única) solo cuando el usuario navega
+    // a una pestaña o pulsa Actualizar. No se usan listeners en tiempo real.
+    const _cargado = {};  // { modulo: true }
+
+    // Mapa: qué colecciones necesita cada pestaña
+    const DEPS_TAB = {
+      resumen:    ["roles","clientes","productos","recepciones","ordenesCompra","gastos","ingresos"],
+      roles:      ["roles"],
+      plantas:    ["clientes"],
+      productos:  ["productos"],
+      negocios:   ["roles","negocios","productos"],
+      oc:         ["roles","productos","ordenesCompra","recepciones"],
+      recepciones:["roles","recepciones"],
+      importar:   ["roles","clientes","productos","recepciones"],
+      gastos:     ["roles","gastos"],
+      ingresos:   ["roles","ingresos"],
+      usuarios:   ["usuarios"],
+      empresa:    ["config"],
+      mantenimiento: [],
+    };
+
+    // Callbacks de procesamiento por colección (se llenan abajo con regSnap)
+    const _snapCallbacks = {};
+    const _snapErrorCbs = {};
+    // regSnap: registra callbacks por colección (NO crea listener en tiempo real)
+    function regSnap(q, cb, errCb){
+      // Extraer nombre de colección del objeto query de Firestore
+      let nombre = null;
+      try {
+        // query(collection(db, "xxx")) → q._query.path.segments = ["xxx"]
+        const segs = q?._query?.path?.segments || q?.path?.segments;
+        if (segs) nombre = segs[segs.length-1];
+      } catch(e){}
+      // Fallback: buscar en el string del query
+      if (!nombre) try { nombre = q.firestore ? q._path?.segments?.slice(-1)[0] : null; } catch(e){}
+      if (nombre){ _snapCallbacks[nombre] = cb; if (errCb) _snapErrorCbs[nombre] = errCb; }
     }
 
+    // Cargar una colección con getDocs (lectura única)
+    async function _cargarModulo(nombre){
+      const cb = _snapCallbacks[nombre];
+      if (!cb) return;
+      try {
+        const q = query(collection(db, nombre), orderBy("fechaCreacion","desc"));
+        const snap = await getDocs(q);
+        cb(snap);
+        _cargado[nombre] = true;
+      } catch(e){
+        if (_snapErrorCbs[nombre]) _snapErrorCbs[nombre](e);
+        else console.warn("Error al cargar "+nombre+":", e.message);
+      }
+    }
+
+    // Cargar datos necesarios para una pestaña
+    async function cargarParaTab(tab, forzar){
+      const deps = DEPS_TAB[tab] || [];
+      const pendientes = forzar ? deps : deps.filter((d)=>!_cargado[d]);
+      if (!pendientes.length) return;
+      statusEl.innerHTML = '<span class="dot ok"></span>Cargando datos…';
+      for (const dep of pendientes){
+        if (dep === "config"){ await _cargarConfig(); continue; }
+        await _cargarModulo(dep);
+      }
+      statusEl.innerHTML = '<span class="dot ok"></span>Conectado &middot; controlgestionforestal';
+      _reintentos = 0;
+    }
+    async function _cargarConfig(){
+      try {
+        const snap = await getDoc(doc(db,"config","empresa"));
+        if (_snapCallbacks["config"]) _snapCallbacks["config"](snap);
+        _cargado["config"] = true;
+      } catch(e){}
+    }
+
+    // Recargar todo (botón Actualizar)
+    async function recargarTodo(){
+      Object.keys(_cargado).forEach((k)=> delete _cargado[k]);
+      const tab = document.querySelector("nav.sidebar button.active")?.dataset?.tab || "resumen";
+      await cargarParaTab(tab, true);
+    }
+
+    // Compatibilidad: funciones que antes arrancaban/detenían listeners
+    function iniciarListeners(){ cargarParaTab("resumen", false); }
+    function detenerListeners(){ Object.keys(_cargado).forEach((k)=> delete _cargado[k]); }
+
     // Reintento: si la primera lectura falla por permisos (token aún no propagado),
-    // refresca el token y vuelve a arrancar los listeners. Máximo unos pocos intentos.
+    // refresca el token y reintenta. Máximo unos pocos intentos.
     let _reintentos = 0;
     let _reintentoEnCurso = false;
     async function reintentarListeners(){
@@ -1195,22 +1260,22 @@
       _reintentoEnCurso = true;
       _reintentos++;
       try {
-        // Detener los actuales y forzar refresco del token de sesión
         detenerListeners();
         if (auth.currentUser){ try { await auth.currentUser.getIdToken(true); } catch(e){} }
-        // Pequeña espera creciente antes de reintentar
         await new Promise((r)=> setTimeout(r, 400 * _reintentos));
-        iniciarListeners();
+        await cargarParaTab("resumen", true);
       } finally { _reintentoEnCurso = false; }
     }
 
     // Pestañas
     document.querySelectorAll("nav.sidebar button").forEach((b) => {
-      b.addEventListener("click", () => {
+      b.addEventListener("click", async () => {
         document.querySelectorAll("nav.sidebar button").forEach((x) => x.classList.remove("active"));
         document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
         b.classList.add("active");
         $("view-" + b.dataset.tab).classList.add("active");
+        // Cargar datos necesarios para esta pestaña
+        if (usuarioActual) await cargarParaTab(b.dataset.tab, false);
       });
     });
 
@@ -3283,19 +3348,18 @@
     });
 
     // Escuchar datos de empresa y aplicarlos (header + formulario)
-    regSnap(doc(db,"config","empresa"), (snap) => {
+    // Config empresa: registrar callback manualmente (usa doc, no query)
+    _snapCallbacks["config"] = (snap) => {
       if (!snap.exists()) return;
       const e = snap.data();
-      // Rellenar formulario
       $("empRut").value = e.rut||""; $("empRazon").value = e.razonSocial||"";
       $("empDireccion").value = e.direccion||""; $("empComuna").value = e.comuna||"";
       $("empTelefono").value = e.telefono||""; $("empEmail").value = e.email||"";
       $("empContacto").value = e.contacto||"";
-      // Aplicar al header
       if (e.razonSocial) $("headerRazon").textContent = e.razonSocial;
       if (e.logo){ $("headerLogo").src = e.logo; $("headerLogo").style.display = "block";
         $("logoPreview").innerHTML = '<img src="'+e.logo+'" style="width:100%;height:100%;object-fit:cover" />'; }
-    }, ()=>{});
+    };
 
     // ================== RESUMEN / DASHBOARD ==================
     const SAP_COLORS = ["#0a6ed1","#107e3e","#e9730c","#bb0000","#6b3fa0","#0892a5","#925ace","#1c4c98","#5b738b","#d04a02"];
@@ -3314,6 +3378,11 @@
     $("filtroMesGasto").addEventListener("change", ()=>{ if (window._dibujarGastosRol) window._dibujarGastosRol(); });
 
     // Panel filtro global de meses del dashboard
+    $("btnActualizar").addEventListener("click", async ()=>{
+      $("btnActualizar").disabled = true; $("btnActualizar").textContent = "🔄 Cargando…";
+      await recargarTodo();
+      $("btnActualizar").disabled = false; $("btnActualizar").textContent = "🔄 Actualizar";
+    });
     $("btnFiltroMesGlobal").addEventListener("click", (e)=>{
       e.stopPropagation();
       const p = $("panelMesesGlobal");
@@ -3681,12 +3750,8 @@
       }
     }
 
-    // Recalcular el resumen cuando cualquiera de los datasets cambie.
-    let _lastSig = "";
-    setInterval(() => {
-      const sig = [rolesCache.length, recepcionesCache.length, plantasCache.length, productosCache.length, ocCache.length, gastosCache.length, ingresosCache.length].join("-");
-      if (sig !== _lastSig){ _lastSig = sig; programarResumen(); }
-    }, 800);
+    // Recalcular el resumen manualmente cuando se cargan datos nuevos.
+    // programarResumen() se llama desde los callbacks de cada colección.
 
     // ================== MANTENIMIENTO (admin) ==================
     // Parsea coordenadas "lat; lng" (acepta ; y coma decimal) -> {lat,lng} o null
