@@ -3522,19 +3522,24 @@
         });
       } else if (charts["chartTopRoles"]){ charts["chartTopRoles"].destroy(); delete charts["chartTopRoles"]; }
 
-      // --- Gráfico 2: avance de OC (recibido vs solicitado) [barras dobles, ancho completo] ---
+      // --- Gráfico 2: avance de OC (recibido vs solicitado) [barras dobles MR y M³, ancho completo] ---
       const ocTop = ocCache.slice(0,12);
-      dibujarChart("chartOC", {
-        type:"bar",
-        data:{ labels:ocTop.map((o)=>o.numero||o.numeroRol||""),
-          datasets:[
-            { label:"Solicitado", data:ocTop.map((o)=>o.solicitado?.metrosRuma||0), backgroundColor:"#c9d9ea" },
-            { label:"Recibido", data:ocTop.map((o)=>o.recibido?.metrosRuma||0), backgroundColor:"#0a6ed1" },
-          ] },
-        options:{ responsive:true, maintainAspectRatio:true, aspectRatio:2.5,
-          plugins:{legend:{position:"bottom"}, datalabels:{display:false}},
-          scales:{ y:{beginAtZero:true} } }
-      });
+      if (ocTop.length){
+        dibujarChart("chartOC", {
+          type:"bar",
+          data:{ labels:ocTop.map((o)=>{ const pr = o.numeroRol ? nombrePredioDe(o.numeroRol,o.rolId) : ""; return (o.numero||"")+(o.numeroRol?" · "+o.numeroRol:"")+(pr?"\n"+pr.slice(0,16):""); }),
+            datasets:[
+              { label:"MR Solicitado", data:ocTop.map((o)=>o.solicitado?.metrosRuma||0), backgroundColor:"#c9d9ea" },
+              { label:"MR Recibido", data:ocTop.map((o)=>o.recibido?.metrosRuma||0), backgroundColor:"#0a6ed1" },
+              { label:"M³ Solicitado", data:ocTop.map((o)=>o.solicitado?.m3||0), backgroundColor:"#f5d0a9" },
+              { label:"M³ Recibido", data:ocTop.map((o)=>o.recibido?.m3||0), backgroundColor:"#e9730c" },
+            ].filter((d)=>d.data.some((v)=>v>0)) },
+          options:{ responsive:true, maintainAspectRatio:true, aspectRatio:2.5,
+            plugins:{legend:{position:"bottom", labels:{boxWidth:14}}, datalabels:{display:false},
+              tooltip:{ callbacks:{ label:(c)=>c.dataset.label+": "+fmt(c.parsed.y) } }},
+            scales:{ y:{beginAtZero:true}, x:{ ticks:{ font:{size:10} } } } }
+        });
+      } else if (charts["chartOC"]){ charts["chartOC"].destroy(); delete charts["chartOC"]; }
 
       // --- Gráfico 3: gastos por rol [barras, eje X=roles, eje Y=M$, filtro de mes] ---
       const fmtM = (v)=> (v/1000000).toFixed(2) + " M$";
