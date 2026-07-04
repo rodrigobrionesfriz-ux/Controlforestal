@@ -258,6 +258,7 @@
           <h3 style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
             Rentabilidad por rol — Ingresos vs Gastos
             <span style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:12px">
+              <select id="filtroRolRent" style="width:auto;font-size:12px;padding:4px 8px;max-width:220px"><option value="">Todos los roles</option></select>
               <button id="btnFiltroMesRent" class="secondary" style="font-size:12px;padding:4px 10px;cursor:pointer">Todos los meses ▾</button>
             </span>
           </h3>
@@ -267,7 +268,7 @@
               <div id="listaMesesRent" style="font-size:12px"></div>
             </div>
           </div>
-          <canvas id="chartRentabilidad" style="max-height:340px"></canvas>
+          <canvas id="chartRentabilidad" style="max-height:480px"></canvas>
         </div>
       </div>
     </div>
@@ -3343,6 +3344,7 @@
       p.style.display = p.style.display==="none" ? "block" : "none";
     });
     $("panelMesesRent").addEventListener("click", (e)=>e.stopPropagation());
+    $("filtroRolRent").addEventListener("change", ()=>{ if (window._dibujarRentabilidad) window._dibujarRentabilidad(); });
     // "Todos los meses" desmarca/marca los individuales
     $("chkTodosMesesRent").addEventListener("change", ()=>{
       const checked = $("chkTodosMesesRent").checked;
@@ -3603,7 +3605,20 @@
         options:{ responsive:true, plugins:{legend:{position:"bottom", labels:{boxWidth:12, font:{size:10}}}}, scales:{ y:{beginAtZero:true, title:{display:true, text:"M³"}} } }
       });
 
-      // --- Gráfico: Rentabilidad por rol — Ingresos vs Gastos [líneas, M$, filtro multi-mes] ---
+      // --- Gráfico: Rentabilidad por rol — Ingresos vs Gastos [líneas, M$, filtro multi-mes + filtro rol] ---
+      // Poblar filtro de roles
+      const rolesConDatos = new Set();
+      fGastos.forEach((g)=>{ const k=(g.numeroRol||"").toString().trim(); if(k) rolesConDatos.add(k); });
+      fIngresos.forEach((g)=>{ const k=(g.numeroRol||"").toString().trim(); if(k) rolesConDatos.add(k); });
+      const rolesRentList = [...rolesConDatos].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
+      const selRolR = $("filtroRolRent");
+      const prevRolR = selRolR.value;
+      selRolR.innerHTML = '<option value="">Todos los roles</option>' + rolesRentList.map((r)=>{
+        const pr = nombrePredioDe(r,null);
+        return '<option value="'+esc(r)+'">'+esc(r)+(pr?' · '+esc(pr):'')+'</option>';
+      }).join("");
+      selRolR.value = prevRolR;
+
       // Poblar lista de meses disponibles (unión de gastos e ingresos)
       const mesesRentSet = new Set();
       fGastos.forEach((g)=>{ const m=g.periodo||g.fecha?.slice(0,7); if(m) mesesRentSet.add(m); });
@@ -3623,6 +3638,7 @@
       function dibujarRentabilidad(){
         const todos = $("chkTodosMesesRent").checked;
         const mesesSel = todos ? null : [...$("listaMesesRent").querySelectorAll(".chkMesRent:checked")].map((cb)=>cb.value);
+        const rolFiltro = $("filtroRolRent").value;
         // Actualizar texto del botón
         if (todos) $("btnFiltroMesRent").textContent = "Todos los meses ▾";
         else if (mesesSel.length===0) $("btnFiltroMesRent").textContent = "Ningún mes ▾";
@@ -3635,7 +3651,9 @@
             const per = g.periodo || g.fecha?.slice(0,7);
             if (!todos && mesesSel && !mesesSel.includes(per)) return;
             const k = (g[campoRol]||"").toString().trim();
-            if (k) result[k] = (result[k]||0) + (g[campoMonto]||0);
+            if (!k) return;
+            if (rolFiltro && k !== rolFiltro) return;
+            result[k] = (result[k]||0) + (g[campoMonto]||0);
           });
           return result;
         };
@@ -3653,7 +3671,7 @@
                 { label:"Ingresos", data:rolesRentab.map((r)=>ingresoPorRol[r]||0), borderColor:"#107e3e", backgroundColor:"#107e3e22", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 },
                 { label:"Gastos", data:rolesRentab.map((r)=>gastoPorRol[r]||0), borderColor:"#bb0000", backgroundColor:"#bb000022", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 },
               ] },
-            options:{ responsive:true, maintainAspectRatio:true, aspectRatio:2.5,
+            options:{ responsive:true, maintainAspectRatio:true, aspectRatio:1.8,
               plugins:{ legend:{position:"bottom", labels:{boxWidth:14}},
                 datalabels:{ display:(ctx)=>(ctx.dataset.data[ctx.dataIndex]||0)>0, align:"top", clamp:true, color:(ctx)=>ctx.dataset.borderColor, font:{size:9,weight:"600"}, formatter:(v)=>fmtM2(v) },
                 tooltip:{ callbacks:{ label:(c)=>c.dataset.label+": "+fmtM2(c.parsed.y) } } },
