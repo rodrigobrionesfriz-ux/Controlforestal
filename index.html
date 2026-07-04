@@ -213,7 +213,18 @@
   <main>
     <!-- RESUMEN / DASHBOARD -->
     <div class="view active" id="view-resumen">
-      <div class="card" style="margin-bottom:20px"><h2 style="margin:0">Resumen general</h2><p class="sub" style="margin:4px 0 0">Vista consolidada del negocio forestal.</p></div>
+      <div class="card" style="margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px">
+        <div><h2 style="margin:0">Resumen general</h2><p class="sub" style="margin:4px 0 0">Vista consolidada del negocio forestal.</p></div>
+        <div style="position:relative">
+          <button id="btnFiltroMesGlobal" class="secondary" style="font-size:13px;padding:6px 14px;cursor:pointer">📅 Todos los meses ▾</button>
+          <div id="panelMesesGlobal" style="display:none;position:absolute;right:0;top:100%;z-index:20;margin-top:4px">
+            <div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px 16px;max-height:300px;overflow-y:auto;min-width:200px">
+              <label style="display:block;margin-bottom:8px;font-size:13px;font-weight:700;cursor:pointer"><input type="checkbox" id="chkTodosMesesGlobal" checked style="margin-right:6px" />Todos los meses</label>
+              <div id="listaMesesGlobal" style="font-size:12px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="kpi-grid">
         <div class="kpi"><div class="label">Roles</div><div class="value" id="kpiRoles">0</div></div>
         <div class="kpi"><div class="label">Recepciones</div><div class="value" id="kpiRecep">0</div></div>
@@ -243,7 +254,21 @@
         <div class="chart-box"><h3>Evolución mensual M³ por planta</h3><canvas id="chartLineaM3"></canvas></div>
       </div>
       <div style="margin-top:18px">
-        <div class="chart-box" style="max-width:100%"><h3>Rentabilidad por rol — Ingresos vs Gastos</h3><canvas id="chartRentabilidad" style="max-height:340px"></canvas></div>
+        <div class="chart-box" style="max-width:100%">
+          <h3 style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            Rentabilidad por rol — Ingresos vs Gastos
+            <span style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:12px">
+              <button id="btnFiltroMesRent" class="secondary" style="font-size:12px;padding:4px 10px;cursor:pointer">Todos los meses ▾</button>
+            </span>
+          </h3>
+          <div id="panelMesesRent" style="display:none;position:relative;z-index:10">
+            <div style="position:absolute;right:0;top:0;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.12);padding:10px 14px;max-height:260px;overflow-y:auto;min-width:180px">
+              <label style="display:block;margin-bottom:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="chkTodosMesesRent" checked style="margin-right:6px" />Todos los meses</label>
+              <div id="listaMesesRent" style="font-size:12px"></div>
+            </div>
+          </div>
+          <canvas id="chartRentabilidad" style="max-height:340px"></canvas>
+        </div>
       </div>
     </div>
 
@@ -2167,6 +2192,8 @@
     // Normaliza encabezados: minúsculas, sin acentos, espacios->_
     function normHeader(h){ return (h??"").toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"_"); }
     function pick(row, claves){ for (const k of claves){ const kk=Object.keys(row).find((x)=>normHeader(x)===k); if (kk!==undefined && row[kk]!=="") return row[kk]; } return ""; }
+    // Extraer número de rol del inicio de un texto (ej: "105-13 FAENA" → "105-13")
+    function extraerRol(txt){ const m = (txt||"").toString().trim().match(/^(\d+\-\d+)/); return m ? m[1] : (txt||"").toString().trim(); }
     // Convertir Date a "yyyy-mm-dd" sin desfase UTC (usa componentes UTC para fechas de XLSX)
     function dateToYmd(d){ return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0"); }
     // Formatear "yyyy-mm-dd" → "dd/mm/yyyy" para mostrar al usuario
@@ -2239,7 +2266,7 @@
         // Acepta dos formatos: la plantilla genérica y la "Base fletes" real.
         // pick() es global
         // Extrae el número de rol del inicio de un texto tipo "105-13 LOS SAUCES" -> "105-13"
-        const extraerRol = (txt) => { const m = (txt||"").toString().trim().match(/^(\d+\-\d+)/); return m ? m[1] : (txt||"").toString().trim(); };
+        // extraerRol() es global
         filasPreview = filas.map((raw, i) => {
           const row = {}; Object.keys(raw).forEach((k) => { row[normHeader(k)] = raw[k]; });
           // Rol: directo (numero_rol/rol_predio) o extraído de centro_costo (formato BASE_PROF)
@@ -2592,7 +2619,7 @@
         const filasRaw = XLSX.utils.sheet_to_json(ws, { defval:"", raw:true, cellDates:true });
         if (!filas.length){ m.textContent="El archivo no tiene filas."; m.className="msg err"; return; }
         // pick() es global
-        const extraerRol = (txt) => { const mm=(txt||"").toString().trim().match(/^(\d+\-\d+)/); return mm?mm[1]:(txt||"").toString().trim(); };
+        // extraerRol() es global
 
         // Clave única para detectar duplicados: rol + fecha + descripción + total
         const claveGasto = (g) => [
@@ -2948,8 +2975,9 @@
           const proveedor = pick(row, ["proveedor"]).toString().trim();
           const motivo = pick(row, ["motivo"]).toString().trim();
           const descripcion = pick(row, ["descripcion","descripción"]).toString().trim();
-          // Rol: columna ROL si existe (opcional, para cruce con gastos)
+          // Rol: primero columna ROL, si no, extraer del centro de costo (columna K)
           let numeroRol = pick(row, ["rol"]).toString().trim();
+          if (!numeroRol){ const cc = pick(row, ["centro_costo","centro_de_costo","centro_costos","cc","c.costo"]); if (cc) numeroRol = extraerRol(cc); }
           const rolObj = numeroRol ? rolesCache.find((r)=>(r.numeroRol||"").toString().trim()===numeroRol) : null;
           const cantidad = parseMontoIng(pick(rawRow, ["cantidad"]), pick(row, ["cantidad"]));
           const cUnit = parseMontoIng(pick(rawRow, ["c.unit","c_unit","costo_unitario","c.unit."]), pick(row, ["c.unit","c_unit","costo_unitario","c.unit."]));
@@ -3284,20 +3312,95 @@
     function programarResumen(){ clearTimeout(resumenTimer); resumenTimer = setTimeout(actualizarResumen, 400); }
     $("filtroMesGasto").addEventListener("change", ()=>{ if (window._dibujarGastosRol) window._dibujarGastosRol(); });
 
+    // Panel filtro global de meses del dashboard
+    $("btnFiltroMesGlobal").addEventListener("click", (e)=>{
+      e.stopPropagation();
+      const p = $("panelMesesGlobal");
+      p.style.display = p.style.display==="none" ? "block" : "none";
+      // Cerrar el otro panel si está abierto
+      $("panelMesesRent").style.display = "none";
+    });
+    document.addEventListener("click", ()=>{ $("panelMesesGlobal").style.display = "none"; $("panelMesesRent").style.display = "none"; });
+    $("panelMesesGlobal").addEventListener("click", (e)=>e.stopPropagation());
+    $("chkTodosMesesGlobal").addEventListener("change", ()=>{
+      const checked = $("chkTodosMesesGlobal").checked;
+      $("listaMesesGlobal").querySelectorAll(".chkMesG").forEach((cb)=>cb.checked = checked);
+      programarResumen();
+    });
+    $("listaMesesGlobal").addEventListener("change", (e)=>{
+      if (e.target.classList.contains("chkMesG")){
+        const todos = $("listaMesesGlobal").querySelectorAll(".chkMesG");
+        const marcados = $("listaMesesGlobal").querySelectorAll(".chkMesG:checked");
+        $("chkTodosMesesGlobal").checked = marcados.length === todos.length;
+        programarResumen();
+      }
+    });
+
+    // Panel filtro multi-mes del gráfico de rentabilidad
+    $("btnFiltroMesRent").addEventListener("click", (e)=>{
+      e.stopPropagation();
+      const p = $("panelMesesRent");
+      p.style.display = p.style.display==="none" ? "block" : "none";
+    });
+    $("panelMesesRent").addEventListener("click", (e)=>e.stopPropagation());
+    // "Todos los meses" desmarca/marca los individuales
+    $("chkTodosMesesRent").addEventListener("change", ()=>{
+      const checked = $("chkTodosMesesRent").checked;
+      $("listaMesesRent").querySelectorAll(".chkMesRent").forEach((cb)=>cb.checked = checked);
+      if (window._dibujarRentabilidad) window._dibujarRentabilidad();
+    });
+    // Checkboxes individuales
+    $("listaMesesRent").addEventListener("change", (e)=>{
+      if (e.target.classList.contains("chkMesRent")){
+        const todos = $("listaMesesRent").querySelectorAll(".chkMesRent");
+        const marcados = $("listaMesesRent").querySelectorAll(".chkMesRent:checked");
+        $("chkTodosMesesRent").checked = marcados.length === todos.length;
+        if (window._dibujarRentabilidad) window._dibujarRentabilidad();
+      }
+    });
+
     async function actualizarResumen(){
+      // --- Filtro global de meses ---
+      const todosM = new Set();
+      recepcionesCache.forEach((r)=>{ const p=r.periodo||r.fechaIngreso?.slice(0,7); if(p) todosM.add(p); });
+      gastosCache.forEach((g)=>{ const p=g.periodo||g.fecha?.slice(0,7); if(p) todosM.add(p); });
+      ingresosCache.forEach((g)=>{ const p=g.periodo||g.fecha?.slice(0,7); if(p) todosM.add(p); });
+      const todosArr = [...todosM].sort();
+      // Poblar checkboxes (mantener selección previa)
+      const listaG = $("listaMesesGlobal");
+      const prevSel = [...listaG.querySelectorAll("input:checked")].map((cb)=>cb.value);
+      const esInicio = listaG.children.length===0;
+      listaG.innerHTML = todosArr.map((m)=>{
+        const checked = esInicio || prevSel.includes(m) ? "checked" : "";
+        return '<label style="display:block;margin-bottom:4px;cursor:pointer"><input type="checkbox" class="chkMesG" value="'+m+'" '+checked+' style="margin-right:6px" />'+esc(nombreMes(m))+'</label>';
+      }).join("");
+      // Determinar meses seleccionados
+      const filtroGlobal = $("chkTodosMesesGlobal").checked;
+      const mesesGlobal = filtroGlobal ? null : [...listaG.querySelectorAll(".chkMesG:checked")].map((cb)=>cb.value);
+      // Actualizar texto del botón
+      if (filtroGlobal) $("btnFiltroMesGlobal").textContent = "📅 Todos los meses ▾";
+      else if (!mesesGlobal||mesesGlobal.length===0) $("btnFiltroMesGlobal").textContent = "📅 Ningún mes ▾";
+      else if (mesesGlobal.length<=2) $("btnFiltroMesGlobal").textContent = "📅 "+mesesGlobal.map((m)=>nombreMes(m)).join(", ")+" ▾";
+      else $("btnFiltroMesGlobal").textContent = "📅 "+mesesGlobal.length+" meses ▾";
+      // Filtrar datos por mes
+      const periodoDE = (r, campoFecha) => r.periodo || r[campoFecha]?.slice(0,7) || "";
+      const fRecep = filtroGlobal ? recepcionesCache : recepcionesCache.filter((r)=>mesesGlobal.includes(periodoDE(r,"fechaIngreso")));
+      const fGastos = filtroGlobal ? gastosCache : gastosCache.filter((g)=>mesesGlobal.includes(periodoDE(g,"fecha")));
+      const fIngresos = filtroGlobal ? ingresosCache : ingresosCache.filter((g)=>mesesGlobal.includes(periodoDE(g,"fecha")));
+
       // --- KPIs (siempre, aunque Chart.js no cargue) ---
       $("kpiRoles").textContent = fmt(rolesCache.length);
-      $("kpiRecep").textContent = fmt(recepcionesCache.length);
+      $("kpiRecep").textContent = fmt(fRecep.length);
       $("kpiPlantas").textContent = fmt(plantasCache.length);
       $("kpiProd").textContent = fmt(productosCache.length);
       $("kpiOC").textContent = fmt(ocCache.length);
-      const totalMr = recepcionesCache.reduce((a,r)=>a+(r.metrosRuma||0),0);
+      const totalMr = fRecep.reduce((a,r)=>a+(r.metrosRuma||0),0);
       $("kpiMr").innerHTML = fmt(Math.round(totalMr)) + ' <span class="unit">mr</span>';
-      const totalM3 = recepcionesCache.reduce((a,r)=>a+(r.m3||0),0);
+      const totalM3 = fRecep.reduce((a,r)=>a+(r.m3||0),0);
       $("kpiM3").innerHTML = fmt(Math.round(totalM3)) + ' <span class="unit">m³</span>';
-      const totalGastos = gastosCache.reduce((a,g)=>a+(g.monto||0),0);
+      const totalGastos = fGastos.reduce((a,g)=>a+(g.monto||0),0);
       $("kpiGastos").innerHTML = '<span class="unit">$</span> ' + fmt(totalGastos);
-      const totalIngresos = ingresosCache.reduce((a,g)=>a+(g.neto||0),0);
+      const totalIngresos = fIngresos.reduce((a,g)=>a+(g.neto||0),0);
       $("kpiIngresos").innerHTML = '<span class="unit">$</span> ' + fmt(totalIngresos);
       const ocAlerta = ocCache.filter((o)=>{ const rm=(o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0); const r3=(o.solicitado?.m3||0)-(o.recibido?.m3||0); const u=o.umbralAlerta??300; return (rm>0||r3>0)&&(rm<=u||r3<=u); }).length;
       $("kpiOCAlerta").textContent = fmt(ocAlerta);
@@ -3333,7 +3436,7 @@
 
       // --- Gráficos 1a y 1b: recepciones por planta, MR y M³ [circular/dona] ---
       const porPlantaMR = {}, porPlantaM3 = {};
-      recepcionesCache.forEach((r)=>{
+      fRecep.forEach((r)=>{
         const k = plantaDe(r);
         porPlantaMR[k] = (porPlantaMR[k]||0) + (r.metrosRuma||0);
         porPlantaM3[k] = (porPlantaM3[k]||0) + (r.m3||0);
@@ -3359,7 +3462,7 @@
 
       // --- Gráfico: recepciones por rol — Top 10 [barras horizontales MR y M³] ---
       const porRol = {};
-      recepcionesCache.forEach((r)=>{
+      fRecep.forEach((r)=>{
         const k = ((r.numeroRol||"").toString().trim()) || "(SIN ROL)";
         if (!porRol[k]) porRol[k] = { mr:0, m3:0 };
         porRol[k].mr += r.metrosRuma||0;
@@ -3405,7 +3508,7 @@
 
       // Poblar filtro de meses
       const mesesGastoSet = new Set();
-      gastosCache.forEach((g)=>{ const m = g.periodo || g.fecha?.slice(0,7) || ""; if (m) mesesGastoSet.add(m); });
+      fGastos.forEach((g)=>{ const m = g.periodo || g.fecha?.slice(0,7) || ""; if (m) mesesGastoSet.add(m); });
       const mesesGastoArr = [...mesesGastoSet].sort();
       const selMesG = $("filtroMesGasto");
       const prevMesG = selMesG.value;
@@ -3419,7 +3522,7 @@
 
       function dibujarGastosRol(){
         const mesFiltro = $("filtroMesGasto").value;
-        const gastosFilt = mesFiltro ? gastosCache.filter((g)=>(g.periodo||g.fecha?.slice(0,7))=== mesFiltro) : gastosCache;
+        const gastosFilt = mesFiltro ? fGastos.filter((g)=>(g.periodo||g.fecha?.slice(0,7))=== mesFiltro) : gastosCache;
         // Agrupar por rol
         const porRolG = {};
         gastosFilt.forEach((g)=>{ const k = g.numeroRol || "(sin rol)"; porRolG[k] = (porRolG[k]||0) + (g.monto||0); });
@@ -3445,7 +3548,7 @@
 
       // --- Gráfico 4: volumen por mes [líneas: MR y M³] ---
       const porMesMR = {}, porMesM3 = {};
-      recepcionesCache.forEach((r)=>{
+      fRecep.forEach((r)=>{
         const k = r.periodo || "s/f";
         porMesMR[k] = (porMesMR[k]||0) + (r.metrosRuma||0);
         porMesM3[k] = (porMesM3[k]||0) + (r.m3||0);
@@ -3467,7 +3570,7 @@
       function construirLineas(campo){
         const mesesSet = new Set();
         const porPlantaMes = {};
-        recepcionesCache.forEach((r)=>{
+        fRecep.forEach((r)=>{
           const mes = r.periodo || "s/f"; const planta = plantaDe(r); const val = r[campo]||0;
           if (val<=0) return;
           mesesSet.add(mes);
@@ -3500,29 +3603,64 @@
         options:{ responsive:true, plugins:{legend:{position:"bottom", labels:{boxWidth:12, font:{size:10}}}}, scales:{ y:{beginAtZero:true, title:{display:true, text:"M³"}} } }
       });
 
-      // --- Gráfico: Rentabilidad por rol — Ingresos vs Gastos [líneas, M$] ---
-      const gastoPorRol = {}, ingresoPorRol = {};
-      gastosCache.forEach((g)=>{ const k=(g.numeroRol||"").toString().trim(); if(k) gastoPorRol[k]=(gastoPorRol[k]||0)+(g.monto||0); });
-      ingresosCache.forEach((g)=>{ const k=(g.numeroRol||"").toString().trim(); if(k) ingresoPorRol[k]=(ingresoPorRol[k]||0)+(g.neto||0); });
-      // Unir todos los roles que tengan gastos o ingresos
-      const rolesRentab = [...new Set([...Object.keys(gastoPorRol), ...Object.keys(ingresoPorRol)])].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
-      if (rolesRentab.length){
-        const fmtM2 = (v)=> (v/1000000).toFixed(2)+" M$";
-        const labels = rolesRentab.map((r)=>{ const pr=nombrePredioDe(r,null); return pr ? r+"\n"+pr.slice(0,16) : r; });
-        dibujarChart("chartRentabilidad", {
-          type:"line",
-          data:{ labels,
-            datasets:[
-              { label:"Ingresos", data:rolesRentab.map((r)=>ingresoPorRol[r]||0), borderColor:"#107e3e", backgroundColor:"#107e3e22", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 },
-              { label:"Gastos", data:rolesRentab.map((r)=>gastoPorRol[r]||0), borderColor:"#bb0000", backgroundColor:"#bb000022", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 },
-            ] },
-          options:{ responsive:true, maintainAspectRatio:true, aspectRatio:2.5,
-            plugins:{ legend:{position:"bottom", labels:{boxWidth:14}},
-              datalabels:{ display:(ctx)=>(ctx.dataset.data[ctx.dataIndex]||0)>0, align:"top", clamp:true, color:(ctx)=>ctx.dataset.borderColor, font:{size:9,weight:"600"}, formatter:(v)=>fmtM2(v) },
-              tooltip:{ callbacks:{ label:(c)=>c.dataset.label+": "+fmtM2(c.parsed.y) } } },
-            scales:{ y:{ beginAtZero:true, grace:"15%", ticks:{ callback:(v)=>fmtM2(v) } }, x:{ ticks:{ font:{size:9}, maxRotation:45, minRotation:0 } } } }
-        });
-      } else if (charts["chartRentabilidad"]){ charts["chartRentabilidad"].destroy(); delete charts["chartRentabilidad"]; }
+      // --- Gráfico: Rentabilidad por rol — Ingresos vs Gastos [líneas, M$, filtro multi-mes] ---
+      // Poblar lista de meses disponibles (unión de gastos e ingresos)
+      const mesesRentSet = new Set();
+      fGastos.forEach((g)=>{ const m=g.periodo||g.fecha?.slice(0,7); if(m) mesesRentSet.add(m); });
+      fIngresos.forEach((g)=>{ const m=g.periodo||g.fecha?.slice(0,7); if(m) mesesRentSet.add(m); });
+      const mesesRentArr = [...mesesRentSet].sort();
+      const listaDiv = $("listaMesesRent");
+      // Mantener selección previa
+      const prevChecked = [...listaDiv.querySelectorAll("input:checked")].map((cb)=>cb.value);
+      listaDiv.innerHTML = mesesRentArr.map((m)=>{
+        const checked = prevChecked.length===0 || prevChecked.includes(m) ? "checked" : "";
+        return '<label style="display:block;margin-bottom:4px;cursor:pointer"><input type="checkbox" class="chkMesRent" value="'+m+'" '+checked+' style="margin-right:6px" />'+esc(nombreMes(m))+'</label>';
+      }).join("");
+
+      window._dibujarRentabilidad = dibujarRentabilidad;
+      dibujarRentabilidad();
+
+      function dibujarRentabilidad(){
+        const todos = $("chkTodosMesesRent").checked;
+        const mesesSel = todos ? null : [...$("listaMesesRent").querySelectorAll(".chkMesRent:checked")].map((cb)=>cb.value);
+        // Actualizar texto del botón
+        if (todos) $("btnFiltroMesRent").textContent = "Todos los meses ▾";
+        else if (mesesSel.length===0) $("btnFiltroMesRent").textContent = "Ningún mes ▾";
+        else if (mesesSel.length<=2) $("btnFiltroMesRent").textContent = mesesSel.map((m)=>nombreMes(m)).join(", ")+" ▾";
+        else $("btnFiltroMesRent").textContent = mesesSel.length+" meses ▾";
+
+        const filtrar = (lista, campoMonto, campoRol) => {
+          const result = {};
+          lista.forEach((g)=>{
+            const per = g.periodo || g.fecha?.slice(0,7);
+            if (!todos && mesesSel && !mesesSel.includes(per)) return;
+            const k = (g[campoRol]||"").toString().trim();
+            if (k) result[k] = (result[k]||0) + (g[campoMonto]||0);
+          });
+          return result;
+        };
+        const gastoPorRol = filtrar(gastosCache, "monto", "numeroRol");
+        const ingresoPorRol = filtrar(ingresosCache, "neto", "numeroRol");
+        const rolesRentab = [...new Set([...Object.keys(gastoPorRol), ...Object.keys(ingresoPorRol)])].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
+
+        if (rolesRentab.length){
+          const fmtM2 = (v)=> (v/1000000).toFixed(2)+" M$";
+          const labels = rolesRentab.map((r)=>{ const pr=nombrePredioDe(r,null); return pr ? r+"\n"+pr.slice(0,16) : r; });
+          dibujarChart("chartRentabilidad", {
+            type:"line",
+            data:{ labels,
+              datasets:[
+                { label:"Ingresos", data:rolesRentab.map((r)=>ingresoPorRol[r]||0), borderColor:"#107e3e", backgroundColor:"#107e3e22", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 },
+                { label:"Gastos", data:rolesRentab.map((r)=>gastoPorRol[r]||0), borderColor:"#bb0000", backgroundColor:"#bb000022", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 },
+              ] },
+            options:{ responsive:true, maintainAspectRatio:true, aspectRatio:2.5,
+              plugins:{ legend:{position:"bottom", labels:{boxWidth:14}},
+                datalabels:{ display:(ctx)=>(ctx.dataset.data[ctx.dataIndex]||0)>0, align:"top", clamp:true, color:(ctx)=>ctx.dataset.borderColor, font:{size:9,weight:"600"}, formatter:(v)=>fmtM2(v) },
+                tooltip:{ callbacks:{ label:(c)=>c.dataset.label+": "+fmtM2(c.parsed.y) } } },
+              scales:{ y:{ beginAtZero:true, grace:"15%", ticks:{ callback:(v)=>fmtM2(v) } }, x:{ ticks:{ font:{size:9}, maxRotation:45, minRotation:0 } } } }
+          });
+        } else if (charts["chartRentabilidad"]){ charts["chartRentabilidad"].destroy(); delete charts["chartRentabilidad"]; }
+      }
     }
 
     // Recalcular el resumen cuando cualquiera de los datasets cambie.
