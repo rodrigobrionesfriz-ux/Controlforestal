@@ -215,7 +215,9 @@
     <div class="view active" id="view-resumen">
       <div class="card" style="margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px">
         <div><h2 style="margin:0">Resumen general</h2><p class="sub" style="margin:4px 0 0">Vista consolidada del negocio forestal.</p></div>
-        <div style="position:relative">
+        <div style="position:relative; display:flex; align-items:center; gap:6px; flex-wrap:wrap">
+          <select id="filtroRolGlobal" style="font-size:12px;padding:5px 8px;max-width:200px"><option value="">Todos los roles</option></select>
+          <select id="filtroProvGlobal" style="font-size:12px;padding:5px 8px;max-width:200px"><option value="">Todos los proveedores</option></select>
           <button id="btnFiltroMesGlobal" class="secondary" style="font-size:13px;padding:6px 14px;cursor:pointer">📅 Todos los meses ▾</button>
           <button id="btnActualizar" class="secondary" style="font-size:13px;padding:6px 14px;cursor:pointer" title="Recargar datos desde la base de datos">🔄 Actualizar</button>
           <div id="panelMesesGlobal" style="display:none;position:absolute;right:0;top:100%;z-index:20;margin-top:4px">
@@ -669,19 +671,11 @@
       </section>
 
       <section class="card">
-        <h2><span class="num">02</span> Totales de gasto por rol</h2>
-        <p class="sub">Suma de todos los gastos agrupados por rol.</p>
-        <table><thead><tr><th>Rol</th><th class="num-cell">N° gastos</th><th class="num-cell">Total $</th></tr></thead>
-        <tbody id="tablaTotales"><tr><td colspan="3" class="empty">Sin gastos aún.</td></tr></tbody></table>
-      </section>
-
-      <section class="card">
-        <h2><span class="num">03</span> Gastos registrados</h2>
+        <h2><span class="num">02</span> Gastos registrados</h2>
         <div class="actions" style="margin-top:0; margin-bottom:14px">
-          <select id="gFiltroRol" style="max-width:280px"><option value="">Todos los roles</option></select>
           <button class="primary" id="btnNuevoGasto">+ Registrar gasto</button>
         </div>
-        <div id="gastosAgrupados" style="max-height:calc(100vh - 260px); overflow-y:auto; overflow-x:hidden; padding-right:4px">
+        <div id="gastosAgrupados" style="max-height:calc(100vh - 220px); overflow-y:auto; overflow-x:hidden; padding-right:4px">
           <p class="empty">Cargando…</p>
         </div>
       </section>
@@ -2813,7 +2807,7 @@
       $("gastoFile").value=""; $("gastoPreviewCard").style.display="none"; gastosPreview=[];
     });
 
-    $("gFiltroRol").addEventListener("change", renderGastos);
+    $("gFiltroRol")?.addEventListener("change", renderGastos);
 
     // ---- REGISTRO MANUAL DE GASTOS (operador y admin) ----
     $("btnNuevoGasto").addEventListener("click", ()=>{
@@ -2865,88 +2859,63 @@
     regSnap(query(collection(db,"gastos"), orderBy("fechaCreacion","desc")), (snap) => {
       gastosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       renderGastos();
-      renderTotales();
     }, ()=>{});
 
     function renderGastos(){
-      const filtro = $("gFiltroRol").value;
-      const lista = filtro ? gastosCache.filter((g)=>g.rolId===filtro) : gastosCache;
       const cont = $("gastosAgrupados");
-      if (!lista.length){ cont.innerHTML = '<p class="empty">Sin gastos'+(filtro?" para este rol":"")+'.</p>'; return; }
+      if (!gastosCache.length){ cont.innerHTML = '<p class="empty">Sin gastos aún.</p>'; return; }
 
-      // 1) Agrupar por rol
-      const porRol = {};
-      lista.forEach((g)=>{
-        const k = (g.numeroRol||"").toString().trim() || "(sin rol)";
-        (porRol[k] = porRol[k] || []).push(g);
-      });
-      const rolesOrd = Object.keys(porRol).sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
+      // Agrupar por mes (más reciente primero)
+      const porMes = {};
+      gastosCache.forEach((g)=>{ const m = g.periodo || g.fecha?.slice(0,7) || "Sin fecha"; (porMes[m] = porMes[m] || []).push(g); });
+      const mesesOrd = Object.keys(porMes).sort((a,b)=>b.localeCompare(a));
+      const granTotal = gastosCache.reduce((a,g)=>a+(g.monto||0),0);
 
-      cont.innerHTML = rolesOrd.map((rol, ri)=>{
-        const gastos = porRol[rol];
-        const totalRol = gastos.reduce((a,g)=>a+(g.monto||0),0);
-        const predio = nombrePredioDe(rol, gastos[0]?.rolId);
+      cont.innerHTML = '<div style="margin-bottom:12px;font-size:14px"><strong>Total general: <span class="unit">$</span> '+fmt(granTotal)+'</strong> · '+gastosCache.length+' gasto'+(gastosCache.length!==1?'s':'')+'</div>'
+        + mesesOrd.map((mes)=>{
+          const items = porMes[mes];
+          const totalMes = items.reduce((a,g)=>a+(g.monto||0),0);
+          return '<div class="mes-group" style="margin-bottom:8px; cursor:pointer" data-gasto-ver-mes="'+esc(mes)+'">'
+            +'<div class="mes-header">'
+            +'<span class="mes-titulo">'+esc(nombreMes(mes))
+            +' <span class="hint">('+items.length+' gasto'+(items.length!==1?'s':'')+')</span></span>'
+            +'<span class="mes-stats"><span class="unit">$</span> '+fmt(totalMes)+'</span>'
+            +'</div></div>';
+        }).join("");
 
-        return '<div class="mes-group" style="margin-bottom:8px; cursor:pointer" data-gasto-ver-rol="'+esc(rol)+'">'
-          +'<div class="mes-header">'
-          +'<span class="mes-titulo">'+esc(rol)+(predio?' · '+esc(predio):'')
-          +' <span class="hint">('+gastos.length+' gasto'+(gastos.length!==1?'s':'')+')</span></span>'
-          +'<span class="mes-stats"><span class="unit">$</span> '+fmt(totalRol)+'</span>'
-          +'</div></div>';
-      }).join("");
-
-      // Listener: clic en rol abre modal de detalle
-      cont.querySelectorAll("[data-gasto-ver-rol]").forEach((div)=> div.addEventListener("click", ()=>{
-        const rolNum = div.dataset.gastoVerRol;
-        abrirDetalleGastoRol(rolNum);
+      cont.querySelectorAll("[data-gasto-ver-mes]").forEach((div)=> div.addEventListener("click", ()=>{
+        abrirDetalleGastoMes(div.dataset.gastoVerMes);
       }));
     }
 
-    function abrirDetalleGastoRol(rolNum){
-      const gastos = gastosCache.filter((g)=>(g.numeroRol||"").toString().trim()===rolNum);
-      const predio = nombrePredioDe(rolNum, gastos[0]?.rolId);
-      $("gastoDetTitulo").textContent = "Gastos · Rol "+rolNum+(predio?" · "+predio:"");
+    function abrirDetalleGastoMes(mes){
+      const items = gastosCache.filter((g)=>(g.periodo||g.fecha?.slice(0,7)||"Sin fecha")===mes);
+      $("gastoDetTitulo").textContent = "Gastos · "+nombreMes(mes);
+      const ordenados = items.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+      const totalMes = ordenados.reduce((a,g)=>a+(g.monto||0),0);
 
-      // Ordenar por fecha (más reciente primero)
-      const ordenados = gastos.slice().sort((a,b)=>(b.fecha||b.periodo||"").localeCompare(a.fecha||a.periodo||""));
-      const totalRol = ordenados.reduce((a,g)=>a+(g.monto||0),0);
+      // Sub-agrupar por rol
+      const porRol = {};
+      ordenados.forEach((g)=>{ const k = (g.numeroRol||"").toString().trim() || "(sin rol)"; (porRol[k] = porRol[k] || []).push(g); });
+      const rolesOrd = Object.keys(porRol).sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
 
-      // Agrupar por mes
-      const porMes = {};
-      ordenados.forEach((g)=>{ const m = g.periodo || g.fecha?.slice(0,7) || "Sin fecha"; (porMes[m] = porMes[m] || []).push(g); });
-      const mesesOrd = Object.keys(porMes).sort((a,b)=>b.localeCompare(a));
-
-      let html = '<div style="margin-bottom:12px;font-size:14px"><strong>Total: <span class="unit">$</span> '+fmt(totalRol)+'</strong> · '+ordenados.length+' gasto'+(ordenados.length!==1?'s':'')+'</div>';
-
-      html += mesesOrd.map((mes)=>{
-        const gs = porMes[mes];
-        const totalMes = gs.reduce((a,g)=>a+(g.monto||0),0);
+      let html = '<div style="margin-bottom:12px;font-size:14px"><strong>Total: <span class="unit">$</span> '+fmt(totalMes)+'</strong> · '+ordenados.length+' gasto'+(ordenados.length!==1?'s':'')+'</div>';
+      html += rolesOrd.map((rol)=>{
+        const gs = porRol[rol];
+        const totalRol = gs.reduce((a,g)=>a+(g.monto||0),0);
+        const predio = nombrePredioDe(rol, gs[0]?.rolId);
         return '<div style="margin-bottom:14px">'
-          +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--sap-blue)">'+esc(nombreMes(mes))
-          +' <span style="font-weight:400;color:var(--muted)">('+gs.length+') · <span class="unit">$</span> '+fmt(totalMes)+'</span></div>'
+          +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--sap-blue)">'+esc(rol)+(predio?' · '+esc(predio):'')
+          +' <span style="font-weight:400;color:var(--muted)">('+gs.length+') · <span class="unit">$</span> '+fmt(totalRol)+'</span></div>'
           +'<table style="font-size:13px"><thead><tr><th>Fecha</th><th>Producto</th><th>Descripción</th><th>Cuenta</th><th>Proveedor</th><th class="num-cell">Total $</th></tr></thead>'
           +'<tbody>'+gs.map((g)=>'<tr><td>'+esc(fmtFecha(g.fecha)||"")+'</td><td>'+esc(g.producto||"")+'</td><td>'+esc(g.descripcion||"")+'</td><td>'+esc(g.cuenta||g.categoria||"")+'</td><td>'+esc(g.proveedor||"")+'</td><td class="num-cell">'+fmt(g.monto||0)+'</td></tr>').join("")
           +'</tbody></table></div>';
       }).join("");
-
       $("gastoDetBody").innerHTML = html;
       abrirModal("modalGastoDetalle");
     }
 
-    function renderTotales(){
-      const t = $("tablaTotales");
-      if (!gastosCache.length){ t.innerHTML = '<tr><td colspan="3" class="empty">Sin gastos aún.</td></tr>'; return; }
-      const porRol = {};
-      gastosCache.forEach((g)=>{
-        const k = g.numeroRol || "(sin rol)";
-        if (!porRol[k]) porRol[k] = { count:0, total:0 };
-        porRol[k].count++; porRol[k].total += (g.monto||0);
-      });
-      const filas = Object.entries(porRol).sort((a,b)=>b[1].total-a[1].total);
-      const granTotal = filas.reduce((a,[,v])=>a+v.total,0);
-      t.innerHTML = filas.map(([rol,v])=>{ const pr=nombrePredioDe(rol,null); return '<tr><td><strong>'+esc(rol)+'</strong>'+(pr?' <span class="hint">· '+esc(pr)+'</span>':'')+'</td><td class="num-cell">'+v.count+'</td><td class="num-cell">'+fmt(v.total)+'</td></tr>'; }).join("")
-        + '<tr style="border-top:2px solid var(--line)"><td><strong>Total general</strong></td><td class="num-cell"><strong>'+gastosCache.length+'</strong></td><td class="num-cell"><strong>'+fmt(granTotal)+'</strong></td></tr>';
-    }
+    // renderTotales ya no se necesita (se eliminó la sección de totales por rol)
 
     // ================== INGRESOS POR VENTA ==================
     let ingresosCache = [];
@@ -3352,6 +3321,8 @@
       await recargarTodo();
       $("btnActualizar").disabled = false; $("btnActualizar").textContent = "🔄 Actualizar";
     });
+    $("filtroRolGlobal").addEventListener("change", programarResumen);
+    $("filtroProvGlobal").addEventListener("change", programarResumen);
     $("btnFiltroMesGlobal").addEventListener("click", (e)=>{
       e.stopPropagation();
       const p = $("panelMesesGlobal");
@@ -3400,6 +3371,20 @@
     });
 
     async function actualizarResumen(){
+      // --- Poblar filtros globales de Rol y Proveedor ---
+      const rolesG = [...new Set([ ...gastosCache.map((g)=>(g.numeroRol||"").trim()), ...ingresosCache.map((g)=>(g.numeroRol||"").trim()) ].filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
+      const selRG = $("filtroRolGlobal"); const prevRG = selRG.value;
+      selRG.innerHTML = '<option value="">Todos los roles</option>' + rolesG.map((r)=>{ const pr=nombrePredioDe(r,null); return '<option value="'+esc(r)+'">'+esc(r)+(pr?' · '+esc(pr):'')+'</option>'; }).join("");
+      selRG.value = prevRG;
+
+      const provsG = [...new Set([ ...gastosCache.map((g)=>(g.proveedor||"").trim()), ...ingresosCache.map((g)=>(g.proveedor||"").trim()) ].filter(Boolean))].sort();
+      const selPG = $("filtroProvGlobal"); const prevPG = selPG.value;
+      selPG.innerHTML = '<option value="">Todos los proveedores</option>' + provsG.map((p)=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join("");
+      selPG.value = prevPG;
+
+      const filtroRolG = $("filtroRolGlobal").value;
+      const filtroProvG = $("filtroProvGlobal").value;
+
       // --- Filtro global de meses ---
       const todosM = new Set();
       recepcionesCache.forEach((r)=>{ const p=r.periodo||r.fechaIngreso?.slice(0,7); if(p) todosM.add(p); });
@@ -3424,9 +3409,17 @@
       else $("btnFiltroMesGlobal").textContent = "📅 "+mesesGlobal.length+" meses ▾";
       // Filtrar datos por mes
       const periodoDE = (r, campoFecha) => r.periodo || r[campoFecha]?.slice(0,7) || "";
-      const fRecep = filtroGlobal ? recepcionesCache : recepcionesCache.filter((r)=>mesesGlobal.includes(periodoDE(r,"fechaIngreso")));
-      const fGastos = filtroGlobal ? gastosCache : gastosCache.filter((g)=>mesesGlobal.includes(periodoDE(g,"fecha")));
-      const fIngresos = filtroGlobal ? ingresosCache : ingresosCache.filter((g)=>mesesGlobal.includes(periodoDE(g,"fecha")));
+      const fRecep0 = filtroGlobal ? recepcionesCache : recepcionesCache.filter((r)=>mesesGlobal.includes(periodoDE(r,"fechaIngreso")));
+      const fGastos0 = filtroGlobal ? gastosCache : gastosCache.filter((g)=>mesesGlobal.includes(periodoDE(g,"fecha")));
+      const fIngresos0 = filtroGlobal ? ingresosCache : ingresosCache.filter((g)=>mesesGlobal.includes(periodoDE(g,"fecha")));
+      // Aplicar filtro de Rol
+      const fRecep1 = filtroRolG ? fRecep0.filter((r)=>(r.numeroRol||"").toString().trim()===filtroRolG) : fRecep0;
+      const fGastos1 = filtroRolG ? fGastos0.filter((g)=>(g.numeroRol||"").toString().trim()===filtroRolG) : fGastos0;
+      const fIngresos1 = filtroRolG ? fIngresos0.filter((g)=>(g.numeroRol||"").toString().trim()===filtroRolG) : fIngresos0;
+      // Aplicar filtro de Proveedor
+      const fRecep = filtroProvG ? fRecep1.filter((r)=>(r.proveedor||"").trim()===filtroProvG) : fRecep1;
+      const fGastos = filtroProvG ? fGastos1.filter((g)=>(g.proveedor||"").trim()===filtroProvG) : fGastos1;
+      const fIngresos = filtroProvG ? fIngresos1.filter((g)=>(g.proveedor||"").trim()===filtroProvG) : fIngresos1;
 
       // --- KPIs (siempre, aunque Chart.js no cargue) ---
       $("kpiRoles").textContent = fmt(rolesCache.length);
@@ -3441,7 +3434,7 @@
       const totalGastos = fGastos.reduce((a,g)=>a+(g.monto||0),0);
       $("kpiGastos").innerHTML = '<span class="unit">$</span> ' + fmt(totalGastos);
       const totalIngresos = fIngresos.reduce((a,g)=>a+(g.neto||0),0);
-      $("kpiIngresos").innerHTML = '<span class="unit">$</span> ' + fmt(totalIngresos);
+      $("kpiIngresos").innerHTML = '<span class="unit">$</span> ' + fmt(Math.round(totalIngresos));
       const ocAlerta = ocCache.filter((o)=>{ const rm=(o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0); const r3=(o.solicitado?.m3||0)-(o.recibido?.m3||0); const u=o.umbralAlerta??300; return (rm>0||r3>0)&&(rm<=u||r3<=u); }).length;
       $("kpiOCAlerta").textContent = fmt(ocAlerta);
 
