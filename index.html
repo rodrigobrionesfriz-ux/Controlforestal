@@ -709,24 +709,14 @@
       </section>
 
       <section class="card">
-        <h2><span class="num">02</span> Totales de ingresos por proveedor</h2>
-        <p class="sub">Suma de todos los ingresos agrupados por proveedor.</p>
-        <table><thead><tr><th>Proveedor</th><th class="num-cell">N° registros</th><th class="num-cell">Total $</th></tr></thead>
-        <tbody id="tablaIngTotales"><tr><td colspan="3" class="empty">Sin ingresos aún.</td></tr></tbody></table>
-      </section>
-
-      <section class="card">
-        <h2><span class="num">03</span> Ingresos registrados</h2>
-        <div class="actions" style="margin-top:0; margin-bottom:14px">
-          <select id="ingFiltroProveedor" style="max-width:280px"><option value="">Todos los proveedores</option></select>
-        </div>
-        <div id="ingresosAgrupados" style="max-height:calc(100vh - 260px); overflow-y:auto; overflow-x:hidden; padding-right:4px">
-          <p class="empty">Cargando…</p>
+        <h2><span class="num">02</span> Ingresos registrados</h2>
+        <div id="ingresosAgrupados" style="max-height:calc(100vh - 220px); overflow-y:auto; overflow-x:hidden; padding-right:4px">
+          <p class="empty">Sin ingresos aún.</p>
         </div>
       </section>
     </div>
 
-    <!-- Modal: detalle de ingresos de un proveedor -->
+    <!-- Modal: detalle de ingresos de un mes -->
     <div class="modal-overlay" id="modalIngresoDetalle">
       <div class="modal" style="max-width:820px">
         <div class="modal-head"><h3 id="ingresoDetTitulo">Ingresos</h3><button class="modal-close" data-close-modal="modalIngresoDetalle">&times;</button></div>
@@ -3098,85 +3088,64 @@
     regSnap(query(collection(db,"ingresos"), orderBy("fechaCreacion","desc")), (snap) => {
       ingresosCache = snap.docs.map((d)=>({id:d.id,...d.data()}));
       renderIngresos();
-      renderIngTotales();
       programarResumen();
     }, (e)=>{
       if (e.code === "permission-denied" || /insufficient permissions/i.test(e.message||"")){
         $("ingresosAgrupados").innerHTML = '<p class="empty" style="color:var(--warn)">⚠️ Sin permiso para leer ingresos. Agrega la colección <b>ingresos</b> a las reglas de Firestore.</p>';
-        $("tablaIngTotales").innerHTML = '<tr><td colspan="3" class="empty">Sin permiso.</td></tr>';
       }
     });
 
-    $("ingFiltroProveedor").addEventListener("change", renderIngresos);
-
     function renderIngresos(){
-      const filtro = $("ingFiltroProveedor").value;
-      const lista = filtro ? ingresosCache.filter((g)=>g.proveedor===filtro) : ingresosCache;
       const cont = $("ingresosAgrupados");
-      if (!lista.length){ cont.innerHTML = '<p class="empty">Sin ingresos'+(filtro?" para ese proveedor":"")+'.</p>'; return; }
+      if (!ingresosCache.length){ cont.innerHTML = '<p class="empty">Sin ingresos aún.</p>'; return; }
 
-      // Poblar filtro de proveedores
-      const provs = [...new Set(ingresosCache.map((g)=>(g.proveedor||"").trim()).filter(Boolean))].sort();
-      const selProv = $("ingFiltroProveedor");
-      const prev = selProv.value;
-      selProv.innerHTML = '<option value="">Todos los proveedores</option>' + provs.map((p)=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join("");
-      selProv.value = prev;
+      // Agrupar por mes (periodo), más reciente primero
+      const porMes = {};
+      ingresosCache.forEach((g)=>{ const m = g.periodo || g.fecha?.slice(0,7) || "Sin fecha"; (porMes[m] = porMes[m] || []).push(g); });
+      const mesesOrd = Object.keys(porMes).sort((a,b)=>b.localeCompare(a));
+      const granTotal = ingresosCache.reduce((a,g)=>a+(g.neto||0),0);
 
-      // Agrupar por proveedor
-      const porProv = {};
-      lista.forEach((g)=>{ const k = (g.proveedor||"").trim() || "(sin proveedor)"; (porProv[k] = porProv[k] || []).push(g); });
-      const provsOrd = Object.keys(porProv).sort((a,b)=>a.localeCompare(b,"es"));
+      cont.innerHTML = '<div style="margin-bottom:12px;font-size:14px"><strong>Total general: <span class="unit">$</span> '+fmt(granTotal)+'</strong> · '+ingresosCache.length+' ingreso'+(ingresosCache.length!==1?'s':'')+'</div>'
+        + mesesOrd.map((mes)=>{
+          const items = porMes[mes];
+          const totalMes = items.reduce((a,g)=>a+(g.neto||0),0);
+          return '<div class="mes-group" style="margin-bottom:8px; cursor:pointer" data-ing-ver-mes="'+esc(mes)+'">'
+            +'<div class="mes-header">'
+            +'<span class="mes-titulo">'+esc(nombreMes(mes))
+            +' <span class="hint">('+items.length+' ingreso'+(items.length!==1?'s':'')+')</span></span>'
+            +'<span class="mes-stats"><span class="unit">$</span> '+fmt(totalMes)+'</span>'
+            +'</div></div>';
+        }).join("");
 
-      cont.innerHTML = provsOrd.map((prov)=>{
-        const items = porProv[prov];
-        const totalProv = items.reduce((a,g)=>a+(g.neto||0),0);
-        return '<div class="mes-group" style="margin-bottom:8px; cursor:pointer" data-ing-ver-prov="'+esc(prov)+'">'
-          +'<div class="mes-header">'
-          +'<span class="mes-titulo">'+esc(prov)
-          +' <span class="hint">('+items.length+' ingreso'+(items.length!==1?'s':'')+')</span></span>'
-          +'<span class="mes-stats"><span class="unit">$</span> '+fmt(totalProv)+'</span>'
-          +'</div></div>';
-      }).join("");
-
-      cont.querySelectorAll("[data-ing-ver-prov]").forEach((div)=> div.addEventListener("click", ()=>{
-        abrirDetalleIngresoProv(div.dataset.ingVerProv);
+      cont.querySelectorAll("[data-ing-ver-mes]").forEach((div)=> div.addEventListener("click", ()=>{
+        abrirDetalleIngresoMes(div.dataset.ingVerMes);
       }));
     }
 
-    function abrirDetalleIngresoProv(prov){
-      const items = ingresosCache.filter((g)=>(g.proveedor||"").trim()===prov);
-      $("ingresoDetTitulo").textContent = "Ingresos · "+prov;
-      const ordenados = items.slice().sort((a,b)=>(b.fecha||b.periodo||"").localeCompare(a.fecha||a.periodo||""));
-      const totalProv = ordenados.reduce((a,g)=>a+(g.neto||0),0);
+    function abrirDetalleIngresoMes(mes){
+      const items = ingresosCache.filter((g)=>(g.periodo||g.fecha?.slice(0,7)||"Sin fecha")===mes);
+      $("ingresoDetTitulo").textContent = "Ingresos · "+nombreMes(mes);
+      const ordenados = items.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+      const totalMes = ordenados.reduce((a,g)=>a+(g.neto||0),0);
 
-      const porMes = {};
-      ordenados.forEach((g)=>{ const m = g.periodo || g.fecha?.slice(0,7) || "Sin fecha"; (porMes[m] = porMes[m] || []).push(g); });
-      const mesesOrd = Object.keys(porMes).sort((a,b)=>b.localeCompare(a));
+      // Sub-agrupar por proveedor dentro del mes
+      const porProv = {};
+      ordenados.forEach((g)=>{ const k = (g.proveedor||"").trim() || "(sin proveedor)"; (porProv[k] = porProv[k] || []).push(g); });
+      const provsOrd = Object.keys(porProv).sort((a,b)=>a.localeCompare(b,"es"));
 
-      let html = '<div style="margin-bottom:12px;font-size:14px"><strong>Total: <span class="unit">$</span> '+fmt(totalProv)+'</strong> · '+ordenados.length+' ingreso'+(ordenados.length!==1?'s':'')+'</div>';
-      html += mesesOrd.map((mes)=>{
-        const gs = porMes[mes];
-        const totalMes = gs.reduce((a,g)=>a+(g.neto||0),0);
+      let html = '<div style="margin-bottom:12px;font-size:14px"><strong>Total: <span class="unit">$</span> '+fmt(totalMes)+'</strong> · '+ordenados.length+' ingreso'+(ordenados.length!==1?'s':'')+'</div>';
+      html += provsOrd.map((prov)=>{
+        const gs = porProv[prov];
+        const totalProv = gs.reduce((a,g)=>a+(g.neto||0),0);
         return '<div style="margin-bottom:14px">'
-          +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#107e3e">'+esc(nombreMes(mes))
-          +' <span style="font-weight:400;color:var(--muted)">('+gs.length+') · <span class="unit">$</span> '+fmt(totalMes)+'</span></div>'
+          +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#107e3e">'+esc(prov)
+          +' <span style="font-weight:400;color:var(--muted)">('+gs.length+') · <span class="unit">$</span> '+fmt(totalProv)+'</span></div>'
           +'<table style="font-size:13px"><thead><tr><th>Fecha</th><th>Motivo</th><th>Descripción</th><th class="num-cell">Cantidad</th><th class="num-cell">C.Unit</th><th class="num-cell">Neto $</th></tr></thead>'
           +'<tbody>'+gs.map((g)=>'<tr><td>'+esc(fmtFecha(g.fecha)||"")+'</td><td>'+esc(g.motivo||"")+'</td><td>'+esc(g.descripcion||"")+'</td><td class="num-cell">'+fmt(g.cantidad||0)+'</td><td class="num-cell">'+fmt(g.costoUnitario||0)+'</td><td class="num-cell">'+fmt(g.neto||0)+'</td></tr>').join("")
           +'</tbody></table></div>';
       }).join("");
       $("ingresoDetBody").innerHTML = html;
       abrirModal("modalIngresoDetalle");
-    }
-
-    function renderIngTotales(){
-      const t = $("tablaIngTotales");
-      if (!ingresosCache.length){ t.innerHTML = '<tr><td colspan="3" class="empty">Sin ingresos aún.</td></tr>'; return; }
-      const porProv = {};
-      ingresosCache.forEach((g)=>{ const k = (g.proveedor||"").trim() || "(sin proveedor)"; if (!porProv[k]) porProv[k]={count:0,total:0}; porProv[k].count++; porProv[k].total+=(g.neto||0); });
-      const filas = Object.entries(porProv).sort((a,b)=>b[1].total-a[1].total);
-      const granTotal = filas.reduce((a,[,v])=>a+v.total,0);
-      t.innerHTML = filas.map(([prov,v])=>'<tr><td><strong>'+esc(prov)+'</strong></td><td class="num-cell">'+v.count+'</td><td class="num-cell">'+fmt(v.total)+'</td></tr>').join("")
-        + '<tr style="border-top:2px solid var(--line)"><td><strong>Total general</strong></td><td class="num-cell"><strong>'+ingresosCache.length+'</strong></td><td class="num-cell"><strong>'+fmt(granTotal)+'</strong></td></tr>';
     }
 
     // ================== GESTIÓN DE USUARIOS (admin) ==================
