@@ -242,6 +242,9 @@
         <div class="chart-box"><h3>Evolución mensual MR por planta</h3><canvas id="chartLineaMR"></canvas></div>
         <div class="chart-box"><h3>Evolución mensual M³ por planta</h3><canvas id="chartLineaM3"></canvas></div>
       </div>
+      <div style="margin-top:18px">
+        <div class="chart-box" style="max-width:100%"><h3>Rentabilidad por rol — Ingresos vs Gastos</h3><canvas id="chartRentabilidad" style="max-height:340px"></canvas></div>
+      </div>
     </div>
 
     <div class="view" id="view-roles">
@@ -2945,6 +2948,9 @@
           const proveedor = pick(row, ["proveedor"]).toString().trim();
           const motivo = pick(row, ["motivo"]).toString().trim();
           const descripcion = pick(row, ["descripcion","descripción"]).toString().trim();
+          // Rol: columna ROL si existe (opcional, para cruce con gastos)
+          let numeroRol = pick(row, ["rol"]).toString().trim();
+          const rolObj = numeroRol ? rolesCache.find((r)=>(r.numeroRol||"").toString().trim()===numeroRol) : null;
           const cantidad = parseMontoIng(pick(rawRow, ["cantidad"]), pick(row, ["cantidad"]));
           const cUnit = parseMontoIng(pick(rawRow, ["c.unit","c_unit","costo_unitario","c.unit."]), pick(row, ["c.unit","c_unit","costo_unitario","c.unit."]));
           const neto = parseMontoIng(pick(rawRow, ["neto2"]), pick(row, ["neto2"])) || (cantidad * cUnit);
@@ -2953,7 +2959,7 @@
           if (neto<=0) errores.push("sin monto");
           const clave = claveIng({ fecha, proveedor, descripcion, neto });
           if (clavesExistIng.has(clave)) errores.push("duplicado");
-          return { fila:i+2, fecha, periodo, proveedor, motivo, descripcion, cantidad, cUnit, neto, valida:errores.length===0, errores };
+          return { fila:i+2, fecha, periodo, proveedor, motivo, descripcion, numeroRol, rolId:rolObj?.id||null, cantidad, cUnit, neto, valida:errores.length===0, errores };
         });
 
         const validas = ingresosPreview.filter((g)=>g.valida).length;
@@ -2982,6 +2988,7 @@
             fecha: g.fecha || null, periodo: g.periodo || null,
             proveedor: up(g.proveedor), motivo: up(g.motivo),
             descripcion: up(g.descripcion),
+            numeroRol: g.numeroRol || null, rolId: g.rolId || null,
             cantidad: g.cantidad, costoUnitario: g.cUnit,
             neto: g.neto, moneda: "CLP",
             origen: "importacion_excel", fechaCreacion: serverTimestamp(),
@@ -3492,13 +3499,36 @@
         data:{ labels: lineasM3.meses, datasets: lineasM3.datasets },
         options:{ responsive:true, plugins:{legend:{position:"bottom", labels:{boxWidth:12, font:{size:10}}}}, scales:{ y:{beginAtZero:true, title:{display:true, text:"M³"}} } }
       });
+
+      // --- Gráfico: Rentabilidad por rol — Ingresos vs Gastos [líneas, M$] ---
+      const gastoPorRol = {}, ingresoPorRol = {};
+      gastosCache.forEach((g)=>{ const k=(g.numeroRol||"").toString().trim(); if(k) gastoPorRol[k]=(gastoPorRol[k]||0)+(g.monto||0); });
+      ingresosCache.forEach((g)=>{ const k=(g.numeroRol||"").toString().trim(); if(k) ingresoPorRol[k]=(ingresoPorRol[k]||0)+(g.neto||0); });
+      // Unir todos los roles que tengan gastos o ingresos
+      const rolesRentab = [...new Set([...Object.keys(gastoPorRol), ...Object.keys(ingresoPorRol)])].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
+      if (rolesRentab.length){
+        const fmtM2 = (v)=> (v/1000000).toFixed(2)+" M$";
+        const labels = rolesRentab.map((r)=>{ const pr=nombrePredioDe(r,null); return pr ? r+"\n"+pr.slice(0,16) : r; });
+        dibujarChart("chartRentabilidad", {
+          type:"line",
+          data:{ labels,
+            datasets:[
+              { label:"Ingresos", data:rolesRentab.map((r)=>ingresoPorRol[r]||0), borderColor:"#107e3e", backgroundColor:"#107e3e22", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 },
+              { label:"Gastos", data:rolesRentab.map((r)=>gastoPorRol[r]||0), borderColor:"#bb0000", backgroundColor:"#bb000022", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 },
+            ] },
+          options:{ responsive:true, maintainAspectRatio:true, aspectRatio:2.5,
+            plugins:{ legend:{position:"bottom", labels:{boxWidth:14}},
+              datalabels:{ display:(ctx)=>(ctx.dataset.data[ctx.dataIndex]||0)>0, align:"top", clamp:true, color:(ctx)=>ctx.dataset.borderColor, font:{size:9,weight:"600"}, formatter:(v)=>fmtM2(v) },
+              tooltip:{ callbacks:{ label:(c)=>c.dataset.label+": "+fmtM2(c.parsed.y) } } },
+            scales:{ y:{ beginAtZero:true, grace:"15%", ticks:{ callback:(v)=>fmtM2(v) } }, x:{ ticks:{ font:{size:9}, maxRotation:45, minRotation:0 } } } }
+        });
+      } else if (charts["chartRentabilidad"]){ charts["chartRentabilidad"].destroy(); delete charts["chartRentabilidad"]; }
     }
 
     // Recalcular el resumen cuando cualquiera de los datasets cambie.
-    // Enganchamos a los snapshots existentes vía un observador simple por intervalo de cambios.
     let _lastSig = "";
     setInterval(() => {
-      const sig = [rolesCache.length, recepcionesCache.length, plantasCache.length, productosCache.length, ocCache.length, gastosCache.length].join("-");
+      const sig = [rolesCache.length, recepcionesCache.length, plantasCache.length, productosCache.length, ocCache.length, gastosCache.length, ingresosCache.length].join("-");
       if (sig !== _lastSig){ _lastSig = sig; programarResumen(); }
     }, 800);
 
