@@ -217,8 +217,24 @@
       <div class="card" style="margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px">
         <div><h2 style="margin:0">Resumen general</h2><p class="sub" style="margin:4px 0 0">Vista consolidada del negocio forestal.</p></div>
         <div style="position:relative; display:flex; align-items:center; gap:6px; flex-wrap:wrap">
-          <select id="filtroRolGlobal" style="font-size:12px;padding:5px 8px;max-width:200px"><option value="">Todos los roles</option></select>
-          <select id="filtroProvGlobal" style="font-size:12px;padding:5px 8px;max-width:200px"><option value="">Todos los proveedores</option></select>
+          <span style="position:relative">
+            <button id="btnFiltroRolGlobal" class="secondary" style="font-size:12px;padding:6px 12px;cursor:pointer">Todos los roles ▾</button>
+            <div id="panelRolesGlobal" style="display:none;position:absolute;left:0;top:100%;z-index:20;margin-top:4px">
+              <div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px 16px;max-height:300px;overflow-y:auto;min-width:240px">
+                <label style="display:block;margin-bottom:8px;font-size:13px;font-weight:700;cursor:pointer"><input type="checkbox" id="chkTodosRolesGlobal" checked style="margin-right:6px" />Todos los roles</label>
+                <div id="listaRolesGlobal" style="font-size:12px"></div>
+              </div>
+            </div>
+          </span>
+          <span style="position:relative">
+            <button id="btnFiltroProvGlobal" class="secondary" style="font-size:12px;padding:6px 12px;cursor:pointer">Todos los proveedores ▾</button>
+            <div id="panelProvsGlobal" style="display:none;position:absolute;left:0;top:100%;z-index:20;margin-top:4px">
+              <div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px 16px;max-height:300px;overflow-y:auto;min-width:260px">
+                <label style="display:block;margin-bottom:8px;font-size:13px;font-weight:700;cursor:pointer"><input type="checkbox" id="chkTodosProvsGlobal" checked style="margin-right:6px" />Todos los proveedores</label>
+                <div id="listaProvsGlobal" style="font-size:12px"></div>
+              </div>
+            </div>
+          </span>
           <button id="btnFiltroMesGlobal" class="secondary" style="font-size:13px;padding:6px 14px;cursor:pointer">📅 Todos los meses ▾</button>
           <button id="btnActualizar" class="secondary" style="font-size:13px;padding:6px 14px;cursor:pointer" title="Recargar datos desde la base de datos">🔄 Actualizar</button>
           <div id="panelMesesGlobal" style="display:none;position:absolute;right:0;top:100%;z-index:20;margin-top:4px">
@@ -262,6 +278,7 @@
           <h3 style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
             Rentabilidad por rol — Ingresos vs Gastos
             <span style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:12px">
+              <select id="filtroRentab" style="width:auto;font-size:12px;padding:4px 8px"><option value="">Todos</option><option value="rentable">Solo rentables</option><option value="norentable">Solo no rentables</option></select>
               <select id="filtroRolRent" style="width:auto;font-size:12px;padding:4px 8px;max-width:220px"><option value="">Todos los roles</option></select>
               <button id="btnFiltroMesRent" class="secondary" style="font-size:12px;padding:4px 10px;cursor:pointer">Todos los meses ▾</button>
             </span>
@@ -3379,16 +3396,40 @@
       await recargarTodo();
       $("btnActualizar").disabled = false; $("btnActualizar").textContent = "🔄 Actualizar";
     });
-    $("filtroRolGlobal").addEventListener("change", programarResumen);
-    $("filtroProvGlobal").addEventListener("change", programarResumen);
+    // Helper: cablear un panel multi-selección (botón + chkTodos + lista)
+    function cablearPanelMulti(btnId, panelId, chkTodosId, listaId){
+      $(btnId).addEventListener("click", (e)=>{
+        e.stopPropagation();
+        // Cerrar los otros paneles
+        ["panelRolesGlobal","panelProvsGlobal","panelMesesGlobal","panelMesesRent"].forEach((p)=>{ if (p!==panelId) $(p).style.display="none"; });
+        const p = $(panelId);
+        p.style.display = p.style.display==="none" ? "block" : "none";
+      });
+      $(panelId).addEventListener("click", (e)=>e.stopPropagation());
+      $(chkTodosId).addEventListener("change", ()=>{
+        const checked = $(chkTodosId).checked;
+        $(listaId).querySelectorAll("input[type=checkbox]").forEach((cb)=>cb.checked = checked);
+        programarResumen();
+      });
+      $(listaId).addEventListener("change", (e)=>{
+        if (e.target.type==="checkbox"){
+          const todos = $(listaId).querySelectorAll("input[type=checkbox]");
+          const marcados = $(listaId).querySelectorAll("input[type=checkbox]:checked");
+          $(chkTodosId).checked = marcados.length === todos.length;
+          programarResumen();
+        }
+      });
+    }
+    cablearPanelMulti("btnFiltroRolGlobal", "panelRolesGlobal", "chkTodosRolesGlobal", "listaRolesGlobal");
+    cablearPanelMulti("btnFiltroProvGlobal", "panelProvsGlobal", "chkTodosProvsGlobal", "listaProvsGlobal");
     $("btnFiltroMesGlobal").addEventListener("click", (e)=>{
       e.stopPropagation();
       const p = $("panelMesesGlobal");
       p.style.display = p.style.display==="none" ? "block" : "none";
-      // Cerrar el otro panel si está abierto
-      $("panelMesesRent").style.display = "none";
+      // Cerrar los otros paneles
+      ["panelRolesGlobal","panelProvsGlobal","panelMesesRent"].forEach((pid)=>$(pid).style.display="none");
     });
-    document.addEventListener("click", ()=>{ $("panelMesesGlobal").style.display = "none"; $("panelMesesRent").style.display = "none"; });
+    document.addEventListener("click", ()=>{ ["panelMesesGlobal","panelMesesRent","panelRolesGlobal","panelProvsGlobal"].forEach((pid)=>$(pid).style.display="none"); });
     $("panelMesesGlobal").addEventListener("click", (e)=>e.stopPropagation());
     $("chkTodosMesesGlobal").addEventListener("change", ()=>{
       const checked = $("chkTodosMesesGlobal").checked;
@@ -3412,6 +3453,7 @@
     });
     $("panelMesesRent").addEventListener("click", (e)=>e.stopPropagation());
     $("filtroRolRent").addEventListener("change", ()=>{ if (window._dibujarRentabilidad) window._dibujarRentabilidad(); });
+    $("filtroRentab").addEventListener("change", ()=>{ if (window._dibujarRentabilidad) window._dibujarRentabilidad(); });
     // "Todos los meses" desmarca/marca los individuales
     $("chkTodosMesesRent").addEventListener("change", ()=>{
       const checked = $("chkTodosMesesRent").checked;
@@ -3428,20 +3470,41 @@
       }
     });
 
+    // Helper: poblar panel de checkboxes multi-selección manteniendo selección previa
+    function poblarPanelMulti(listaId, valores, labelFn){
+      const lista = $(listaId);
+      const prevSel = [...lista.querySelectorAll("input:checked")].map((cb)=>cb.value);
+      const esInicio = lista.children.length===0;
+      lista.innerHTML = valores.map((v)=>{
+        const checked = esInicio || prevSel.includes(v) ? "checked" : "";
+        return '<label style="display:block;margin-bottom:4px;cursor:pointer"><input type="checkbox" class="chkMulti" value="'+esc(v)+'" '+checked+' style="margin-right:6px" />'+labelFn(v)+'</label>';
+      }).join("");
+    }
+    // Helper: leer selección de un panel (null = todos)
+    function seleccionPanel(chkTodosId, listaId){
+      if ($(chkTodosId).checked) return null;
+      return [...$(listaId).querySelectorAll(".chkMulti:checked")].map((cb)=>cb.value);
+    }
+    // Helper: actualizar texto del botón del panel
+    function textoBotonPanel(btnId, sel, singular, plural){
+      if (sel===null) $(btnId).textContent = "Todos los "+plural+" ▾";
+      else if (sel.length===0) $(btnId).textContent = "Ningún "+singular+" ▾";
+      else if (sel.length<=2) $(btnId).textContent = sel.join(", ").slice(0,30)+" ▾";
+      else $(btnId).textContent = sel.length+" "+plural+" ▾";
+    }
+
     async function actualizarResumen(){
-      // --- Poblar filtros globales de Rol y Proveedor ---
+      // --- Poblar filtros globales de Rol y Proveedor (multi-selección) ---
       const rolesG = [...new Set([ ...gastosCache.map((g)=>(g.numeroRol||"").trim()), ...ingresosCache.map((g)=>(g.numeroRol||"").trim()) ].filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
-      const selRG = $("filtroRolGlobal"); const prevRG = selRG.value;
-      selRG.innerHTML = '<option value="">Todos los roles</option>' + rolesG.map((r)=>{ const pr=nombrePredioDe(r,null); return '<option value="'+esc(r)+'">'+esc(r)+(pr?' · '+esc(pr):'')+'</option>'; }).join("");
-      selRG.value = prevRG;
+      poblarPanelMulti("listaRolesGlobal", rolesG, (r)=>{ const pr=nombrePredioDe(r,null); return esc(r)+(pr?' · '+esc(pr):''); });
 
       const provsG = [...new Set([ ...gastosCache.map((g)=>(g.proveedor||"").trim()), ...ingresosCache.map((g)=>(g.proveedor||"").trim()) ].filter(Boolean))].sort();
-      const selPG = $("filtroProvGlobal"); const prevPG = selPG.value;
-      selPG.innerHTML = '<option value="">Todos los proveedores</option>' + provsG.map((p)=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join("");
-      selPG.value = prevPG;
+      poblarPanelMulti("listaProvsGlobal", provsG, (p)=>esc(p));
 
-      const filtroRolG = $("filtroRolGlobal").value;
-      const filtroProvG = $("filtroProvGlobal").value;
+      const rolesSel = seleccionPanel("chkTodosRolesGlobal", "listaRolesGlobal");
+      const provsSel = seleccionPanel("chkTodosProvsGlobal", "listaProvsGlobal");
+      textoBotonPanel("btnFiltroRolGlobal", rolesSel, "rol", "roles");
+      textoBotonPanel("btnFiltroProvGlobal", provsSel, "proveedor", "proveedores");
 
       // --- Filtro global de meses ---
       const todosM = new Set();
@@ -3470,14 +3533,14 @@
       const fRecep0 = filtroGlobal ? recepcionesCache : recepcionesCache.filter((r)=>mesesGlobal.includes(periodoDE(r,"fechaIngreso")));
       const fGastos0 = filtroGlobal ? gastosCache : gastosCache.filter((g)=>mesesGlobal.includes(periodoDE(g,"fecha")));
       const fIngresos0 = filtroGlobal ? ingresosCache : ingresosCache.filter((g)=>mesesGlobal.includes(periodoDE(g,"fecha")));
-      // Aplicar filtro de Rol
-      const fRecep1 = filtroRolG ? fRecep0.filter((r)=>(r.numeroRol||"").toString().trim()===filtroRolG) : fRecep0;
-      const fGastos1 = filtroRolG ? fGastos0.filter((g)=>(g.numeroRol||"").toString().trim()===filtroRolG) : fGastos0;
-      const fIngresos1 = filtroRolG ? fIngresos0.filter((g)=>(g.numeroRol||"").toString().trim()===filtroRolG) : fIngresos0;
-      // Aplicar filtro de Proveedor
-      const fRecep = filtroProvG ? fRecep1.filter((r)=>(r.proveedor||"").trim()===filtroProvG) : fRecep1;
-      const fGastos = filtroProvG ? fGastos1.filter((g)=>(g.proveedor||"").trim()===filtroProvG) : fGastos1;
-      const fIngresos = filtroProvG ? fIngresos1.filter((g)=>(g.proveedor||"").trim()===filtroProvG) : fIngresos1;
+      // Aplicar filtro de Roles (multi)
+      const fRecep1 = rolesSel ? fRecep0.filter((r)=>rolesSel.includes((r.numeroRol||"").toString().trim())) : fRecep0;
+      const fGastos1 = rolesSel ? fGastos0.filter((g)=>rolesSel.includes((g.numeroRol||"").toString().trim())) : fGastos0;
+      const fIngresos1 = rolesSel ? fIngresos0.filter((g)=>rolesSel.includes((g.numeroRol||"").toString().trim())) : fIngresos0;
+      // Aplicar filtro de Proveedores (multi)
+      const fRecep = provsSel ? fRecep1.filter((r)=>provsSel.includes((r.proveedor||"").trim())) : fRecep1;
+      const fGastos = provsSel ? fGastos1.filter((g)=>provsSel.includes((g.proveedor||"").trim())) : fGastos1;
+      const fIngresos = provsSel ? fIngresos1.filter((g)=>provsSel.includes((g.proveedor||"").trim())) : fIngresos1;
 
       // --- KPIs (siempre, aunque Chart.js no cargue) ---
       $("kpiRoles").textContent = fmt(rolesCache.length);
@@ -3743,7 +3806,11 @@
         };
         const gastoPorRol = filtrar(gastosCache, "monto", "numeroRol");
         const ingresoPorRol = filtrar(ingresosCache, "neto", "numeroRol");
-        const rolesRentab = [...new Set([...Object.keys(gastoPorRol), ...Object.keys(ingresoPorRol)])].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
+        let rolesRentab = [...new Set([...Object.keys(gastoPorRol), ...Object.keys(ingresoPorRol)])].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
+        // Filtro rentable / no rentable (rentable = ingresos > gastos en el periodo filtrado)
+        const modoRentab = $("filtroRentab").value;
+        if (modoRentab === "rentable") rolesRentab = rolesRentab.filter((r)=>(ingresoPorRol[r]||0) > (gastoPorRol[r]||0));
+        else if (modoRentab === "norentable") rolesRentab = rolesRentab.filter((r)=>(ingresoPorRol[r]||0) <= (gastoPorRol[r]||0));
 
         if (rolesRentab.length){
           const fmtM2 = (v)=> (v/1000000).toFixed(2)+" M$";
