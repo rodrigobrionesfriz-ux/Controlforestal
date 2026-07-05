@@ -873,17 +873,38 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, doc, addDoc as _fsAddDoc, setDoc as _fsSetDoc, updateDoc as _fsUpdateDoc, deleteDoc as _fsDeleteDoc, writeBatch as _fsWriteBatch, increment, getDoc as _fsGetDoc, getDocs as _fsGetDocs, onSnapshot, query, orderBy, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, addDoc as _fsAddDoc, setDoc as _fsSetDoc, updateDoc as _fsUpdateDoc, deleteDoc as _fsDeleteDoc, writeBatch as _fsWriteBatch, increment, getDoc as _fsGetDoc, getDocs as _fsGetDocs, getDocsFromCache as _fsGetDocsCache, getDocsFromServer as _fsGetDocsServer, getDocFromCache as _fsGetDocCache, onSnapshot, query, orderBy, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     // ---- CONTADOR DE OPERACIONES FIRESTORE (visible solo para admin) ----
     const fsStats = { lecturas: 0, escrituras: 0 };
     function _fsStatUpd(){
       const el = document.getElementById("fsContador");
-      if (el) el.innerHTML = "📖 " + fsStats.lecturas.toLocaleString("es-CL") + " &middot; ✏️ " + fsStats.escrituras.toLocaleString("es-CL");
+      if (el) el.innerHTML = "📖 " + fsStats.lecturas.toLocaleString("es-CL") + " &middot; 💾 " + (fsStatsCache?.cache||0).toLocaleString("es-CL") + " &middot; ✏️ " + fsStats.escrituras.toLocaleString("es-CL");
     }
-    // Wrappers: cada documento leído cuenta como 1 lectura; cada write como 1 escritura
-    async function getDocs(q){ const s = await _fsGetDocs(q); fsStats.lecturas += Math.max(s.size, 1); _fsStatUpd(); return s; }
-    async function getDoc(d){ const s = await _fsGetDoc(d); fsStats.lecturas += 1; _fsStatUpd(); return s; }
+    // Wrappers cache-first:
+    //  - getDocs: intenta la caché local (0 lecturas facturadas); si está vacía, va al servidor.
+    //  - getDocsServidor: fuerza lectura del servidor (botón Actualizar).
+    const fsStatsCache = { cache: 0 };
+    async function getDocs(q){
+      try {
+        const c = await _fsGetDocsCache(q);
+        if (!c.empty){ fsStatsCache.cache += c.size; _fsStatUpd(); return c; }
+      } catch(e){ /* caché vacía o no disponible: ir al servidor */ }
+      const s = await _fsGetDocsServer(q);
+      fsStats.lecturas += Math.max(s.size, 1); _fsStatUpd(); return s;
+    }
+    async function getDocsServidor(q){
+      const s = await _fsGetDocsServer(q);
+      fsStats.lecturas += Math.max(s.size, 1); _fsStatUpd(); return s;
+    }
+    async function getDoc(d){
+      try {
+        const c = await _fsGetDocCache(d);
+        if (c.exists()){ fsStatsCache.cache += 1; _fsStatUpd(); return c; }
+      } catch(e){}
+      const s = await _fsGetDoc(d);
+      fsStats.lecturas += 1; _fsStatUpd(); return s;
+    }
     async function addDoc(...a){ const r = await _fsAddDoc(...a); fsStats.escrituras += 1; _fsStatUpd(); return r; }
     async function setDoc(...a){ const r = await _fsSetDoc(...a); fsStats.escrituras += 1; _fsStatUpd(); return r; }
     async function updateDoc(...a){ const r = await _fsUpdateDoc(...a); fsStats.escrituras += 1; _fsStatUpd(); return r; }
@@ -947,7 +968,9 @@
       appId: "1:904362474657:web:253406f96fd8a5f88ec4e0"
     };
     const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    // Firestore con caché persistente local (IndexedDB): las lecturas repetidas
+    // salen del disco del dispositivo y NO consumen cuota de Firebase.
+    const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
     const auth = getAuth(app);
     // App secundaria para crear usuarios sin perder la sesión del admin
     const app2 = initApp2(firebaseConfig, "secundaria");
@@ -1219,12 +1242,12 @@
     }
 
     // Cargar una colección con getDocs (lectura única)
-    async function _cargarModulo(nombre){
+    async function _cargarModulo(nombre, delServidor){
       const cb = _snapCallbacks[nombre];
       if (!cb) return;
       try {
         const q = query(collection(db, nombre), orderBy("fechaCreacion","desc"));
-        const snap = await getDocs(q);
+        const snap = delServidor ? await getDocsServidor(q) : await getDocs(q);
         cb(snap);
         _cargado[nombre] = true;
       } catch(e){
@@ -1241,7 +1264,7 @@
       statusEl.innerHTML = '<span class="dot ok"></span>Cargando datos…';
       for (const dep of pendientes){
         if (dep === "config"){ await _cargarConfig(); continue; }
-        await _cargarModulo(dep);
+        await _cargarModulo(dep, forzar);   // forzar = leer del servidor (botón Actualizar)
       }
       statusEl.innerHTML = '<span class="dot ok"></span>Conectado &middot; controlgestionforestal';
       _reintentos = 0;
