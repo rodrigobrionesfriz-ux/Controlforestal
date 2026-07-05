@@ -184,6 +184,7 @@
     <span class="razon" id="headerRazon"></span>
     <span class="spacer"></span>
     <span class="status" id="status"><span class="dot wait"></span>Conectando&hellip;</span>
+    <span id="fsContador" title="Lecturas y escrituras a Firestore en esta sesión" style="display:none; font-size:11.5px; color:#cdd6e0; background:rgba(255,255,255,.08); border-radius:6px; padding:3px 10px; white-space:nowrap; font-variant-numeric:tabular-nums">📖 0 &middot; ✏️ 0</span>
     <div class="userbar" id="userbar">
       <span id="userInfo"></span>
       <span class="badge" id="userBadge"></span>
@@ -872,7 +873,31 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, writeBatch, increment, getDoc, getDocs, onSnapshot, query, orderBy, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, addDoc as _fsAddDoc, setDoc as _fsSetDoc, updateDoc as _fsUpdateDoc, deleteDoc as _fsDeleteDoc, writeBatch as _fsWriteBatch, increment, getDoc as _fsGetDoc, getDocs as _fsGetDocs, onSnapshot, query, orderBy, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // ---- CONTADOR DE OPERACIONES FIRESTORE (visible solo para admin) ----
+    const fsStats = { lecturas: 0, escrituras: 0 };
+    function _fsStatUpd(){
+      const el = document.getElementById("fsContador");
+      if (el) el.innerHTML = "📖 " + fsStats.lecturas.toLocaleString("es-CL") + " &middot; ✏️ " + fsStats.escrituras.toLocaleString("es-CL");
+    }
+    // Wrappers: cada documento leído cuenta como 1 lectura; cada write como 1 escritura
+    async function getDocs(q){ const s = await _fsGetDocs(q); fsStats.lecturas += Math.max(s.size, 1); _fsStatUpd(); return s; }
+    async function getDoc(d){ const s = await _fsGetDoc(d); fsStats.lecturas += 1; _fsStatUpd(); return s; }
+    async function addDoc(...a){ const r = await _fsAddDoc(...a); fsStats.escrituras += 1; _fsStatUpd(); return r; }
+    async function setDoc(...a){ const r = await _fsSetDoc(...a); fsStats.escrituras += 1; _fsStatUpd(); return r; }
+    async function updateDoc(...a){ const r = await _fsUpdateDoc(...a); fsStats.escrituras += 1; _fsStatUpd(); return r; }
+    async function deleteDoc(...a){ const r = await _fsDeleteDoc(...a); fsStats.escrituras += 1; _fsStatUpd(); return r; }
+    function writeBatch(dbRef){
+      const b = _fsWriteBatch(dbRef);
+      let n = 0;
+      return {
+        set: (...a)=>{ n++; b.set(...a); },
+        update: (...a)=>{ n++; b.update(...a); },
+        delete: (...a)=>{ n++; b.delete(...a); },
+        commit: async ()=>{ const r = await b.commit(); fsStats.escrituras += n; n = 0; _fsStatUpd(); return r; },
+      };
+    }
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { initializeApp as initApp2 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 
@@ -1043,6 +1068,8 @@
       if ($("secImportarGastos")) $("secImportarGastos").style.display = esAdmin ? "" : "none";
       if ($("secImportarIngresos")) $("secImportarIngresos").style.display = esAdmin ? "" : "none";
       if ($("btnIrImportar")) $("btnIrImportar").style.display = esAdmin ? "" : "none";
+      // Contador de operaciones Firestore: solo admin
+      if ($("fsContador")){ $("fsContador").style.display = esAdmin ? "inline-block" : "none"; _fsStatUpd(); }
     }
 
     // Login / registro
