@@ -489,12 +489,23 @@
         <div class="modal-head"><h3 id="modalNegTitulo">Nuevo negocio</h3><button class="modal-close" data-close-modal="modalNegForm">&times;</button></div>
         <div class="modal-body">
           <div class="grid">
-            <div><label>Rol de predio</label><select id="nRol"><option value="">— Selecciona un rol —</option></select></div>
+            <div style="position:relative"><label>Rol de predio</label>
+              <input id="nRolBuscar" placeholder="Escribe para buscar rol o predio…" autocomplete="off" />
+              <input type="hidden" id="nRol" />
+              <div id="nRolResultados" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:30;background:var(--surface);border:1px solid var(--line);border-radius:0 0 8px 8px;box-shadow:0 6px 14px rgba(0,0,0,.15);max-height:220px;overflow-y:auto"></div>
+            </div>
             <div><label>Proveedor</label><input id="nProveedor" placeholder="Aserradero Sur" /></div>
             <div><label>Planta de destino</label><select id="nPlanta"><option value="">— Sin asignar —</option></select></div>
             <div><label>Bodega destino</label><select id="nBodega"><option value="">— Selecciona planta primero —</option></select></div>
             <div><label>Supervisor de faena</label><input id="nSupervisor" placeholder="Nombre del supervisor" /></div>
-            <div><label>Tipo de negocio</label><select id="nTipo"><option value="bosque_en_pie">Bosque en pie (cosecha + flete)</option><option value="madera_puesta_planta">Madera puesta en planta</option></select></div>
+            <div><label>Tipo de negocio</label><select id="nTipo">
+              <option value="bosque_en_pie">Bosque en pie (cosecha + flete)</option>
+              <option value="madera_puesta_planta">Madera puesta en planta</option>
+              <option value="madera_orilla_camino">Madera orilla de camino</option>
+              <option value="compra_tercero">Compra a través de tercero</option>
+              <option value="otro">Otro…</option>
+            </select></div>
+            <div id="nTipoOtroWrap" style="display:none"><label>Especifica el tipo</label><input id="nTipoOtro" placeholder="Describe el tipo de negocio" /></div>
             <div><label>Fecha inicio</label><input id="nFechaInicio" type="date" /></div>
             <div><label>Fecha término</label><input id="nFechaTermino" type="date" /></div>
             <div><label>Precio compra</label><input id="nPrecio" type="number" step="1" placeholder="35000" /></div>
@@ -529,7 +540,7 @@
 
           <div style="margin-top:20px; padding-top:18px; border-top:1px solid var(--line)">
             <label style="font-size:13px">Facturas de intermediario / comisionista</label>
-            <p class="hint" style="margin-top:0; margin-bottom:12px">Solo si el negocio se hace a través de un tercero. Registra las facturas del intermediario.</p>
+            <p class="hint" style="margin-top:0; margin-bottom:12px">Documentos emitidos por el dueño del predio al intermediario (solo si el negocio es a través de tercero). Si el tipo es "Compra a través de tercero" y no hay facturas, el negocio quedará marcado con documentos pendientes.</p>
             <div class="grid g4">
               <div><label>N° factura</label><input id="fiNumero" placeholder="F-67890" /></div>
               <div><label>Monto</label><input id="fiMonto" type="number" step="1" placeholder="500000" /></div>
@@ -1023,6 +1034,12 @@
     const prodTexto = (p) => (p && p.descripcion && p.descripcion.trim()) ? p.descripcion.trim() : ((p && p.codigo ? p.codigo + " · " : "") + prodLabel(p || {}));
     // Nombre de un producto guardado dentro de un negocio: busca la descripción actual del catálogo por productoId;
     // si el producto ya no existe en el catálogo, usa el label guardado o el código.
+    // Etiqueta legible del tipo de negocio
+    const TIPOS_NEGOCIO = { bosque_en_pie:"Bosque en pie", madera_puesta_planta:"Madera puesta en planta", madera_orilla_camino:"Madera orilla de camino", compra_tercero:"Compra a través de tercero", otro:"Otro" };
+    function labelTipoNegocio(obj){
+      if (obj?.tipoNegocio === "otro" && obj?.tipoNegocioOtro) return obj.tipoNegocioOtro;
+      return TIPOS_NEGOCIO[obj?.tipoNegocio] || obj?.tipoNegocio || "—";
+    }
     function nombreProductoNeg(p){
       const prod = p.productoId ? productosCache.find((x)=>x.id===p.productoId) : null;
       if (prod) return prodTexto(prod);
@@ -1358,7 +1375,7 @@
       // No pintamos la tabla automáticamente. Solo refrescamos si ya hay un listado visible.
       if (rolesListadosVisible) renderRolesTabla(rolesFiltroActual());
       // Selectores sí se actualizan siempre (los usan otros módulos)
-      setSelect($("nRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona un rol —");
+      // nRol ahora es un buscador dinámico (usa rolesCache directamente)
       setSelect($("rRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona rol —");
       setSelect($("gRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona rol —");
       setSelect($("gFiltroRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "Todos los roles");
@@ -1399,7 +1416,7 @@
       $("detalleRolBody").innerHTML =
           row("Número de rol", r.numeroRol) + row("Predio", r.nombrePredio) + row("Propietario", r.propietario)
         + row("Comuna", r.comuna) + row("Especie", r.especiePredominante)
-        + row("Tipo de negocio", r.tipoNegocio==="bosque_en_pie"?"Bosque en pie":"Madera puesta en planta")
+        + row("Tipo de negocio", labelTipoNegocio(r))
         + row("Georreferencia", geoTxt(r.georeferencia));
       $("btnEditarRolDetalle").style.display = puede("editar","roles") ? "inline-block" : "none";
       $("btnEliminarRolDetalle").style.display = puede("borrar","roles") ? "inline-block" : "none";
@@ -1752,6 +1769,10 @@
       if (negDetalleId && $("modalNegDetalle").classList.contains("show")){ const n=negociosCache.find((x)=>x.id===negDetalleId); if (n) verDetalleNeg(negDetalleId); }
     }, ()=>{});
 
+    // ¿Negocio a través de tercero sin factura de intermediario? → documentos pendientes
+    function docsIntermediarioPendientes(n){
+      return n?.tipoNegocio === "compra_tercero" && !(n?.facturasIntermediario||[]).length;
+    }
     function renderNegociosTabla(){
       const t = $("tablaNeg");
       if (!negociosCache.length){ t.innerHTML = '<tr><td colspan="7" class="empty">Aún no hay negocios. Pulsa "Agregar" para crear uno.</td></tr>'; return; }
@@ -1768,7 +1789,8 @@
         const barM3 = totM3>0 ? Math.min(100, av.recM3/totM3*100) : 0;
         const celdaMr = fmt(Math.round(av.recMr))+' / '+fmt(Math.round(totMr))+'<div class="bar"><span style="width:'+barMr+'%"></span></div>';
         const celdaM3 = fmt(Math.round(av.recM3))+' / '+fmt(Math.round(totM3))+'<div class="bar"><span style="width:'+barM3+'%; background:#e9730c"></span></div>';
-        return '<tr class="clickable-row" data-ver-neg="'+n.id+'"><td><strong>'+esc(n.numeroRol)+'</strong></td><td>'+esc(n.proveedor)+'</td><td>'+esc(especies)+'</td><td class="num-cell">'+celdaMr+'</td><td class="num-cell">'+celdaM3+'</td><td>'+esc(n.plantaDestinoNombre||"—")+'</td><td style="text-align:center">'+ocCell+'</td></tr>';
+        const alertaDoc = docsIntermediarioPendientes(n) ? ' <span title="Documentos pendientes: faltan facturas del intermediario" style="color:var(--warn)">📄⚠️</span>' : '';
+        return '<tr class="clickable-row" data-ver-neg="'+n.id+'"><td><strong>'+esc(n.numeroRol)+'</strong>'+alertaDoc+'</td><td>'+esc(n.proveedor)+'</td><td>'+esc(especies)+'</td><td class="num-cell">'+celdaMr+'</td><td class="num-cell">'+celdaM3+'</td><td>'+esc(n.plantaDestinoNombre||"—")+'</td><td style="text-align:center">'+ocCell+'</td></tr>';
       }).join("");
       t.querySelectorAll("[data-ver-neg]").forEach((row)=> row.addEventListener("click", ()=> verDetalleNeg(row.dataset.verNeg)));
     }
@@ -1815,14 +1837,19 @@
           + '<tr style="border-top:2px solid var(--line)"><td><strong>Total</strong></td><td class="num-cell"><strong>'+fmt(tot)+'</strong></td><td colspan="2"></td></tr>'
           + '</tbody></table></div>';
       }
-      const factHtml = tablaFacturas("Facturas de proveedor / compra", n.facturasProveedor)
+      // Alerta: negocio a través de tercero sin facturas del intermediario
+      const alertaInt = docsIntermediarioPendientes(n)
+        ? '<div style="margin-top:16px; padding:12px 14px; background:#fdf3e7; border:1px solid var(--warn); border-radius:8px; font-size:13px; color:#8a5300"><strong>⚠️ Documentos pendientes:</strong> este negocio es una compra a través de tercero y aún no se han registrado las facturas emitidas por el dueño del predio al intermediario.</div>'
+        : "";
+      const factHtml = alertaInt
+                     + tablaFacturas("Facturas de proveedor / compra", n.facturasProveedor)
                      + tablaFacturas("Facturas de intermediario / comisionista", n.facturasIntermediario);
 
       $("detalleNegBody").innerHTML =
           row("Rol", n.numeroRol) + row("Proveedor", n.proveedor)
         + row("Planta destino", n.plantaDestinoNombre) + row("Bodega destino", n.bodegaDestinoNombre)
         + row("Supervisor de faena", n.supervisorFaena)
-        + row("Tipo de negocio", n.tipoNegocio==="bosque_en_pie"?"Bosque en pie":"Madera puesta en planta")
+        + row("Tipo de negocio", labelTipoNegocio(n))
         + row("Fecha inicio", n.fechaInicio) + row("Fecha término", n.fechaTermino)
         + row("Precio compra", n.precioCompra!=null?fmt(n.precioCompra):"") + row("Precio venta", n.precioVenta!=null?fmt(n.precioVenta):"")
         + row("Volumen comprometido MR", fmt(totMr)) + row("Volumen comprometido M³", fmt(totM3))
@@ -1912,7 +1939,8 @@
     $("btnNuevoNeg").addEventListener("click", ()=>{
       editandoNegId = null; prodNegTemp = []; factProvTemp = []; factIntTemp = [];
       ["nProveedor","nSupervisor","nFechaInicio","nFechaTermino","nPrecio","nPrecioVenta","npMr","npM3","fpNumero","fpMonto","fpFecha","fpProveedor","fiNumero","fiMonto","fiFecha","fiProveedor"].forEach((id)=>$(id).value="");
-      $("nRol").value=""; $("nPlanta").value=""; $("nBodega").innerHTML='<option value="">— Selecciona planta primero —</option>';
+      $("nRol").value=""; $("nRolBuscar").value=""; $("nTipoOtro").value=""; $("nTipoOtroWrap").style.display="none";
+      $("nPlanta").value=""; $("nBodega").innerHTML='<option value="">— Selecciona planta primero —</option>';
       $("nTipo").value="bosque_en_pie"; $("npProducto").value=""; $("npInfo").textContent="";
       renderProdNegTemp(); renderFacturas("factProvLista", factProvTemp, "factprov"); renderFacturas("factIntLista", factIntTemp, "factint");
       $("modalNegTitulo").textContent = "Nuevo negocio";
@@ -1924,9 +1952,13 @@
     function iniciarEdicionNeg(id){
       const n = negociosCache.find((x)=>x.id===id); if (!n) return;
       editandoNegId = id;
-      $("nRol").value = n.rolId||""; $("nProveedor").value = n.proveedor||"";
+      $("nRol").value = n.rolId||"";
+      { const r0 = rolesCache.find((r)=>r.id===n.rolId); $("nRolBuscar").value = r0 ? (r0.numeroRol+" · "+(r0.nombrePredio||"")) : (n.numeroRol||""); }
+      $("nProveedor").value = n.proveedor||"";
       $("nPlanta").value = n.plantaDestinoId||""; actualizarBodegasNeg(); $("nBodega").value = n.bodegaDestinoId||"";
       $("nSupervisor").value = n.supervisorFaena||""; $("nTipo").value = n.tipoNegocio||"bosque_en_pie";
+      $("nTipoOtro").value = n.tipoNegocioOtro||"";
+      $("nTipoOtroWrap").style.display = $("nTipo").value==="otro" ? "" : "none";
       $("nFechaInicio").value = n.fechaInicio||""; $("nFechaTermino").value = n.fechaTermino||"";
       $("nPrecio").value = n.precioCompra??""; $("nPrecioVenta").value = n.precioVenta??"";
       prodNegTemp = (n.productos||[]).map((p)=>({ ...p })); renderProdNegTemp();
@@ -1959,6 +1991,37 @@
       catch(e){ alert("Error al eliminar: "+e.message); }
     }
 
+    // ---- Buscador dinámico de rol en el formulario de negocio ----
+    function renderNRolResultados(q){
+      const cont = $("nRolResultados");
+      const txt = (q||"").trim().toLowerCase();
+      const lista = rolesCache.filter((r)=>{
+        if (!txt) return true;
+        return (r.numeroRol||"").toLowerCase().includes(txt) || (r.nombrePredio||"").toLowerCase().includes(txt);
+      }).slice(0, 15);
+      if (!lista.length){ cont.innerHTML = '<div style="padding:8px 12px;font-size:12px;color:var(--muted)">Sin coincidencias</div>'; cont.style.display="block"; return; }
+      cont.innerHTML = lista.map((r)=>'<div class="nrol-item" data-rol-id="'+r.id+'" style="padding:8px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--line)"><strong>'+esc(r.numeroRol)+'</strong>'+(r.nombrePredio?' · '+esc(r.nombrePredio):'')+'</div>').join("");
+      cont.style.display = "block";
+      cont.querySelectorAll(".nrol-item").forEach((it)=>{
+        it.addEventListener("mousedown", (e)=>{  // mousedown para ganar al blur
+          e.preventDefault();
+          const r = rolesCache.find((x)=>x.id===it.dataset.rolId);
+          if (r){ $("nRol").value = r.id; $("nRolBuscar").value = r.numeroRol+" · "+(r.nombrePredio||""); }
+          cont.style.display = "none";
+        });
+        it.addEventListener("mouseover", ()=> it.style.background = "var(--bg)");
+        it.addEventListener("mouseout", ()=> it.style.background = "");
+      });
+    }
+    $("nRolBuscar").addEventListener("input", ()=>{ $("nRol").value=""; renderNRolResultados($("nRolBuscar").value); });
+    $("nRolBuscar").addEventListener("focus", ()=> renderNRolResultados($("nRolBuscar").value));
+    $("nRolBuscar").addEventListener("blur", ()=> setTimeout(()=>{ $("nRolResultados").style.display="none"; }, 180));
+
+    // ---- Tipo de negocio "Otro" ----
+    $("nTipo").addEventListener("change", ()=>{
+      $("nTipoOtroWrap").style.display = $("nTipo").value==="otro" ? "" : "none";
+    });
+
     $("btnGuardarNeg").addEventListener("click", async () => {
       const rolId = $("nRol").value; const m = $("negMsg");
       if (!rolId) { m.textContent="Debes seleccionar un rol."; m.className="msg err"; return; }
@@ -1975,6 +2038,7 @@
         bodegaDestinoId: $("nBodega").value||null, bodegaDestinoNombre: bodega?bodega.nombre:null,
         supervisorFaena: up($("nSupervisor").value),
         tipoNegocio: $("nTipo").value,
+        tipoNegocioOtro: $("nTipo").value==="otro" ? up($("nTipoOtro").value) : null,
         incluyeCosecha: $("nTipo").value==="bosque_en_pie", incluyeFlete: $("nTipo").value==="bosque_en_pie",
         fechaInicio: $("nFechaInicio").value||null, fechaTermino: $("nFechaTermino").value||null,
         precioCompra: parseFloat($("nPrecio").value)||0, precioVenta: parseFloat($("nPrecioVenta").value)||0,
