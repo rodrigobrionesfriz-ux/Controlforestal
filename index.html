@@ -52,7 +52,43 @@
     .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
     .grid.g3 { grid-template-columns: repeat(3, 1fr); }
     .grid.g4 { grid-template-columns: repeat(4, 1fr); }
-    @media (max-width: 760px) { nav.sidebar { width: 56px; } nav.sidebar button .label { display: none; } main { padding: 16px; } .grid, .grid.g3, .grid.g4 { grid-template-columns: 1fr; } }
+    /* Botón hamburguesa (solo móvil) */
+    .menu-toggle { display: none; background: transparent; border: none; color: #fff; font-size: 22px; cursor: pointer; padding: 4px 8px; margin-right: 4px; }
+    .sidebar-overlay { display: none; position: fixed; inset: 48px 0 0 0; background: rgba(0,0,0,.4); z-index: 39; }
+
+    /* === TABLET (hasta 1000px): contenido fluido === */
+    @media (max-width: 1000px) {
+      main { max-width: 100%; padding: 20px; }
+      .grid.g4 { grid-template-columns: repeat(2, 1fr); }
+      .chart-grid { grid-template-columns: 1fr !important; }
+    }
+
+    /* === MÓVIL (hasta 760px): sidebar como drawer deslizable con etiquetas === */
+    @media (max-width: 760px) {
+      .menu-toggle { display: block; }
+      nav.sidebar {
+        position: fixed; top: 48px; left: 0; bottom: 0; width: 240px;
+        transform: translateX(-100%); transition: transform .25s ease;
+        z-index: 40; overflow-y: auto; box-shadow: 2px 0 12px rgba(0,0,0,.2);
+      }
+      nav.sidebar.abierto { transform: translateX(0); }
+      nav.sidebar button .label { display: inline; }  /* etiquetas SIEMPRE visibles */
+      .sidebar-overlay.visible { display: block; }
+      main { padding: 16px; width: 100%; }
+      .grid, .grid.g3, .grid.g4 { grid-template-columns: 1fr; }
+      .card { padding: 16px; }
+      .shell { padding: 0 12px; gap: 8px; }
+      .shell .title { font-size: 13px; }
+      .shell .razon, .shell .status { display: none; }
+      table { font-size: 12px; }
+      .modal-body table, .detalle-row table { display: block; overflow-x: auto; white-space: nowrap; }
+      .modal { width: 96vw !important; max-width: 96vw !important; }
+    }
+    /* Móvil chico */
+    @media (max-width: 420px) {
+      .shell .title { font-size: 12px; }
+      main { padding: 12px; }
+    }
     label { display: block; font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 5px; }
     input, select { width: 100%; padding: 9px 11px; border: 1px solid var(--line-2); border-radius: 4px; font-size: 14px; font-family: inherit; background: var(--surface); }
     input:focus, select:focus { outline: 2px solid var(--sap-blue); border-color: transparent; }
@@ -112,6 +148,7 @@
     .mes-group.abierto .mes-flecha { transform: rotate(90deg); }
     .mes-body { display: none; overflow-x: auto; }
     .mes-group.abierto .mes-body { display: block; }
+    .mes-body { overflow-x: auto; }
     .mes-body table { font-size: 13px; min-width: 900px; }
     .mes-body th { position: sticky; top: 0; }
     /* Modales */
@@ -179,6 +216,7 @@
   </div>
 
   <div class="shell">
+    <button class="menu-toggle" id="menuToggle" aria-label="Menú">☰</button>
     <img id="headerLogo" style="display:none" />
     <span class="title" id="headerTitulo">Control de Gestión Negocio Forestal</span>
     <span class="razon" id="headerRazon"></span>
@@ -193,6 +231,7 @@
   </div>
 
   <div class="layout">
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <nav class="sidebar">
       <button data-tab="resumen" class="active"><span class="ico">📊</span><span class="label">Resumen</span></button>
       <div class="sep"></div>
@@ -1339,12 +1378,20 @@
     }
 
     // Pestañas
+    // Menú hamburguesa (móvil)
+    const _nav = document.querySelector("nav.sidebar");
+    function abrirMenu(){ _nav.classList.add("abierto"); $("sidebarOverlay").classList.add("visible"); }
+    function cerrarMenu(){ _nav.classList.remove("abierto"); $("sidebarOverlay").classList.remove("visible"); }
+    $("menuToggle").addEventListener("click", ()=> _nav.classList.contains("abierto") ? cerrarMenu() : abrirMenu());
+    $("sidebarOverlay").addEventListener("click", cerrarMenu);
+
     document.querySelectorAll("nav.sidebar button").forEach((b) => {
       b.addEventListener("click", async () => {
         document.querySelectorAll("nav.sidebar button").forEach((x) => x.classList.remove("active"));
         document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
         b.classList.add("active");
         $("view-" + b.dataset.tab).classList.add("active");
+        cerrarMenu();  // cerrar el drawer al elegir una sección (móvil)
         // Cargar datos necesarios para esta pestaña
         if (usuarioActual) await cargarParaTab(b.dataset.tab, false);
       });
