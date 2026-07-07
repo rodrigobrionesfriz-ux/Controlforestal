@@ -260,7 +260,7 @@
             <button id="btnFiltroRolGlobal" class="secondary" style="font-size:12px;padding:6px 12px;cursor:pointer">Todos los roles ▾</button>
             <div id="panelRolesGlobal" style="display:none;position:absolute;left:0;top:100%;z-index:20;margin-top:4px">
               <div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px 16px;max-height:300px;overflow-y:auto;min-width:240px">
-                <label style="display:block;margin-bottom:8px;font-size:13px;font-weight:700;cursor:pointer"><input type="checkbox" id="chkTodosRolesGlobal" checked style="margin-right:6px" />Todos los roles</label>
+                <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;font-weight:700;cursor:pointer"><input type="checkbox" id="chkTodosRolesGlobal" checked style="margin:0;flex-shrink:0" />Todos los roles</label>
                 <div id="listaRolesGlobal" style="font-size:12px"></div>
               </div>
             </div>
@@ -269,7 +269,7 @@
             <button id="btnFiltroProvGlobal" class="secondary" style="font-size:12px;padding:6px 12px;cursor:pointer">Todos los proveedores ▾</button>
             <div id="panelProvsGlobal" style="display:none;position:absolute;left:0;top:100%;z-index:20;margin-top:4px">
               <div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px 16px;max-height:300px;overflow-y:auto;min-width:260px">
-                <label style="display:block;margin-bottom:8px;font-size:13px;font-weight:700;cursor:pointer"><input type="checkbox" id="chkTodosProvsGlobal" checked style="margin-right:6px" />Todos los proveedores</label>
+                <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;font-weight:700;cursor:pointer"><input type="checkbox" id="chkTodosProvsGlobal" checked style="margin:0;flex-shrink:0" />Todos los proveedores</label>
                 <div id="listaProvsGlobal" style="font-size:12px"></div>
               </div>
             </div>
@@ -278,7 +278,7 @@
           <button id="btnActualizar" class="secondary" style="font-size:13px;padding:6px 14px;cursor:pointer" title="Recargar datos desde la base de datos">🔄 Actualizar</button>
           <div id="panelMesesGlobal" style="display:none;position:absolute;right:0;top:100%;z-index:20;margin-top:4px">
             <div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px 16px;max-height:300px;overflow-y:auto;min-width:200px">
-              <label style="display:block;margin-bottom:8px;font-size:13px;font-weight:700;cursor:pointer"><input type="checkbox" id="chkTodosMesesGlobal" checked style="margin-right:6px" />Todos los meses</label>
+              <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;font-weight:700;cursor:pointer"><input type="checkbox" id="chkTodosMesesGlobal" checked style="margin:0;flex-shrink:0" />Todos los meses</label>
               <div id="listaMesesGlobal" style="font-size:12px"></div>
             </div>
           </div>
@@ -318,13 +318,21 @@
             Rentabilidad por rol — Ingresos vs Gastos
             <span style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:12px">
               <select id="filtroRentab" style="width:auto;font-size:12px;padding:4px 8px"><option value="">Todos</option><option value="rentable">Solo rentables</option><option value="norentable">Solo no rentables</option></select>
-              <select id="filtroRolRent" style="width:auto;font-size:12px;padding:4px 8px;max-width:220px"><option value="">Todos los roles</option></select>
+              <span style="position:relative">
+                <button id="btnFiltroRolRent" class="secondary" style="font-size:12px;padding:4px 10px;cursor:pointer">Todos los roles ▾</button>
+                <div id="panelRolesRent" style="display:none;position:absolute;right:0;top:100%;z-index:20;margin-top:4px">
+                  <div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px 16px;max-height:280px;overflow-y:auto;min-width:260px">
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;font-weight:700;cursor:pointer"><input type="checkbox" id="chkTodosRolesRent" checked style="margin:0;flex-shrink:0" />Todos los roles</label>
+                    <div id="listaRolesRent" style="font-size:12px"></div>
+                  </div>
+                </div>
+              </span>
               <button id="btnFiltroMesRent" class="secondary" style="font-size:12px;padding:4px 10px;cursor:pointer">Todos los meses ▾</button>
             </span>
           </h3>
           <div id="panelMesesRent" style="display:none;position:relative;z-index:10">
             <div style="position:absolute;right:0;top:0;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.12);padding:10px 14px;max-height:260px;overflow-y:auto;min-width:180px">
-              <label style="display:block;margin-bottom:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="chkTodosMesesRent" checked style="margin-right:6px" />Todos los meses</label>
+              <label style="display:block;margin-bottom:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="chkTodosMesesRent" checked style="margin:0;flex-shrink:0" />Todos los meses</label>
               <div id="listaMesesRent" style="font-size:12px"></div>
             </div>
           </div>
@@ -3540,7 +3548,7 @@
       // Cerrar los otros paneles
       ["panelRolesGlobal","panelProvsGlobal","panelMesesRent"].forEach((pid)=>$(pid).style.display="none");
     });
-    document.addEventListener("click", ()=>{ ["panelMesesGlobal","panelMesesRent","panelRolesGlobal","panelProvsGlobal"].forEach((pid)=>$(pid).style.display="none"); });
+    document.addEventListener("click", ()=>{ ["panelMesesGlobal","panelMesesRent","panelRolesGlobal","panelProvsGlobal","panelRolesRent"].forEach((pid)=>$(pid).style.display="none"); });
     $("panelMesesGlobal").addEventListener("click", (e)=>e.stopPropagation());
     $("chkTodosMesesGlobal").addEventListener("change", ()=>{
       const checked = $("chkTodosMesesGlobal").checked;
@@ -3560,10 +3568,31 @@
     $("btnFiltroMesRent").addEventListener("click", (e)=>{
       e.stopPropagation();
       const p = $("panelMesesRent");
+      $("panelRolesRent").style.display="none";
       p.style.display = p.style.display==="none" ? "block" : "none";
     });
     $("panelMesesRent").addEventListener("click", (e)=>e.stopPropagation());
-    $("filtroRolRent").addEventListener("change", ()=>{ if (window._dibujarRentabilidad) window._dibujarRentabilidad(); });
+    // Panel multi-selección de roles del gráfico de rentabilidad
+    $("btnFiltroRolRent").addEventListener("click", (e)=>{
+      e.stopPropagation();
+      const p = $("panelRolesRent");
+      p.style.display = p.style.display==="none" ? "block" : "none";
+      $("panelMesesRent").style.display = "none";
+    });
+    $("panelRolesRent").addEventListener("click", (e)=>e.stopPropagation());
+    $("chkTodosRolesRent").addEventListener("change", ()=>{
+      const c = $("chkTodosRolesRent").checked;
+      $("listaRolesRent").querySelectorAll(".chkRolRent").forEach((cb)=>cb.checked=c);
+      if (window._dibujarRentabilidad) window._dibujarRentabilidad();
+    });
+    $("listaRolesRent").addEventListener("change", (e)=>{
+      if (e.target.classList.contains("chkRolRent")){
+        const todos = $("listaRolesRent").querySelectorAll(".chkRolRent");
+        const marc = $("listaRolesRent").querySelectorAll(".chkRolRent:checked");
+        $("chkTodosRolesRent").checked = marc.length === todos.length;
+        if (window._dibujarRentabilidad) window._dibujarRentabilidad();
+      }
+    });
     $("filtroRentab").addEventListener("change", ()=>{ if (window._dibujarRentabilidad) window._dibujarRentabilidad(); });
     // "Todos los meses" desmarca/marca los individuales
     $("chkTodosMesesRent").addEventListener("change", ()=>{
@@ -3588,7 +3617,7 @@
       const esInicio = lista.children.length===0;
       lista.innerHTML = valores.map((v)=>{
         const checked = esInicio || prevSel.includes(v) ? "checked" : "";
-        return '<label style="display:block;margin-bottom:4px;cursor:pointer"><input type="checkbox" class="chkMulti" value="'+esc(v)+'" '+checked+' style="margin-right:6px" />'+labelFn(v)+'</label>';
+        return '<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer"><input type="checkbox" class="chkMulti" value="'+esc(v)+'" '+checked+' style="margin:0;flex-shrink:0" />'+labelFn(v)+'</label>';
       }).join("");
     }
     // Helper: leer selección de un panel (null = todos)
@@ -3629,7 +3658,7 @@
       const esInicio = listaG.children.length===0;
       listaG.innerHTML = todosArr.map((m)=>{
         const checked = esInicio || prevSel.includes(m) ? "checked" : "";
-        return '<label style="display:block;margin-bottom:4px;cursor:pointer"><input type="checkbox" class="chkMesG" value="'+m+'" '+checked+' style="margin-right:6px" />'+esc(nombreMes(m))+'</label>';
+        return '<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer"><input type="checkbox" class="chkMesG" value="'+m+'" '+checked+' style="margin:0;flex-shrink:0" />'+esc(nombreMes(m))+'</label>';
       }).join("");
       // Determinar meses seleccionados
       const filtroGlobal = $("chkTodosMesesGlobal").checked;
@@ -3685,7 +3714,8 @@
         formatter: (v,ctx)=>{ const tot=ctx.dataset.data.reduce((a,b)=>a+b,0); const pct=tot?Math.round(v/tot*100):0; return fmt(v)+(unidad?" "+unidad:"")+"\n"+pct+"%"; },
       });
       // Espacio alrededor de las donas para que las etiquetas externas no se corten
-      const donaLayout = { padding: { top:26, bottom:40, left:34, right:34 } };
+      const donaLayout = { padding: { top:28, bottom:58, left:38, right:38 } };
+      const donaLegend = { position:"bottom", labels:{ boxWidth:14, padding:16 } };
       // Barras: valor sobre la barra (oculta ceros).
       const dlBarra = {
         display: (ctx)=> (ctx.dataset.data[ctx.dataIndex]||0) > 0,
@@ -3712,7 +3742,7 @@
         dibujarChart("chartPlantaMR", {
           type:"doughnut",
           data:{ labels:mrE.map((e)=>e[0]), datasets:[{ data:mrE.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS }] },
-          options:{ responsive:true, layout:donaLayout, plugins:{ legend:{position:"bottom", labels:{boxWidth:14}}, datalabels:dlDona("mr"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" mr" } } } }
+          options:{ responsive:true, layout:donaLayout, plugins:{ legend:donaLegend, datalabels:dlDona("mr"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" mr" } } } }
         });
       } else if (charts["chartPlantaMR"]){ charts["chartPlantaMR"].destroy(); delete charts["chartPlantaMR"]; }
       // Dona M³ (solo plantas con M³ > 0)
@@ -3721,7 +3751,7 @@
         dibujarChart("chartPlantaM3", {
           type:"doughnut",
           data:{ labels:m3E.map((e)=>e[0]), datasets:[{ data:m3E.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS }] },
-          options:{ responsive:true, layout:donaLayout, plugins:{ legend:{position:"bottom", labels:{boxWidth:14}}, datalabels:dlDona("m³"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" m³" } } } }
+          options:{ responsive:true, layout:donaLayout, plugins:{ legend:donaLegend, datalabels:dlDona("m³"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" m³" } } } }
         });
       } else if (charts["chartPlantaM3"]){ charts["chartPlantaM3"].destroy(); delete charts["chartPlantaM3"]; }
 
@@ -3864,18 +3894,19 @@
       });
 
       // --- Gráfico: Rentabilidad por rol — Ingresos vs Gastos [líneas, M$, filtro multi-mes + filtro rol] ---
-      // Poblar filtro de roles
+      // Poblar filtro de roles (panel multi-selección)
       const rolesConDatos = new Set();
       fGastos.forEach((g)=>{ const k=(g.numeroRol||"").toString().trim(); if(k) rolesConDatos.add(k); });
       fIngresos.forEach((g)=>{ const k=(g.numeroRol||"").toString().trim(); if(k) rolesConDatos.add(k); });
       const rolesRentList = [...rolesConDatos].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
-      const selRolR = $("filtroRolRent");
-      const prevRolR = selRolR.value;
-      selRolR.innerHTML = '<option value="">Todos los roles</option>' + rolesRentList.map((r)=>{
+      const listaRolR = $("listaRolesRent");
+      const prevRolChk = [...listaRolR.querySelectorAll("input:checked")].map((cb)=>cb.value);
+      const esInicioRolR = listaRolR.children.length===0;
+      listaRolR.innerHTML = rolesRentList.map((r)=>{
         const pr = nombrePredioDe(r,null);
-        return '<option value="'+esc(r)+'">'+esc(r)+(pr?' · '+esc(pr):'')+'</option>';
+        const checked = esInicioRolR || prevRolChk.includes(r) ? "checked" : "";
+        return '<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer"><input type="checkbox" class="chkRolRent" value="'+esc(r)+'" '+checked+' style="margin:0;flex-shrink:0" />'+esc(r)+(pr?' · '+esc(pr):'')+'</label>';
       }).join("");
-      selRolR.value = prevRolR;
 
       // Poblar lista de meses disponibles (unión de gastos e ingresos)
       const mesesRentSet = new Set();
@@ -3887,7 +3918,7 @@
       const prevChecked = [...listaDiv.querySelectorAll("input:checked")].map((cb)=>cb.value);
       listaDiv.innerHTML = mesesRentArr.map((m)=>{
         const checked = prevChecked.length===0 || prevChecked.includes(m) ? "checked" : "";
-        return '<label style="display:block;margin-bottom:4px;cursor:pointer"><input type="checkbox" class="chkMesRent" value="'+m+'" '+checked+' style="margin-right:6px" />'+esc(nombreMes(m))+'</label>';
+        return '<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer"><input type="checkbox" class="chkMesRent" value="'+m+'" '+checked+' style="margin:0;flex-shrink:0" />'+esc(nombreMes(m))+'</label>';
       }).join("");
 
       window._dibujarRentabilidad = dibujarRentabilidad;
@@ -3896,12 +3927,18 @@
       function dibujarRentabilidad(){
         const todos = $("chkTodosMesesRent").checked;
         const mesesSel = todos ? null : [...$("listaMesesRent").querySelectorAll(".chkMesRent:checked")].map((cb)=>cb.value);
-        const rolFiltro = $("filtroRolRent").value;
-        // Actualizar texto del botón
+        const rolTodos = $("chkTodosRolesRent").checked;
+        const rolesSelR = rolTodos ? null : [...$("listaRolesRent").querySelectorAll(".chkRolRent:checked")].map((cb)=>cb.value);
+        // Texto del botón de meses
         if (todos) $("btnFiltroMesRent").textContent = "Todos los meses ▾";
         else if (mesesSel.length===0) $("btnFiltroMesRent").textContent = "Ningún mes ▾";
         else if (mesesSel.length<=2) $("btnFiltroMesRent").textContent = mesesSel.map((m)=>nombreMes(m)).join(", ")+" ▾";
         else $("btnFiltroMesRent").textContent = mesesSel.length+" meses ▾";
+        // Texto del botón de roles
+        if (rolTodos) $("btnFiltroRolRent").textContent = "Todos los roles ▾";
+        else if (!rolesSelR||rolesSelR.length===0) $("btnFiltroRolRent").textContent = "Ningún rol ▾";
+        else if (rolesSelR.length===1) $("btnFiltroRolRent").textContent = rolesSelR[0]+" ▾";
+        else $("btnFiltroRolRent").textContent = rolesSelR.length+" roles ▾";
 
         const filtrar = (lista, campoMonto, campoRol) => {
           const result = {};
@@ -3910,7 +3947,7 @@
             if (!todos && mesesSel && !mesesSel.includes(per)) return;
             const k = (g[campoRol]||"").toString().trim();
             if (!k) return;
-            if (rolFiltro && k !== rolFiltro) return;
+            if (rolesSelR && !rolesSelR.includes(k)) return;
             result[k] = (result[k]||0) + (g[campoMonto]||0);
           });
           return result;
