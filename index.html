@@ -266,7 +266,8 @@
             <div id="panelRolesGlobal" style="display:none;position:absolute;left:0;top:100%;z-index:20;margin-top:4px">
               <div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px 16px;max-height:320px;overflow-y:auto;overflow-x:hidden;min-width:300px">
                 <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;font-size:13px;font-weight:700;cursor:pointer;width:100%"><input type="checkbox" id="chkTodosRolesGlobal" checked style="margin:0;flex-shrink:0" />Todos los roles</label>
-                <div id="listaRolesGlobal" style="font-size:12px"></div>
+                <input type="text" id="buscarRolGlobal" placeholder="🔍 Buscar rol o predio…" autocomplete="off" style="width:100%;padding:6px 9px;font-size:12px;margin-bottom:8px;border:1px solid var(--line-2);border-radius:4px" />
+                    <div id="listaRolesGlobal" style="font-size:12px"></div>
               </div>
             </div>
           </span>
@@ -275,7 +276,8 @@
             <div id="panelProvsGlobal" style="display:none;position:absolute;left:0;top:100%;z-index:20;margin-top:4px">
               <div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px 16px;max-height:320px;overflow-y:auto;overflow-x:hidden;min-width:320px">
                 <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;font-size:13px;font-weight:700;cursor:pointer;width:100%"><input type="checkbox" id="chkTodosProvsGlobal" checked style="margin:0;flex-shrink:0" />Todos los proveedores</label>
-                <div id="listaProvsGlobal" style="font-size:12px"></div>
+                <input type="text" id="buscarProvGlobal" placeholder="🔍 Buscar proveedor…" autocomplete="off" style="width:100%;padding:6px 9px;font-size:12px;margin-bottom:8px;border:1px solid var(--line-2);border-radius:4px" />
+                    <div id="listaProvsGlobal" style="font-size:12px"></div>
               </div>
             </div>
           </span>
@@ -305,6 +307,7 @@
       <div class="kpi-grid">
         <div class="kpi" id="kpiOCAlertaCard" style="cursor:pointer" title="Ver órdenes de compra pendientes"><div class="label">OC por completar</div><div class="value" id="kpiOCAlerta" style="color:var(--warn)">0</div></div>
       </div>
+      <p class="empty" id="avisoSinGraficos" style="display:none; margin-top:20px">No hay datos que mostrar con los filtros seleccionados. Ajusta los filtros del encabezado.</p>
       <div class="chart-grid">
         <div class="chart-box"><h3>Recepciones por planta — MR</h3><canvas id="chartPlantaMR"></canvas></div>
         <div class="chart-box"><h3>Recepciones por planta — M³</h3><canvas id="chartPlantaM3"></canvas></div>
@@ -328,6 +331,7 @@
                 <div id="panelRolesRent" style="display:none;position:absolute;right:0;top:100%;z-index:20;margin-top:4px">
                   <div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px 16px;max-height:320px;overflow-y:auto;overflow-x:hidden;min-width:320px">
                     <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;font-size:13px;font-weight:700;cursor:pointer;width:100%"><input type="checkbox" id="chkTodosRolesRent" checked style="margin:0;flex-shrink:0" />Todos los roles</label>
+                    <input type="text" id="buscarRolRent" placeholder="🔍 Buscar rol o predio…" autocomplete="off" style="width:100%;padding:6px 9px;font-size:12px;margin-bottom:8px;border:1px solid var(--line-2);border-radius:4px" />
                     <div id="listaRolesRent" style="font-size:12px"></div>
                   </div>
                 </div>
@@ -3513,10 +3517,26 @@
 
     function dibujarChart(id, config){
       const ctx = $(id); if (!ctx) return;
+      // ¿El gráfico tiene algún dato distinto de cero?
+      const tieneDatos = (config.data?.datasets||[]).some((d)=> (d.data||[]).some((v)=> (typeof v === "number" ? v : (v?.y ?? 0)) !== 0 ));
+      mostrarCaja(id, tieneDatos && (config.data?.labels||[]).length > 0);
+      if (!tieneDatos){ if (charts[id]){ charts[id].destroy(); delete charts[id]; } return; }
       try {
         if (charts[id]) charts[id].destroy();
         charts[id] = new Chart(ctx, config);
       } catch(e){ console.error("Error al dibujar gráfico "+id+":", e); }
+    }
+    // Mostrar u ocultar el recuadro (.chart-box) que contiene un canvas
+    function mostrarCaja(canvasId, visible){
+      const c = $(canvasId); if (!c) return;
+      const box = c.closest(".chart-box");
+      if (box) box.style.display = visible ? "" : "none";
+    }
+    // Si ningún gráfico quedó visible, mostrar un aviso en vez de una pantalla vacía
+    function verificarGraficosVisibles(){
+      const visibles = [...document.querySelectorAll("#view-resumen .chart-box")].filter((b)=> b.style.display !== "none").length;
+      const aviso = $("avisoSinGraficos");
+      if (aviso) aviso.style.display = visibles === 0 ? "block" : "none";
     }
 
     // ---- Detalle de un rol al hacer clic en los gráficos del dashboard ----
@@ -3579,6 +3599,20 @@
       await recargarTodo();
       $("btnActualizar").disabled = false; $("btnActualizar").textContent = "🔄 Actualizar";
     });
+    // Buscador dinámico dentro de un panel de filtro: oculta los labels que no coinciden
+    function cablearBuscadorPanel(inputId, listaId){
+      const inp = $(inputId); if (!inp) return;
+      inp.addEventListener("input", ()=>{
+        const q = inp.value.trim().toLowerCase();
+        $(listaId).querySelectorAll("label").forEach((lbl)=>{
+          const txt = lbl.textContent.toLowerCase();
+          lbl.style.display = (!q || txt.includes(q)) ? "flex" : "none";
+        });
+      });
+      // Evitar que el clic en el buscador cierre el panel
+      inp.addEventListener("click", (e)=>e.stopPropagation());
+    }
+
     // Helper: cablear un panel multi-selección (botón + chkTodos + lista)
     function cablearPanelMulti(btnId, panelId, chkTodosId, listaId){
       $(btnId).addEventListener("click", (e)=>{
@@ -3591,7 +3625,12 @@
       $(panelId).addEventListener("click", (e)=>e.stopPropagation());
       $(chkTodosId).addEventListener("change", ()=>{
         const checked = $(chkTodosId).checked;
-        $(listaId).querySelectorAll("input[type=checkbox]").forEach((cb)=>cb.checked = checked);
+        // Si hay búsqueda activa, marcar/desmarcar solo los visibles
+        $(listaId).querySelectorAll("label").forEach((lbl)=>{
+          if (lbl.style.display === "none") return;
+          const cb = lbl.querySelector("input[type=checkbox]");
+          if (cb) cb.checked = checked;
+        });
         programarResumen();
       });
       $(listaId).addEventListener("change", (e)=>{
@@ -3646,7 +3685,11 @@
     $("panelRolesRent").addEventListener("click", (e)=>e.stopPropagation());
     $("chkTodosRolesRent").addEventListener("change", ()=>{
       const c = $("chkTodosRolesRent").checked;
-      $("listaRolesRent").querySelectorAll(".chkRolRent").forEach((cb)=>cb.checked=c);
+      $("listaRolesRent").querySelectorAll("label").forEach((lbl)=>{
+        if (lbl.style.display === "none") return;
+        const cb = lbl.querySelector(".chkRolRent");
+        if (cb) cb.checked = c;
+      });
       if (window._dibujarRentabilidad) window._dibujarRentabilidad();
     });
     $("listaRolesRent").addEventListener("change", (e)=>{
@@ -3675,7 +3718,7 @@
     });
 
     // Helper: poblar panel de checkboxes multi-selección manteniendo selección previa
-    function poblarPanelMulti(listaId, valores, labelFn){
+    function poblarPanelMulti(listaId, valores, labelFn, buscadorId){
       const lista = $(listaId);
       const prevSel = [...lista.querySelectorAll("input:checked")].map((cb)=>cb.value);
       const esInicio = lista.children.length===0;
@@ -3683,6 +3726,11 @@
         const checked = esInicio || prevSel.includes(v) ? "checked" : "";
         return '<label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;cursor:pointer;width:100%"><input type="checkbox" class="chkMulti" value="'+esc(v)+'" '+checked+' style="margin:0;flex-shrink:0" /><span style="flex:1;min-width:0;word-break:break-word">'+labelFn(v)+'</span></label>';
       }).join("");
+      // Reaplicar el texto de búsqueda si el usuario tenía algo escrito
+      if (buscadorId && $(buscadorId) && $(buscadorId).value.trim()){
+        const q = $(buscadorId).value.trim().toLowerCase();
+        lista.querySelectorAll("label").forEach((lbl)=>{ lbl.style.display = lbl.textContent.toLowerCase().includes(q) ? "flex" : "none"; });
+      }
     }
     // Helper: leer selección de un panel (null = todos)
     function seleccionPanel(chkTodosId, listaId){
@@ -3700,10 +3748,10 @@
     async function actualizarResumen(){
       // --- Poblar filtros globales de Rol y Proveedor (multi-selección) ---
       const rolesG = [...new Set([ ...gastosCache.map((g)=>(g.numeroRol||"").trim()), ...ingresosCache.map((g)=>(g.numeroRol||"").trim()) ].filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
-      poblarPanelMulti("listaRolesGlobal", rolesG, (r)=>{ const pr=nombrePredioDe(r,null); return esc(r)+(pr?' · '+esc(pr):''); });
+      poblarPanelMulti("listaRolesGlobal", rolesG, (r)=>{ const pr=nombrePredioDe(r,null); return esc(r)+(pr?' · '+esc(pr):''); }, "buscarRolGlobal");
 
       const provsG = [...new Set([ ...gastosCache.map((g)=>(g.proveedor||"").trim()), ...ingresosCache.map((g)=>(g.proveedor||"").trim()) ].filter(Boolean))].sort();
-      poblarPanelMulti("listaProvsGlobal", provsG, (p)=>esc(p));
+      poblarPanelMulti("listaProvsGlobal", provsG, (p)=>esc(p), "buscarProvGlobal");
 
       const rolesSel = seleccionPanel("chkTodosRolesGlobal", "listaRolesGlobal");
       const provsSel = seleccionPanel("chkTodosProvsGlobal", "listaProvsGlobal");
@@ -3808,7 +3856,7 @@
           data:{ labels:mrE.map((e)=>e[0]), datasets:[{ data:mrE.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS }] },
           options:{ responsive:true, layout:donaLayout, plugins:{ legend:donaLegend, datalabels:dlDona("mr"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" mr" } } } }
         });
-      } else if (charts["chartPlantaMR"]){ charts["chartPlantaMR"].destroy(); delete charts["chartPlantaMR"]; }
+      } else { mostrarCaja("chartPlantaMR", false); if (charts["chartPlantaMR"]){ charts["chartPlantaMR"].destroy(); delete charts["chartPlantaMR"]; } }
       // Dona M³ (solo plantas con M³ > 0)
       const m3E = Object.entries(porPlantaM3).filter((e)=>e[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,8);
       if (m3E.length){
@@ -3817,7 +3865,7 @@
           data:{ labels:m3E.map((e)=>e[0]), datasets:[{ data:m3E.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS }] },
           options:{ responsive:true, layout:donaLayout, plugins:{ legend:donaLegend, datalabels:dlDona("m³"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" m³" } } } }
         });
-      } else if (charts["chartPlantaM3"]){ charts["chartPlantaM3"].destroy(); delete charts["chartPlantaM3"]; }
+      } else { mostrarCaja("chartPlantaM3", false); if (charts["chartPlantaM3"]){ charts["chartPlantaM3"].destroy(); delete charts["chartPlantaM3"]; } }
 
       // --- Gráfico: recepciones por rol — Top 10 [barras horizontales MR y M³] ---
       const porRol = {};
@@ -3841,7 +3889,7 @@
               tooltip:{ callbacks:{ label:(c)=>c.dataset.label+": "+fmt(c.parsed.y) } } },
             scales:{ y:{ beginAtZero:true }, x:{ ticks:{ font:{size:9}, maxRotation:45, minRotation:0 } } } }
         });
-      } else if (charts["chartTopRoles"]){ charts["chartTopRoles"].destroy(); delete charts["chartTopRoles"]; }
+      } else { mostrarCaja("chartTopRoles", false); if (charts["chartTopRoles"]){ charts["chartTopRoles"].destroy(); delete charts["chartTopRoles"]; } }
 
       // --- Gráfico 2: avance de OC (recibido vs solicitado) [barras dobles MR y M³, ancho completo] ---
       const ocTop = ocCache.slice(0,12);
@@ -3860,7 +3908,7 @@
               tooltip:{ callbacks:{ label:(c)=>c.dataset.label+": "+fmt(c.parsed.y) } }},
             scales:{ y:{beginAtZero:true}, x:{ ticks:{ font:{size:10} } } } }
         });
-      } else if (charts["chartOC"]){ charts["chartOC"].destroy(); delete charts["chartOC"]; }
+      } else { mostrarCaja("chartOC", false); if (charts["chartOC"]){ charts["chartOC"].destroy(); delete charts["chartOC"]; } }
 
       // --- Gráfico 3: gastos por rol [barras, eje X=roles, eje Y=M$, filtro de mes] ---
       const fmtM = (v)=> (v/1000000).toFixed(2) + " M$";
@@ -3899,7 +3947,8 @@
               scales:{ y:{ beginAtZero:true, ticks:{ callback:(v)=>fmtM(v) } },
                        x:{ ticks:{ font:{size:10}, maxRotation:45, minRotation:0 } } } }
           });
-        } else if (charts["chartGastos"]){ charts["chartGastos"].destroy(); delete charts["chartGastos"]; }
+        } else { mostrarCaja("chartGastos", false); if (charts["chartGastos"]){ charts["chartGastos"].destroy(); delete charts["chartGastos"]; } }
+        verificarGraficosVisibles();
       }
 
       // --- Gráfico 4: volumen por mes [líneas: MR y M³] ---
@@ -3973,6 +4022,11 @@
         const checked = esInicioRolR || prevRolChk.includes(r) ? "checked" : "";
         return '<label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;cursor:pointer;width:100%"><input type="checkbox" class="chkRolRent" value="'+esc(r)+'" '+checked+' style="margin:0;flex-shrink:0" /><span style="flex:1;min-width:0;word-break:break-word">'+esc(r)+(pr?' · '+esc(pr):'')+'</span></label>';
       }).join("");
+      // Reaplicar búsqueda activa
+      if ($("buscarRolRent") && $("buscarRolRent").value.trim()){
+        const q = $("buscarRolRent").value.trim().toLowerCase();
+        listaRolR.querySelectorAll("label").forEach((lbl)=>{ lbl.style.display = lbl.textContent.toLowerCase().includes(q) ? "flex" : "none"; });
+      }
 
       // Poblar lista de meses disponibles (unión de gastos e ingresos)
       const mesesRentSet = new Set();
@@ -3989,6 +4043,7 @@
 
       window._dibujarRentabilidad = dibujarRentabilidad;
       dibujarRentabilidad();
+      verificarGraficosVisibles();
 
       function dibujarRentabilidad(){
         const todos = $("chkTodosMesesRent").checked;
@@ -4044,7 +4099,8 @@
                 tooltip:{ callbacks:{ label:(c)=>c.dataset.label+": "+fmtM2(c.parsed.y), afterBody:()=>"Clic para ver el detalle" } } },
               scales:{ y:{ beginAtZero:true, ticks:{ callback:(v)=>fmtM2(v) } }, x:{ ticks:{ font:{size:9}, maxRotation:45, minRotation:0 } } } }
           });
-        } else if (charts["chartRentabilidad"]){ charts["chartRentabilidad"].destroy(); delete charts["chartRentabilidad"]; }
+        } else { mostrarCaja("chartRentabilidad", false); if (charts["chartRentabilidad"]){ charts["chartRentabilidad"].destroy(); delete charts["chartRentabilidad"]; } }
+        verificarGraficosVisibles();
       }
     }
 
@@ -4220,6 +4276,11 @@
 
     // Marca que el script terminó de registrar todos los listeners.
     // Si onAuthStateChanged ya confirmó sesión, esto dispara el arranque de las consultas.
+    // Cablear buscadores de los paneles de filtro (al final, con el DOM ya completo)
+    cablearBuscadorPanel("buscarRolGlobal", "listaRolesGlobal");
+    cablearBuscadorPanel("buscarProvGlobal", "listaProvsGlobal");
+    cablearBuscadorPanel("buscarRolRent", "listaRolesRent");
+
     marcarScriptListo();
   </script>
 </body>
