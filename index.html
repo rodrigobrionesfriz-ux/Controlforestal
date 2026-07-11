@@ -3826,8 +3826,17 @@
         formatter: (v,ctx)=>{ const tot=ctx.dataset.data.reduce((a,b)=>a+b,0); const pct=tot?Math.round(v/tot*100):0; return fmt(v)+(unidad?" "+unidad:"")+"\n"+pct+"%"; },
       });
       // Espacio alrededor de las donas para que las etiquetas externas no se corten
-      const donaLayout = { padding: { top:28, bottom:58, left:38, right:38 } };
-      const donaLegend = { position:"bottom", labels:{ boxWidth:14, padding:16 } };
+      const donaLayout = { padding: { top:30, bottom:20, left:40, right:40 } };
+      // Leyenda abajo, bien separada de la torta y sus etiquetas
+      const donaLegend = { position:"bottom", align:"center", labels:{ boxWidth:14, padding:18, font:{size:12} } };
+      // Plugin: reserva espacio extra entre la torta y la leyenda para que las etiquetas no la toquen
+      const espacioLeyenda = {
+        id: "espacioLeyenda",
+        beforeInit(chart){
+          const fit = chart.legend.fit;
+          chart.legend.fit = function(){ fit.bind(chart.legend)(); this.height += 26; };
+        }
+      };
       // Barras: valor sobre la barra (oculta ceros).
       const dlBarra = {
         display: (ctx)=> (ctx.dataset.data[ctx.dataIndex]||0) > 0,
@@ -3854,7 +3863,7 @@
         dibujarChart("chartPlantaMR", {
           type:"doughnut",
           data:{ labels:mrE.map((e)=>e[0]), datasets:[{ data:mrE.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS }] },
-          options:{ responsive:true, layout:donaLayout, plugins:{ legend:donaLegend, datalabels:dlDona("mr"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" mr" } } } }
+          plugins:[espacioLeyenda], options:{ responsive:true, layout:donaLayout, plugins:{ legend:donaLegend, datalabels:dlDona("mr"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" mr" } } } }
         });
       } else { mostrarCaja("chartPlantaMR", false); if (charts["chartPlantaMR"]){ charts["chartPlantaMR"].destroy(); delete charts["chartPlantaMR"]; } }
       // Dona M³ (solo plantas con M³ > 0)
@@ -3863,7 +3872,7 @@
         dibujarChart("chartPlantaM3", {
           type:"doughnut",
           data:{ labels:m3E.map((e)=>e[0]), datasets:[{ data:m3E.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS }] },
-          options:{ responsive:true, layout:donaLayout, plugins:{ legend:donaLegend, datalabels:dlDona("m³"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" m³" } } } }
+          plugins:[espacioLeyenda], options:{ responsive:true, layout:donaLayout, plugins:{ legend:donaLegend, datalabels:dlDona("m³"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" m³" } } } }
         });
       } else { mostrarCaja("chartPlantaM3", false); if (charts["chartPlantaM3"]){ charts["chartPlantaM3"].destroy(); delete charts["chartPlantaM3"]; } }
 
