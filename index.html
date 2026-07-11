@@ -80,6 +80,10 @@
       .shell { padding: 0 12px; gap: 8px; }
       .shell .title { font-size: 13px; }
       .shell .razon, .shell .status { display: none; }
+      .shell #fsContador { display: none !important; }
+      .shell #userInfo { display: none; }
+      .shell .userbar { gap: 6px; }
+      .shell .title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
       table { font-size: 12px; }
       .modal-body table, .detalle-row table { display: block; overflow-x: auto; white-space: nowrap; }
       .modal { width: 96vw !important; max-width: 96vw !important; }
@@ -793,6 +797,15 @@
         <div class="modal-head"><h3 id="ingresoDetTitulo">Ingresos</h3><button class="modal-close" data-close-modal="modalIngresoDetalle">&times;</button></div>
         <div class="modal-body" id="ingresoDetBody" style="max-height:60vh; overflow-y:auto"></div>
         <div class="modal-foot"><button data-close-modal="modalIngresoDetalle">Cerrar</button></div>
+      </div>
+    </div>
+
+    <!-- Modal: detalle de un rol desde los gráficos del dashboard -->
+    <div class="modal-overlay" id="modalRolDash">
+      <div class="modal" style="max-width:900px">
+        <div class="modal-head"><h3 id="rolDashTitulo">Detalle del rol</h3><button class="modal-close" data-close-modal="modalRolDash">&times;</button></div>
+        <div class="modal-body" id="rolDashBody" style="max-height:65vh; overflow-y:auto"></div>
+        <div class="modal-foot"><button data-close-modal="modalRolDash">Cerrar</button></div>
       </div>
     </div>
 
@@ -3506,6 +3519,56 @@
       } catch(e){ console.error("Error al dibujar gráfico "+id+":", e); }
     }
 
+    // ---- Detalle de un rol al hacer clic en los gráficos del dashboard ----
+    // Tabla compacta de movimientos (gastos o ingresos) agrupados por mes
+    function tablaMovs(items, campoMonto, cols){
+      if (!items.length) return '<p class="empty" style="font-size:13px">Sin registros.</p>';
+      const porMes = {};
+      items.forEach((g)=>{ const m = g.periodo || g.fecha?.slice(0,7) || "Sin fecha"; (porMes[m]=porMes[m]||[]).push(g); });
+      return Object.keys(porMes).sort((a,b)=>b.localeCompare(a)).map((mes)=>{
+        const gs = porMes[mes].slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+        const tot = gs.reduce((a,g)=>a+(g[campoMonto]||0),0);
+        return '<div style="margin-bottom:12px">'
+          +'<div style="font-weight:700;font-size:12.5px;margin-bottom:4px">'+esc(nombreMes(mes))
+          +' <span style="font-weight:400;color:var(--muted)">('+gs.length+') · $ '+fmt(Math.round(tot))+'</span></div>'
+          +'<table style="font-size:12.5px"><thead><tr>'+cols.map((c)=>'<th'+(c.num?' class="num-cell"':'')+'>'+c.t+'</th>').join("")+'</tr></thead>'
+          +'<tbody>'+gs.map((g)=>'<tr>'+cols.map((c)=>'<td'+(c.num?' class="num-cell"':'')+'>'+esc(c.num?fmt(g[c.k]||0):(c.k==="fecha"?fmtFecha(g.fecha):(g[c.k]||"")))+'</td>').join("")+'</tr>').join("")
+          +'</tbody></table></div>';
+      }).join("");
+    }
+
+    // Desde el gráfico "Gastos por rol"
+    function abrirDetalleGastoRolDash(rol){
+      const gs = gastosCache.filter((g)=>(g.numeroRol||"").toString().trim()===rol);
+      const predio = nombrePredioDe(rol, gs[0]?.rolId);
+      const total = gs.reduce((a,g)=>a+(g.monto||0),0);
+      $("rolDashTitulo").textContent = "Gastos · Rol "+rol+(predio?" · "+predio:"");
+      $("rolDashBody").innerHTML = '<div style="margin-bottom:12px;font-size:14px"><strong>Total gastos: $ '+fmt(Math.round(total))+'</strong> · '+gs.length+' registro'+(gs.length!==1?'s':'')+'</div>'
+        + tablaMovs(gs, "monto", [{t:"Fecha",k:"fecha"},{t:"Producto",k:"producto"},{t:"Descripción",k:"descripcion"},{t:"Cuenta",k:"cuenta"},{t:"Proveedor",k:"proveedor"},{t:"Monto $",k:"monto",num:true}]);
+      abrirModal("modalRolDash");
+    }
+
+    // Desde el gráfico "Rentabilidad por rol"
+    function abrirDetalleRentabRol(rol, totGasto, totIngreso){
+      const gs = gastosCache.filter((g)=>(g.numeroRol||"").toString().trim()===rol);
+      const ings = ingresosCache.filter((g)=>(g.numeroRol||"").toString().trim()===rol);
+      const predio = nombrePredioDe(rol, gs[0]?.rolId || ings[0]?.rolId);
+      const margen = totIngreso - totGasto;
+      const rentable = margen > 0;
+      $("rolDashTitulo").textContent = "Rol "+rol+(predio?" · "+predio:"");
+      $("rolDashBody").innerHTML =
+         '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">'
+        +'<div style="flex:1;min-width:140px;padding:10px 14px;background:#eaf7ee;border-radius:8px"><div style="font-size:11px;color:var(--muted)">INGRESOS</div><div style="font-size:17px;font-weight:700;color:#107e3e">$ '+fmt(Math.round(totIngreso))+'</div></div>'
+        +'<div style="flex:1;min-width:140px;padding:10px 14px;background:#fdecec;border-radius:8px"><div style="font-size:11px;color:var(--muted)">GASTOS</div><div style="font-size:17px;font-weight:700;color:#bb0000">$ '+fmt(Math.round(totGasto))+'</div></div>'
+        +'<div style="flex:1;min-width:140px;padding:10px 14px;background:'+(rentable?'#eaf7ee':'#fdf3e7')+';border-radius:8px"><div style="font-size:11px;color:var(--muted)">MARGEN</div><div style="font-size:17px;font-weight:700;color:'+(rentable?'#107e3e':'#bb0000')+'">$ '+fmt(Math.round(margen))+'</div><div style="font-size:11px;color:var(--muted)">'+(rentable?'✓ Rentable':'⚠️ No rentable')+'</div></div>'
+        +'</div>'
+        +'<h4 style="margin:14px 0 8px;font-size:13px;color:#107e3e">Ingresos ('+ings.length+')</h4>'
+        + tablaMovs(ings, "neto", [{t:"Fecha",k:"fecha"},{t:"Proveedor",k:"proveedor"},{t:"Motivo",k:"motivo"},{t:"Descripción",k:"descripcion"},{t:"Neto $",k:"neto",num:true}])
+        +'<h4 style="margin:18px 0 8px;font-size:13px;color:#bb0000">Gastos ('+gs.length+')</h4>'
+        + tablaMovs(gs, "monto", [{t:"Fecha",k:"fecha"},{t:"Producto",k:"producto"},{t:"Descripción",k:"descripcion"},{t:"Proveedor",k:"proveedor"},{t:"Monto $",k:"monto",num:true}]);
+      abrirModal("modalRolDash");
+    }
+
     let resumenTimer = null;
     function programarResumen(){ clearTimeout(resumenTimer); resumenTimer = setTimeout(actualizarResumen, 400); }
     $("filtroMesGasto").addEventListener("change", ()=>{ if (window._dibujarGastosRol) window._dibujarGastosRol(); });
@@ -3818,7 +3881,7 @@
 
       function dibujarGastosRol(){
         const mesFiltro = $("filtroMesGasto").value;
-        const gastosFilt = mesFiltro ? fGastos.filter((g)=>(g.periodo||g.fecha?.slice(0,7))=== mesFiltro) : gastosCache;
+        const gastosFilt = mesFiltro ? fGastos.filter((g)=>(g.periodo||g.fecha?.slice(0,7))=== mesFiltro) : fGastos;
         // Agrupar por rol
         const porRolG = {};
         gastosFilt.forEach((g)=>{ const k = g.numeroRol || "(sin rol)"; porRolG[k] = (porRolG[k]||0) + (g.monto||0); });
@@ -3829,8 +3892,10 @@
             data:{ labels:rolesGasto.map((e)=>{ const pr=nombrePredioDe(e[0],null); return pr ? e[0]+"\n"+pr.slice(0,18) : e[0]; }),
               datasets:[{ label:"Gasto", data:rolesGasto.map((e)=>e[1]), borderColor:"#bb0000", backgroundColor:"#bb000022", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 }] },
             options:{ responsive:true, maintainAspectRatio:true, aspectRatio:2.5,
+              onClick:(evt, elems)=>{ if (elems.length){ const rol = rolesGasto[elems[0].index]?.[0]; if (rol) abrirDetalleGastoRolDash(rol); } },
+              onHover:(evt, elems)=>{ evt.native.target.style.cursor = elems.length ? "pointer" : "default"; },
               plugins:{ legend:{display:false}, datalabels:{display:false},
-                tooltip:{ callbacks:{ label:(c)=>fmtM(c.parsed.y) } } },
+                tooltip:{ callbacks:{ label:(c)=>fmtM(c.parsed.y)+" · clic para ver detalle" } } },
               scales:{ y:{ beginAtZero:true, ticks:{ callback:(v)=>fmtM(v) } },
                        x:{ ticks:{ font:{size:10}, maxRotation:45, minRotation:0 } } } }
           });
@@ -3953,8 +4018,8 @@
           });
           return result;
         };
-        const gastoPorRol = filtrar(gastosCache, "monto", "numeroRol");
-        const ingresoPorRol = filtrar(ingresosCache, "neto", "numeroRol");
+        const gastoPorRol = filtrar(fGastos, "monto", "numeroRol");
+        const ingresoPorRol = filtrar(fIngresos, "neto", "numeroRol");
         let rolesRentab = [...new Set([...Object.keys(gastoPorRol), ...Object.keys(ingresoPorRol)])].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
         // Filtro rentable / no rentable (rentable = ingresos > gastos en el periodo filtrado)
         const modoRentab = $("filtroRentab").value;
@@ -3972,9 +4037,11 @@
                 { label:"Gastos", data:rolesRentab.map((r)=>gastoPorRol[r]||0), borderColor:"#bb0000", backgroundColor:"#bb000022", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 },
               ] },
             options:{ responsive:true, maintainAspectRatio:true, aspectRatio:1.8,
+              onClick:(evt, elems)=>{ if (elems.length){ const rol = rolesRentab[elems[0].index]; if (rol) abrirDetalleRentabRol(rol, gastoPorRol[rol]||0, ingresoPorRol[rol]||0); } },
+              onHover:(evt, elems)=>{ evt.native.target.style.cursor = elems.length ? "pointer" : "default"; },
               plugins:{ legend:{position:"bottom", labels:{boxWidth:14}},
                 datalabels:{ display:false },
-                tooltip:{ callbacks:{ label:(c)=>c.dataset.label+": "+fmtM2(c.parsed.y) } } },
+                tooltip:{ callbacks:{ label:(c)=>c.dataset.label+": "+fmtM2(c.parsed.y), afterBody:()=>"Clic para ver el detalle" } } },
               scales:{ y:{ beginAtZero:true, ticks:{ callback:(v)=>fmtM2(v) } }, x:{ ticks:{ font:{size:9}, maxRotation:45, minRotation:0 } } } }
           });
         } else if (charts["chartRentabilidad"]){ charts["chartRentabilidad"].destroy(); delete charts["chartRentabilidad"]; }
