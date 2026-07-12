@@ -957,6 +957,7 @@
           <button class="primary" id="btnBorrarGastos" style="background:var(--danger); border-color:var(--danger)">Borrar TODOS los gastos</button>
           <button class="primary" id="btnBorrarIngresos" style="background:var(--danger); border-color:var(--danger)">Borrar TODOS los ingresos</button>
           <button id="btnLimpiarCache" title="Borra la copia local de los datos y vuelve a leerlos del servidor">🧹 Limpiar caché local</button>
+          <button id="btnContarDocs" title="Consulta al servidor cuántos documentos hay en cada colección">🔢 Contar en servidor</button>
         </div>
         <p class="msg" id="borradoMsg" style="margin-top:12px"></p>
         <div class="hint">Los productos, plantas, negocios y OC no se ven afectados por estos botones.</div>
@@ -3837,15 +3838,43 @@
         formatter: (v,ctx)=>{ const tot=ctx.dataset.data.reduce((a,b)=>a+b,0); const pct=tot?Math.round(v/tot*100):0; return fmt(v)+(unidad?" "+unidad:"")+"\n"+pct+"%"; },
       });
       // Espacio alrededor de las donas para que las etiquetas externas no se corten
-      const donaLayout = { padding: { top:30, bottom:20, left:40, right:40 } };
-      // Leyenda abajo, bien separada de la torta y sus etiquetas
-      const donaLegend = { position:"bottom", align:"center", labels:{ boxWidth:14, padding:18, font:{size:12} } };
-      // Plugin: reserva espacio extra entre la torta y la leyenda para que las etiquetas no la toquen
-      const espacioLeyenda = {
-        id: "espacioLeyenda",
-        beforeInit(chart){
-          const fit = chart.legend.fit;
-          chart.legend.fit = function(){ fit.bind(chart.legend)(); this.height += 26; };
+      // Sin padding inferior: la leyenda queda pegada al borde de abajo
+      const donaLayout = { padding: { top:30, bottom:0, left:40, right:40 } };
+      const donaLegend = { position:"bottom", align:"center", labels:{ boxWidth:14, padding:10, font:{size:12} } };
+
+      // Plugin: efecto 3D — sombra proyectada bajo la dona y brillo superior en cada porción
+      const dona3D = {
+        id: "dona3D",
+        beforeDatasetDraw(chart, args){
+          const { ctx } = chart;
+          ctx.save();
+          // Sombra difusa que da sensación de volumen y elevación
+          ctx.shadowColor = "rgba(0,0,0,0.35)";
+          ctx.shadowBlur = 14;
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 7;
+        },
+        afterDatasetDraw(chart, args){
+          const { ctx } = chart;
+          ctx.restore();
+          // Brillo superior: degradado claro sobre la mitad de arriba de cada porción
+          const meta = chart.getDatasetMeta(args.index);
+          meta.data.forEach((arc)=>{
+            const p = arc.getProps(["x","y","startAngle","endAngle","innerRadius","outerRadius"], true);
+            const g = ctx.createLinearGradient(p.x, p.y - p.outerRadius, p.x, p.y + p.outerRadius);
+            g.addColorStop(0, "rgba(255,255,255,0.42)");
+            g.addColorStop(0.45, "rgba(255,255,255,0.10)");
+            g.addColorStop(0.7, "rgba(0,0,0,0.05)");
+            g.addColorStop(1, "rgba(0,0,0,0.18)");
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.outerRadius, p.startAngle, p.endAngle);
+            ctx.arc(p.x, p.y, p.innerRadius, p.endAngle, p.startAngle, true);
+            ctx.closePath();
+            ctx.fillStyle = g;
+            ctx.fill();
+            ctx.restore();
+          });
         }
       };
       // Barras: valor sobre la barra (oculta ceros).
@@ -3873,8 +3902,8 @@
       if (mrE.length){
         dibujarChart("chartPlantaMR", {
           type:"doughnut",
-          data:{ labels:mrE.map((e)=>e[0]), datasets:[{ data:mrE.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS }] },
-          plugins:[espacioLeyenda], options:{ responsive:true, layout:donaLayout, plugins:{ legend:donaLegend, datalabels:dlDona("mr"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" mr" } } } }
+          data:{ labels:mrE.map((e)=>e[0]), datasets:[{ data:mrE.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS, borderColor:"#fff", borderWidth:2, hoverOffset:10, hoverBorderWidth:3 }] },
+          plugins:[dona3D], options:{ responsive:true, maintainAspectRatio:true, aspectRatio:1.35, layout:donaLayout, cutout:"52%", plugins:{ legend:donaLegend, datalabels:dlDona("mr"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" mr" } } } }
         });
       } else { mostrarCaja("chartPlantaMR", false); if (charts["chartPlantaMR"]){ charts["chartPlantaMR"].destroy(); delete charts["chartPlantaMR"]; } }
       // Dona M³ (solo plantas con M³ > 0)
@@ -3882,8 +3911,8 @@
       if (m3E.length){
         dibujarChart("chartPlantaM3", {
           type:"doughnut",
-          data:{ labels:m3E.map((e)=>e[0]), datasets:[{ data:m3E.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS }] },
-          plugins:[espacioLeyenda], options:{ responsive:true, layout:donaLayout, plugins:{ legend:donaLegend, datalabels:dlDona("m³"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" m³" } } } }
+          data:{ labels:m3E.map((e)=>e[0]), datasets:[{ data:m3E.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS, borderColor:"#fff", borderWidth:2, hoverOffset:10, hoverBorderWidth:3 }] },
+          plugins:[dona3D], options:{ responsive:true, maintainAspectRatio:true, aspectRatio:1.35, layout:donaLayout, cutout:"52%", plugins:{ legend:donaLegend, datalabels:dlDona("m³"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" m³" } } } }
         });
       } else { mostrarCaja("chartPlantaM3", false); if (charts["chartPlantaM3"]){ charts["chartPlantaM3"].destroy(); delete charts["chartPlantaM3"]; } }
 
@@ -4156,23 +4185,38 @@
 
     // Borra todos los documentos de una colección en lotes de 400.
     async function borrarColeccion(nombre, msgEl){
-      // Leer SIEMPRE del servidor (no de la caché) para borrar lo que realmente existe
-      const snap = await getDocsServidor(query(collection(db, nombre)));
-      const docs = snap.docs;
-      if (!docs.length){ msgEl.textContent = "No hay "+nombre+" para borrar."; msgEl.className="msg warn"; return 0; }
-      let borrados = 0;
-      for (let i=0; i<docs.length; i+=400){
-        const batch = writeBatch(db);
-        docs.slice(i, i+400).forEach((d)=> batch.delete(d.ref));
-        await batch.commit();
-        borrados += Math.min(400, docs.length-i);
-        msgEl.textContent = "Borrando "+nombre+"… "+borrados+" de "+docs.length;
+      let totalBorrados = 0;
+      let vuelta = 0;
+      // Repetir hasta que la colección quede realmente vacía (máx. 20 vueltas de seguridad)
+      while (vuelta < 20){
+        vuelta++;
+        const snap = await getDocsServidor(query(collection(db, nombre)));
+        const docs = snap.docs;
+        if (!docs.length) break;
+        if (vuelta === 1) msgEl.textContent = "Borrando "+nombre+"… 0 de "+docs.length;
+        for (let i=0; i<docs.length; i+=200){
+          const lote = docs.slice(i, i+200);
+          const batch = writeBatch(db);
+          lote.forEach((d)=> batch.delete(d.ref));
+          try {
+            await batch.commit();
+            totalBorrados += lote.length;
+            msgEl.textContent = "Borrando "+nombre+"… "+totalBorrados+" eliminados";
+          } catch(e){
+            // Si un lote falla, esperar un momento y seguir; el bucle exterior reintentará
+            await new Promise((r)=>setTimeout(r, 800));
+          }
+        }
       }
-      // Refrescar caché local y memoria: releer del servidor (ahora vacío)
+      if (!totalBorrados){ msgEl.textContent = "No hay "+nombre+" para borrar."; msgEl.className="msg warn"; return 0; }
+      // Verificación final contra el servidor
+      const final = await getDocsServidor(query(collection(db, nombre)));
+      // Refrescar caché local y vista
       delete _cargado[nombre];
       try { await _cargarModulo(nombre, true); } catch(e){}
       programarResumen();
-      return borrados;
+      if (final.size > 0) throw new Error("Quedaron "+final.size+" "+nombre+" sin borrar. Vuelve a pulsar el botón.");
+      return totalBorrados;
     }
 
     $("btnBorrarRecep").addEventListener("click", async () => {
@@ -4233,6 +4277,18 @@
         m.textContent = "✓ Caché limpiada. Recargando…"; m.className = "msg ok";
         setTimeout(()=> location.reload(true), 700);
       } catch(e){ m.textContent = "Error: "+e.message; m.className = "msg err"; }
+    });
+
+    $("btnContarDocs").addEventListener("click", async () => {
+      const m = $("borradoMsg"); m.className = "msg"; m.textContent = "Consultando el servidor…";
+      const cols = ["roles","clientes","productos","negocios","ordenesCompra","recepciones","gastos","ingresos"];
+      const res = [];
+      for (const c of cols){
+        try { const s = await getDocsServidor(query(collection(db, c))); res.push(c+": "+s.size); }
+        catch(e){ res.push(c+": error"); }
+      }
+      m.innerHTML = "<strong>Documentos en el servidor:</strong> " + res.join(" · ");
+      m.className = "msg ok";
     });
 
     // Pre-carga de roles y plantas desde el Excel
