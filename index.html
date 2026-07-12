@@ -775,7 +775,7 @@
           <input type="file" id="ingresoFile" accept=".xlsx,.xls" style="max-width:340px" />
           <button class="primary" id="btnPreviewIngreso" disabled>Analizar archivo</button>
         </div>
-        <div class="hint" style="margin-top:8px">Columnas esperadas: FECHA · PROVEEDOR · MOTIVO · DESCRIPCIÓN · CANTIDAD · C.UNIT · NETO2. Los ingresos duplicados (misma fecha + proveedor + descripción + neto) se detectan y no se reimportan.</div>
+        <div class="hint" style="margin-top:8px">Hoja esperada: <strong>GUIAS</strong> o <strong>BASEINGRESOS</strong>. Columnas: NÚMERO · FECHA · PROVEEDOR · MOTIVO · DESCRIPCIÓN · CANTIDAD · C.UNIT · NETO2 · CENTRO COSTO (de donde se extrae el rol). Los duplicados (mismo número de guía + fecha + rol + neto) se detectan y no se reimportan.</div>
         <p class="msg" id="ingresoAnalisisMsg" style="margin-top:10px"></p>
         <div id="ingresoPreviewCard" style="display:none; margin-top:18px">
           <p class="msg" id="ingresoPreviewResumen"></p>
@@ -3143,6 +3143,7 @@
         const norm = (s)=>s.trim().toUpperCase().replace(/\s+/g,"");
         let hojaName = wb.SheetNames.find((n)=>norm(n)==="BASEINGRESOS");
         // Si no encuentra, buscar una que contenga "INGRESO"
+        if (!hojaName) hojaName = wb.SheetNames.find((n)=>norm(n)==="GUIAS");
         if (!hojaName) hojaName = wb.SheetNames.find((n)=>norm(n).includes("INGRESO"));
         // Si no encuentra, usar la primera hoja y avisar
         if (!hojaName){
@@ -3191,19 +3192,23 @@
         }
 
         // Clave duplicados
+        // Clave de duplicado: número de guía + fecha + rol + descripción + neto
         const claveIng = (g) => [
+          (g.numero||"").toString().trim(),
           (g.fecha||"").toString().trim(),
-          (g.proveedor||"").toString().trim().toUpperCase(),
+          (g.numeroRol||"").toString().trim(),
           (g.descripcion||"").toString().trim().toUpperCase(),
           Math.round(parseFloat(g.neto)||0)
         ].join("|");
         const clavesExistIng = new Set();
         ingresosCache.forEach((g)=> clavesExistIng.add(claveIng(g)));
+        const clavesEnArchivo = new Set();   // detectar repetidos dentro del propio Excel
 
         ingresosPreview = filas.map((row, i)=>{
           const rawRow = filasRaw[i] || {};
           const fecha = parseFechaIng(pick(rawRow, ["fecha"]), pick(row, ["fecha"]));
           const periodo = fecha.length>=7 ? fecha.slice(0,7) : "";
+          const numero = pick(row, ["numero","número","n°","nro"]).toString().trim();
           const proveedor = pick(row, ["proveedor"]).toString().trim();
           const motivo = pick(row, ["motivo"]).toString().trim();
           const descripcion = pick(row, ["descripcion","descripción"]).toString().trim();
@@ -3217,13 +3222,17 @@
           const errores = [];
           if (!proveedor && !descripcion) errores.push("sin proveedor ni descripción");
           if (neto<=0) errores.push("sin monto");
-          const clave = claveIng({ fecha, proveedor, descripcion, neto });
-          if (clavesExistIng.has(clave)) errores.push("duplicado");
-          return { fila:i+2, fecha, periodo, proveedor, motivo, descripcion, numeroRol, rolId:rolObj?.id||null, cantidad, cUnit, neto, valida:errores.length===0, errores };
+          const clave = claveIng({ numero, fecha, numeroRol, descripcion, neto });
+          if (clavesExistIng.has(clave)) errores.push("ya existe");
+          else if (clavesEnArchivo.has(clave)) errores.push("repetido en el archivo");
+          else clavesEnArchivo.add(clave);
+          return { fila:i+2, numero, fecha, periodo, proveedor, motivo, descripcion, numeroRol, rolId:rolObj?.id||null, cantidad, cUnit, neto, valida:errores.length===0, errores };
         });
 
         const validas = ingresosPreview.filter((g)=>g.valida).length;
-        const duplicados = ingresosPreview.filter((g)=>g.errores.includes("duplicado")).length;
+        const yaExisten = ingresosPreview.filter((g)=>g.errores.includes("ya existe")).length;
+        const repes = ingresosPreview.filter((g)=>g.errores.includes("repetido en el archivo")).length;
+        const duplicados = yaExisten + repes;
         $("ingresoPreviewResumen").innerHTML = '<strong>'+ingresosPreview.length+'</strong> filas · <strong style="color:var(--ok)">'+validas+' válidas</strong> · <strong style="color:var(--danger)">'+(ingresosPreview.length-validas)+' con problemas</strong>'
           + (duplicados ? ' · <strong style="color:var(--warn)">'+duplicados+' duplicado'+(duplicados!==1?'s':'')+'</strong>' : '')+'.';
         $("ingresoTablaPreview").innerHTML = ingresosPreview.slice(0,200).map((g)=>{
@@ -3245,6 +3254,7 @@
       for (const g of validas){
         try {
           await addDoc(collection(db,"ingresos"), {
+            numero: g.numero || null,
             fecha: g.fecha || null, periodo: g.periodo || null,
             proveedor: up(g.proveedor), motivo: up(g.motivo),
             descripcion: up(g.descripcion),
