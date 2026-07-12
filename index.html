@@ -956,6 +956,7 @@
           <button class="primary" id="btnBorrarRoles" style="background:var(--danger); border-color:var(--danger)">Borrar TODOS los roles</button>
           <button class="primary" id="btnBorrarGastos" style="background:var(--danger); border-color:var(--danger)">Borrar TODOS los gastos</button>
           <button class="primary" id="btnBorrarIngresos" style="background:var(--danger); border-color:var(--danger)">Borrar TODOS los ingresos</button>
+          <button id="btnLimpiarCache" title="Borra la copia local de los datos y vuelve a leerlos del servidor">🧹 Limpiar caché local</button>
         </div>
         <p class="msg" id="borradoMsg" style="margin-top:12px"></p>
         <div class="hint">Los productos, plantas, negocios y OC no se ven afectados por estos botones.</div>
@@ -4155,7 +4156,8 @@
 
     // Borra todos los documentos de una colección en lotes de 400.
     async function borrarColeccion(nombre, msgEl){
-      const snap = await getDocs(collection(db, nombre));
+      // Leer SIEMPRE del servidor (no de la caché) para borrar lo que realmente existe
+      const snap = await getDocsServidor(query(collection(db, nombre)));
       const docs = snap.docs;
       if (!docs.length){ msgEl.textContent = "No hay "+nombre+" para borrar."; msgEl.className="msg warn"; return 0; }
       let borrados = 0;
@@ -4166,6 +4168,10 @@
         borrados += Math.min(400, docs.length-i);
         msgEl.textContent = "Borrando "+nombre+"… "+borrados+" de "+docs.length;
       }
+      // Refrescar caché local y memoria: releer del servidor (ahora vacío)
+      delete _cargado[nombre];
+      try { await _cargarModulo(nombre, true); } catch(e){}
+      programarResumen();
       return borrados;
     }
 
@@ -4211,6 +4217,22 @@
       try { const n = await borrarColeccion("ingresos", m); m.textContent = "✓ "+n+" ingresos eliminados."; m.className="msg ok"; }
       catch(e){ m.textContent = "Error: "+e.message; m.className="msg err"; }
       finally { $("btnBorrarIngresos").disabled = false; }
+    });
+
+    $("btnLimpiarCache").addEventListener("click", async () => {
+      if (!confirm("Se borrará la copia local de los datos (no afecta la base de datos) y la página se recargará.")) return;
+      const m = $("borradoMsg"); m.textContent = "Limpiando caché local…"; m.className = "msg";
+      try {
+        // Borrar las bases IndexedDB de Firestore
+        if (indexedDB.databases){
+          const dbs = await indexedDB.databases();
+          await Promise.all(dbs.filter((d)=>/firestore|firebase/i.test(d.name||"")).map((d)=> new Promise((res)=>{
+            const req = indexedDB.deleteDatabase(d.name); req.onsuccess = req.onerror = req.onblocked = ()=>res();
+          })));
+        }
+        m.textContent = "✓ Caché limpiada. Recargando…"; m.className = "msg ok";
+        setTimeout(()=> location.reload(true), 700);
+      } catch(e){ m.textContent = "Error: "+e.message; m.className = "msg err"; }
     });
 
     // Pre-carga de roles y plantas desde el Excel
