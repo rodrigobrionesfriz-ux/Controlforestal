@@ -176,10 +176,30 @@
     /* KPI cards del Resumen */
     .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
     @media (max-width: 860px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
-    .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
-    .kpi .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
-    .kpi .value { font-size: 28px; font-weight: 700; color: var(--sap-blue-dark); margin-top: 6px; font-variant-numeric: tabular-nums; }
-    .kpi .unit { font-size: 13px; color: var(--muted-2); font-weight: 500; }
+    /* Tarjetas KPI con barra superior de color y subtexto */
+    .kpi { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+           padding: 18px 18px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden;
+           transition: transform .15s ease, box-shadow .15s ease; }
+    .kpi:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.10); }
+    .kpi::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--sap-blue); }
+    .kpi .label { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+    .kpi .value { font-size: 30px; font-weight: 700; color: #1d2d3e; margin-top: 8px; font-variant-numeric: tabular-nums; line-height: 1.15; }
+    .kpi .unit { font-size: 14px; color: var(--muted-2); font-weight: 600; }
+    .kpi .sub { font-size: 11.5px; color: var(--muted-2); margin-top: 6px; font-weight: 500; }
+    /* Colores de acento por tarjeta */
+    .kpi.acc-azul::before   { background: #0a6ed1; }
+    .kpi.acc-verde::before  { background: #107e3e; }
+    .kpi.acc-verde .label   { color: #107e3e; }
+    .kpi.acc-verde .value   { color: #0d6b34; }
+    .kpi.acc-rojo::before   { background: #bb0000; }
+    .kpi.acc-rojo .label    { color: #bb0000; }
+    .kpi.acc-rojo .value    { color: #a30000; }
+    .kpi.acc-naranja::before{ background: #e9730c; }
+    .kpi.acc-naranja .label { color: #c25e08; }
+    .kpi.acc-naranja .value { color: #b8560a; }
+    .kpi.acc-cyan::before   { background: #0aa5d1; }
+    .kpi.acc-cyan .label    { color: #0a86ab; }
+    .kpi.acc-morado::before { background: #6a3fa0; }
     .chart-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
     @media (max-width: 860px) { .chart-grid { grid-template-columns: 1fr; } }
     .chart-box { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; box-shadow: 0 4px 14px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06); }
@@ -283,6 +303,7 @@
           </span>
           <button id="btnFiltroMesGlobal" class="secondary" style="font-size:13px;padding:6px 14px;cursor:pointer">📅 Todos los meses ▾</button>
           <button id="btnActualizar" class="secondary" style="font-size:13px;padding:6px 14px;cursor:pointer" title="Recargar datos desde la base de datos">🔄 Actualizar</button>
+          <span id="contadorFiltro" style="font-size:12px;color:var(--muted);margin-left:4px;white-space:nowrap"></span>
           <div id="panelMesesGlobal" style="display:none;position:absolute;right:0;top:100%;z-index:20;margin-top:4px">
             <div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px 16px;max-height:320px;overflow-y:auto;overflow-x:hidden;min-width:240px">
               <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;font-size:13px;font-weight:700;cursor:pointer;width:100%"><input type="checkbox" id="chkTodosMesesGlobal" checked style="margin:0;flex-shrink:0" />Todos los meses</label>
@@ -292,20 +313,21 @@
         </div>
       </div>
       <div class="kpi-grid">
-        <div class="kpi"><div class="label">Roles</div><div class="value" id="kpiRoles">0</div></div>
-        <div class="kpi"><div class="label">Recepciones</div><div class="value" id="kpiRecep">0</div></div>
-        <div class="kpi"><div class="label">Metros ruma</div><div class="value" id="kpiMr">0 <span class="unit">mr</span></div></div>
-        <div class="kpi"><div class="label">Metros cúbicos</div><div class="value" id="kpiM3">0 <span class="unit">m³</span></div></div>
+        <div class="kpi acc-verde"><div class="label">Ingresos totales</div><div class="value" id="kpiIngresos"><span class="unit">$</span> 0</div><div class="sub" id="kpiIngresosSub">sin registros</div></div>
+        <div class="kpi acc-rojo"><div class="label">Gastos totales</div><div class="value" id="kpiGastos"><span class="unit">$</span> 0</div><div class="sub" id="kpiGastosSub">sin registros</div></div>
+        <div class="kpi acc-cyan"><div class="label">Margen</div><div class="value" id="kpiMargen"><span class="unit">$</span> 0</div><div class="sub" id="kpiMargenSub">ingresos − gastos</div></div>
+        <div class="kpi acc-morado"><div class="label">Roles</div><div class="value" id="kpiRoles">0</div><div class="sub">predios registrados</div></div>
       </div>
       <div class="kpi-grid">
-        <div class="kpi"><div class="label">Gastos totales</div><div class="value" id="kpiGastos"><span class="unit">$</span> 0</div></div>
-        <div class="kpi"><div class="label">Ingresos totales</div><div class="value" id="kpiIngresos" style="color:var(--ok)"><span class="unit">$</span> 0</div></div>
-        <div class="kpi"><div class="label">Plantas / Clientes</div><div class="value" id="kpiPlantas">0</div></div>
-        <div class="kpi"><div class="label">Productos</div><div class="value" id="kpiProd">0</div></div>
-        <div class="kpi"><div class="label">Órdenes de compra</div><div class="value" id="kpiOC">0</div></div>
+        <div class="kpi acc-azul"><div class="label">Recepciones</div><div class="value" id="kpiRecep">0</div><div class="sub" id="kpiRecepSub">guías recepcionadas</div></div>
+        <div class="kpi acc-azul"><div class="label">Volumen MR</div><div class="value" id="kpiMr">0 <span class="unit">mr</span></div><div class="sub">metros ruma</div></div>
+        <div class="kpi acc-naranja"><div class="label">Volumen M³</div><div class="value" id="kpiM3">0 <span class="unit">m³</span></div><div class="sub">metros cúbicos</div></div>
+        <div class="kpi acc-azul"><div class="label">Plantas / Clientes</div><div class="value" id="kpiPlantas">0</div><div class="sub">destinos activos</div></div>
       </div>
       <div class="kpi-grid">
-        <div class="kpi" id="kpiOCAlertaCard" style="cursor:pointer" title="Ver órdenes de compra pendientes"><div class="label">OC por completar</div><div class="value" id="kpiOCAlerta" style="color:var(--warn)">0</div></div>
+        <div class="kpi acc-azul"><div class="label">Productos</div><div class="value" id="kpiProd">0</div><div class="sub">en catálogo</div></div>
+        <div class="kpi acc-azul"><div class="label">Órdenes de compra</div><div class="value" id="kpiOC">0</div><div class="sub">emitidas</div></div>
+        <div class="kpi acc-naranja" id="kpiOCAlertaCard" style="cursor:pointer" title="Ver órdenes de compra pendientes"><div class="label">OC por completar</div><div class="value" id="kpiOCAlerta">0</div><div class="sub">clic para revisar</div></div>
       </div>
       <p class="empty" id="avisoSinGraficos" style="display:none; margin-top:20px">No hay datos que mostrar con los filtros seleccionados. Ajusta los filtros del encabezado.</p>
       <div class="chart-grid">
@@ -3817,9 +3839,34 @@
       const totalM3 = fRecep.reduce((a,r)=>a+(r.m3||0),0);
       $("kpiM3").innerHTML = fmt(Math.round(totalM3)) + ' <span class="unit">m³</span>';
       const totalGastos = fGastos.reduce((a,g)=>a+(g.monto||0),0);
-      $("kpiGastos").innerHTML = '<span class="unit">$</span> ' + fmt(totalGastos);
+      $("kpiGastos").innerHTML = '<span class="unit">$</span> ' + fmt(Math.round(totalGastos));
       const totalIngresos = fIngresos.reduce((a,g)=>a+(g.neto||0),0);
       $("kpiIngresos").innerHTML = '<span class="unit">$</span> ' + fmt(Math.round(totalIngresos));
+
+      // Contador de registros mostrados con los filtros activos
+      $("contadorFiltro").innerHTML = "Mostrando <strong style='color:var(--sap-blue)'>"+fmt(fRecep.length)+"</strong> recepciones · <strong style='color:var(--sap-blue)'>"+fmt(fGastos.length)+"</strong> gastos · <strong style='color:var(--sap-blue)'>"+fmt(fIngresos.length)+"</strong> ingresos";
+
+      // Subtextos descriptivos
+      $("kpiIngresosSub").textContent = fmt(fIngresos.length) + " registro" + (fIngresos.length!==1?"s":"");
+      $("kpiGastosSub").textContent = fmt(fGastos.length) + " registro" + (fGastos.length!==1?"s":"");
+      $("kpiRecepSub").textContent = fmt(fRecep.length) + " guía" + (fRecep.length!==1?"s":"") + " recepcionada" + (fRecep.length!==1?"s":"");
+
+      // KPI de margen (ingresos − gastos)
+      const margen = totalIngresos - totalGastos;
+      const cajaMargen = $("kpiMargen").closest(".kpi");
+      $("kpiMargen").innerHTML = '<span class="unit">$</span> ' + fmt(Math.round(margen));
+      cajaMargen.classList.remove("acc-cyan","acc-verde","acc-rojo");
+      if (totalIngresos === 0 && totalGastos === 0){
+        cajaMargen.classList.add("acc-cyan");
+        $("kpiMargenSub").textContent = "sin datos";
+      } else if (margen >= 0){
+        cajaMargen.classList.add("acc-verde");
+        const pct = totalIngresos ? Math.round(margen/totalIngresos*100) : 0;
+        $("kpiMargenSub").textContent = "✓ rentable · " + pct + "% sobre ingresos";
+      } else {
+        cajaMargen.classList.add("acc-rojo");
+        $("kpiMargenSub").textContent = "⚠️ pérdida";
+      }
       const ocAlerta = ocCache.filter((o)=>{ const rm=(o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0); const r3=(o.solicitado?.m3||0)-(o.recibido?.m3||0); const u=o.umbralAlerta??300; return (rm>0||r3>0)&&(rm<=u||r3<=u); }).length;
       $("kpiOCAlerta").textContent = fmt(ocAlerta);
 
