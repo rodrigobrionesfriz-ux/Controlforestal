@@ -175,6 +175,22 @@
 
     /* KPI cards del Resumen */
     .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+    /* Barra de filtros estilo InformesMadera */
+    .filtros-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+    .filtro-item { display: flex; flex-direction: column; gap: 5px; min-width: 130px; flex: 1 1 130px; max-width: 220px; }
+    .filtro-item-btn { flex: 0 0 auto; max-width: none; }
+    .filtro-lbl { font-size: 10.5px; font-weight: 700; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+    .filtro-btn { width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line-2); border-radius: 6px;
+                  padding: 8px 12px; font-size: 13px; cursor: pointer; color: var(--text); white-space: nowrap;
+                  overflow: hidden; text-overflow: ellipsis; transition: border-color .15s, box-shadow .15s; }
+    .filtro-btn:hover { border-color: var(--sap-blue); box-shadow: 0 0 0 2px rgba(10,110,209,.10); }
+    .filtro-panel { display: none; position: absolute; left: 0; top: 100%; z-index: 30; margin-top: 4px; }
+    .filtro-panel-inner { background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+                          box-shadow: 0 6px 16px rgba(0,0,0,.15); padding: 12px 14px; max-height: 320px;
+                          overflow-y: auto; overflow-x: hidden; min-width: 260px; }
+    .filtro-todos { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 10px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .filtro-search { width: 100%; padding: 6px 9px; font-size: 12px; margin-bottom: 8px; border: 1px solid var(--line-2); border-radius: 4px; }
+    @media (max-width: 640px){ .filtro-item { min-width: 45%; flex-basis: 45%; max-width: none; } .filtro-item-btn { min-width: 100%; flex-basis: 100%; } }
     @media (max-width: 860px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
     /* Tarjetas KPI con barra superior de color y subtexto */
     .kpi { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
@@ -183,7 +199,8 @@
     .kpi:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.10); }
     .kpi::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--sap-blue); }
     .kpi .label { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
-    .kpi .value { font-size: 30px; font-weight: 700; color: #1d2d3e; margin-top: 8px; font-variant-numeric: tabular-nums; line-height: 1.15; }
+    .kpi .value { font-size: clamp(18px, 4.6vw, 27px); font-weight: 700; color: #1d2d3e; margin-top: 8px; font-variant-numeric: tabular-nums; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .kpi .value .unit { font-size: 0.55em; }
     .kpi .unit { font-size: 14px; color: var(--muted-2); font-weight: 600; }
     .kpi .sub { font-size: 11.5px; color: var(--muted-2); margin-top: 6px; font-weight: 500; }
     /* Colores de acento por tarjeta */
@@ -278,37 +295,53 @@
   <main>
     <!-- RESUMEN / DASHBOARD -->
     <div class="view active" id="view-resumen">
-      <div class="card" style="margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px">
-        <div><h2 style="margin:0">Resumen general</h2><p class="sub" style="margin:4px 0 0">Vista consolidada del negocio forestal.</p></div>
-        <div style="position:relative; display:flex; align-items:center; gap:6px; flex-wrap:wrap">
-          <span style="position:relative">
-            <button id="btnFiltroRolGlobal" class="secondary" style="font-size:12px;padding:6px 12px;cursor:pointer">Todos los roles ▾</button>
-            <div id="panelRolesGlobal" style="display:none;position:absolute;left:0;top:100%;z-index:20;margin-top:4px">
-              <div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px 16px;max-height:320px;overflow-y:auto;overflow-x:hidden;min-width:300px">
-                <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;font-size:13px;font-weight:700;cursor:pointer;width:100%"><input type="checkbox" id="chkTodosRolesGlobal" checked style="margin:0;flex-shrink:0" />Todos los roles</label>
-                <input type="text" id="buscarRolGlobal" placeholder="🔍 Buscar rol o predio…" autocomplete="off" style="width:100%;padding:6px 9px;font-size:12px;margin-bottom:8px;border:1px solid var(--line-2);border-radius:4px" />
-                    <div id="listaRolesGlobal" style="font-size:12px"></div>
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:14px">
+          <div><h2 style="margin:0">Resumen general</h2><p class="sub" style="margin:4px 0 0">Vista consolidada del negocio forestal.</p></div>
+          <span id="contadorFiltro" style="font-size:12.5px;color:var(--muted);white-space:nowrap"></span>
+        </div>
+        <div class="filtros-bar">
+          <div class="filtro-item">
+            <label class="filtro-lbl">ROL</label>
+            <span style="position:relative;display:block">
+              <button id="btnFiltroRolGlobal" class="filtro-btn">Todos ▾</button>
+              <div id="panelRolesGlobal" class="filtro-panel">
+                <div class="filtro-panel-inner">
+                  <label class="filtro-todos"><input type="checkbox" id="chkTodosRolesGlobal" checked />Todos los roles</label>
+                  <input type="text" id="buscarRolGlobal" placeholder="🔍 Buscar rol o predio…" autocomplete="off" class="filtro-search" />
+                  <div id="listaRolesGlobal" style="font-size:12px"></div>
+                </div>
               </div>
-            </div>
-          </span>
-          <span style="position:relative">
-            <button id="btnFiltroProvGlobal" class="secondary" style="font-size:12px;padding:6px 12px;cursor:pointer">Todos los proveedores ▾</button>
-            <div id="panelProvsGlobal" style="display:none;position:absolute;left:0;top:100%;z-index:20;margin-top:4px">
-              <div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px 16px;max-height:320px;overflow-y:auto;overflow-x:hidden;min-width:320px">
-                <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;font-size:13px;font-weight:700;cursor:pointer;width:100%"><input type="checkbox" id="chkTodosProvsGlobal" checked style="margin:0;flex-shrink:0" />Todos los proveedores</label>
-                <input type="text" id="buscarProvGlobal" placeholder="🔍 Buscar proveedor…" autocomplete="off" style="width:100%;padding:6px 9px;font-size:12px;margin-bottom:8px;border:1px solid var(--line-2);border-radius:4px" />
-                    <div id="listaProvsGlobal" style="font-size:12px"></div>
+            </span>
+          </div>
+          <div class="filtro-item">
+            <label class="filtro-lbl">PROVEEDOR</label>
+            <span style="position:relative;display:block">
+              <button id="btnFiltroProvGlobal" class="filtro-btn">Todos ▾</button>
+              <div id="panelProvsGlobal" class="filtro-panel">
+                <div class="filtro-panel-inner">
+                  <label class="filtro-todos"><input type="checkbox" id="chkTodosProvsGlobal" checked />Todos los proveedores</label>
+                  <input type="text" id="buscarProvGlobal" placeholder="🔍 Buscar proveedor…" autocomplete="off" class="filtro-search" />
+                  <div id="listaProvsGlobal" style="font-size:12px"></div>
+                </div>
               </div>
-            </div>
-          </span>
-          <button id="btnFiltroMesGlobal" class="secondary" style="font-size:13px;padding:6px 14px;cursor:pointer">📅 Todos los meses ▾</button>
-          <button id="btnActualizar" class="secondary" style="font-size:13px;padding:6px 14px;cursor:pointer" title="Recargar datos desde la base de datos">🔄 Actualizar</button>
-          <span id="contadorFiltro" style="font-size:12px;color:var(--muted);margin-left:4px;white-space:nowrap"></span>
-          <div id="panelMesesGlobal" style="display:none;position:absolute;right:0;top:100%;z-index:20;margin-top:4px">
-            <div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);padding:12px 16px;max-height:320px;overflow-y:auto;overflow-x:hidden;min-width:240px">
-              <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;font-size:13px;font-weight:700;cursor:pointer;width:100%"><input type="checkbox" id="chkTodosMesesGlobal" checked style="margin:0;flex-shrink:0" />Todos los meses</label>
-              <div id="listaMesesGlobal" style="font-size:12px"></div>
-            </div>
+            </span>
+          </div>
+          <div class="filtro-item">
+            <label class="filtro-lbl">MES</label>
+            <span style="position:relative;display:block">
+              <button id="btnFiltroMesGlobal" class="filtro-btn">Todos ▾</button>
+              <div id="panelMesesGlobal" class="filtro-panel">
+                <div class="filtro-panel-inner">
+                  <label class="filtro-todos"><input type="checkbox" id="chkTodosMesesGlobal" checked />Todos los meses</label>
+                  <div id="listaMesesGlobal" style="font-size:12px"></div>
+                </div>
+              </div>
+            </span>
+          </div>
+          <div class="filtro-item filtro-item-btn">
+            <label class="filtro-lbl">&nbsp;</label>
+            <button id="btnActualizar" class="filtro-btn" title="Recargar datos desde la base de datos">🔄 Actualizar</button>
           </div>
         </div>
       </div>
@@ -3773,10 +3806,10 @@
     }
     // Helper: actualizar texto del botón del panel
     function textoBotonPanel(btnId, sel, singular, plural){
-      if (sel===null) $(btnId).textContent = "Todos los "+plural+" ▾";
-      else if (sel.length===0) $(btnId).textContent = "Ningún "+singular+" ▾";
-      else if (sel.length<=2) $(btnId).textContent = sel.join(", ").slice(0,30)+" ▾";
-      else $(btnId).textContent = sel.length+" "+plural+" ▾";
+      if (sel===null) $(btnId).textContent = "Todos ▾";
+      else if (sel.length===0) $(btnId).textContent = "Ninguno ▾";
+      else if (sel.length===1) $(btnId).textContent = sel[0].slice(0,22)+" ▾";
+      else $(btnId).textContent = sel.length+" seleccionados ▾";
     }
 
     async function actualizarResumen(){
@@ -3810,10 +3843,10 @@
       const filtroGlobal = $("chkTodosMesesGlobal").checked;
       const mesesGlobal = filtroGlobal ? null : [...listaG.querySelectorAll(".chkMesG:checked")].map((cb)=>cb.value);
       // Actualizar texto del botón
-      if (filtroGlobal) $("btnFiltroMesGlobal").textContent = "📅 Todos los meses ▾";
-      else if (!mesesGlobal||mesesGlobal.length===0) $("btnFiltroMesGlobal").textContent = "📅 Ningún mes ▾";
-      else if (mesesGlobal.length<=2) $("btnFiltroMesGlobal").textContent = "📅 "+mesesGlobal.map((m)=>nombreMes(m)).join(", ")+" ▾";
-      else $("btnFiltroMesGlobal").textContent = "📅 "+mesesGlobal.length+" meses ▾";
+      if (filtroGlobal) $("btnFiltroMesGlobal").textContent = "Todos ▾";
+      else if (!mesesGlobal||mesesGlobal.length===0) $("btnFiltroMesGlobal").textContent = "Ninguno ▾";
+      else if (mesesGlobal.length===1) $("btnFiltroMesGlobal").textContent = nombreMes(mesesGlobal[0])+" ▾";
+      else $("btnFiltroMesGlobal").textContent = mesesGlobal.length+" meses ▾";
       // Filtrar datos por mes
       const periodoDE = (r, campoFecha) => r.periodo || r[campoFecha]?.slice(0,7) || "";
       const fRecep0 = filtroGlobal ? recepcionesCache : recepcionesCache.filter((r)=>mesesGlobal.includes(periodoDE(r,"fechaIngreso")));
