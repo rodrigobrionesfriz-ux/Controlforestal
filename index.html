@@ -199,8 +199,8 @@
     .kpi:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.10); }
     .kpi::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--sap-blue); }
     .kpi .label { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
-    .kpi .value { font-size: clamp(18px, 4.6vw, 27px); font-weight: 700; color: #1d2d3e; margin-top: 8px; font-variant-numeric: tabular-nums; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .kpi .value .unit { font-size: 0.55em; }
+    .kpi .value { font-size: 26px; font-weight: 700; color: #1d2d3e; margin-top: 8px; font-variant-numeric: tabular-nums; line-height: 1.15; white-space: nowrap; }
+    .kpi .value .unit { font-size: 0.6em; color: var(--muted-2); font-weight: 600; }
     .kpi .unit { font-size: 14px; color: var(--muted-2); font-weight: 600; }
     .kpi .sub { font-size: 11.5px; color: var(--muted-2); margin-top: 6px; font-weight: 500; }
     /* Colores de acento por tarjeta */
@@ -3872,9 +3872,22 @@
       const totalM3 = fRecep.reduce((a,r)=>a+(r.m3||0),0);
       $("kpiM3").innerHTML = fmt(Math.round(totalM3)) + ' <span class="unit">m³</span>';
       const totalGastos = fGastos.reduce((a,g)=>a+(g.monto||0),0);
-      $("kpiGastos").innerHTML = '<span class="unit">$</span> ' + fmt(Math.round(totalGastos));
+      // Formato compacto para montos grandes: 3.565.363.860 → "3.565,4 M" | valor completo en tooltip
+      const fmtCompacto = (v) => {
+        const abs = Math.abs(v);
+        if (abs >= 1e9) return (v/1e6).toLocaleString("es-CL",{maximumFractionDigits:0}) + " M";
+        if (abs >= 1e6) return (v/1e6).toLocaleString("es-CL",{maximumFractionDigits:1}) + " M";
+        if (abs >= 1e3) return (v/1e3).toLocaleString("es-CL",{maximumFractionDigits:0}) + " mil";
+        return fmt(Math.round(v));
+      };
+      const setMonto = (id, v) => {
+        const el = $(id);
+        el.innerHTML = '<span class="unit">$</span> ' + fmtCompacto(v);
+        el.title = "$ " + fmt(Math.round(v));   // valor exacto al pasar el cursor
+      };
+      setMonto("kpiGastos", totalGastos);
       const totalIngresos = fIngresos.reduce((a,g)=>a+(g.neto||0),0);
-      $("kpiIngresos").innerHTML = '<span class="unit">$</span> ' + fmt(Math.round(totalIngresos));
+      setMonto("kpiIngresos", totalIngresos);
 
       // Contador de registros mostrados con los filtros activos
       $("contadorFiltro").innerHTML = "Mostrando <strong style='color:var(--sap-blue)'>"+fmt(fRecep.length)+"</strong> recepciones · <strong style='color:var(--sap-blue)'>"+fmt(fGastos.length)+"</strong> gastos · <strong style='color:var(--sap-blue)'>"+fmt(fIngresos.length)+"</strong> ingresos";
@@ -3887,7 +3900,7 @@
       // KPI de margen (ingresos − gastos)
       const margen = totalIngresos - totalGastos;
       const cajaMargen = $("kpiMargen").closest(".kpi");
-      $("kpiMargen").innerHTML = '<span class="unit">$</span> ' + fmt(Math.round(margen));
+      setMonto("kpiMargen", margen);
       cajaMargen.classList.remove("acc-cyan","acc-verde","acc-rojo");
       if (totalIngresos === 0 && totalGastos === 0){
         cajaMargen.classList.add("acc-cyan");
