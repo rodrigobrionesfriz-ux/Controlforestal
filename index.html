@@ -302,32 +302,6 @@
         </div>
         <div class="filtros-bar">
           <div class="filtro-item">
-            <label class="filtro-lbl">ROL</label>
-            <span style="position:relative;display:block">
-              <button id="btnFiltroRolGlobal" class="filtro-btn">Todos ▾</button>
-              <div id="panelRolesGlobal" class="filtro-panel">
-                <div class="filtro-panel-inner">
-                  <label class="filtro-todos"><input type="checkbox" id="chkTodosRolesGlobal" checked />Todos los roles</label>
-                  <input type="text" id="buscarRolGlobal" placeholder="🔍 Buscar rol o predio…" autocomplete="off" class="filtro-search" />
-                  <div id="listaRolesGlobal" style="font-size:12px"></div>
-                </div>
-              </div>
-            </span>
-          </div>
-          <div class="filtro-item">
-            <label class="filtro-lbl">PROVEEDOR</label>
-            <span style="position:relative;display:block">
-              <button id="btnFiltroProvGlobal" class="filtro-btn">Todos ▾</button>
-              <div id="panelProvsGlobal" class="filtro-panel">
-                <div class="filtro-panel-inner">
-                  <label class="filtro-todos"><input type="checkbox" id="chkTodosProvsGlobal" checked />Todos los proveedores</label>
-                  <input type="text" id="buscarProvGlobal" placeholder="🔍 Buscar proveedor…" autocomplete="off" class="filtro-search" />
-                  <div id="listaProvsGlobal" style="font-size:12px"></div>
-                </div>
-              </div>
-            </span>
-          </div>
-          <div class="filtro-item">
             <label class="filtro-lbl">MES</label>
             <span style="position:relative;display:block">
               <button id="btnFiltroMesGlobal" class="filtro-btn">Todos ▾</button>
@@ -335,6 +309,32 @@
                 <div class="filtro-panel-inner">
                   <label class="filtro-todos"><input type="checkbox" id="chkTodosMesesGlobal" checked />Todos los meses</label>
                   <div id="listaMesesGlobal" style="font-size:12px"></div>
+                </div>
+              </div>
+            </span>
+          </div>
+          <div class="filtro-item">
+            <label class="filtro-lbl">CENTRO DE COSTO</label>
+            <span style="position:relative;display:block">
+              <button id="btnFiltroRolGlobal" class="filtro-btn">Todos ▾</button>
+              <div id="panelRolesGlobal" class="filtro-panel">
+                <div class="filtro-panel-inner">
+                  <label class="filtro-todos"><input type="checkbox" id="chkTodosRolesGlobal" checked />Todos los centros de costo</label>
+                  <input type="text" id="buscarRolGlobal" placeholder="🔍 Buscar centro de costo o predio…" autocomplete="off" class="filtro-search" />
+                  <div id="listaRolesGlobal" style="font-size:12px"></div>
+                </div>
+              </div>
+            </span>
+          </div>
+          <div class="filtro-item">
+            <label class="filtro-lbl">PLANTA / CLIENTE</label>
+            <span style="position:relative;display:block">
+              <button id="btnFiltroPlantaGlobal" class="filtro-btn">Todas ▾</button>
+              <div id="panelPlantasGlobal" class="filtro-panel">
+                <div class="filtro-panel-inner">
+                  <label class="filtro-todos"><input type="checkbox" id="chkTodosPlantasGlobal" checked />Todas las plantas</label>
+                  <input type="text" id="buscarPlantaGlobal" placeholder="🔍 Buscar planta o cliente…" autocomplete="off" class="filtro-search" />
+                  <div id="listaPlantasGlobal" style="font-size:12px"></div>
                 </div>
               </div>
             </span>
@@ -3685,7 +3685,7 @@
       $(btnId).addEventListener("click", (e)=>{
         e.stopPropagation();
         // Cerrar los otros paneles
-        ["panelRolesGlobal","panelProvsGlobal","panelMesesGlobal","panelMesesRent"].forEach((p)=>{ if (p!==panelId) $(p).style.display="none"; });
+        ["panelRolesGlobal","panelPlantasGlobal","panelMesesGlobal","panelMesesRent"].forEach((p)=>{ if (p!==panelId) $(p).style.display="none"; });
         const p = $(panelId);
         p.style.display = p.style.display==="none" ? "block" : "none";
       });
@@ -3710,15 +3710,15 @@
       });
     }
     cablearPanelMulti("btnFiltroRolGlobal", "panelRolesGlobal", "chkTodosRolesGlobal", "listaRolesGlobal");
-    cablearPanelMulti("btnFiltroProvGlobal", "panelProvsGlobal", "chkTodosProvsGlobal", "listaProvsGlobal");
+    cablearPanelMulti("btnFiltroPlantaGlobal", "panelPlantasGlobal", "chkTodosPlantasGlobal", "listaPlantasGlobal");
     $("btnFiltroMesGlobal").addEventListener("click", (e)=>{
       e.stopPropagation();
       const p = $("panelMesesGlobal");
       p.style.display = p.style.display==="none" ? "block" : "none";
       // Cerrar los otros paneles
-      ["panelRolesGlobal","panelProvsGlobal","panelMesesRent"].forEach((pid)=>$(pid).style.display="none");
+      ["panelRolesGlobal","panelPlantasGlobal","panelMesesRent"].forEach((pid)=>$(pid).style.display="none");
     });
-    document.addEventListener("click", ()=>{ ["panelMesesGlobal","panelMesesRent","panelRolesGlobal","panelProvsGlobal","panelRolesRent"].forEach((pid)=>$(pid).style.display="none"); });
+    document.addEventListener("click", ()=>{ ["panelMesesGlobal","panelMesesRent","panelRolesGlobal","panelPlantasGlobal","panelRolesRent"].forEach((pid)=>$(pid).style.display="none"); });
     $("panelMesesGlobal").addEventListener("click", (e)=>e.stopPropagation());
     $("chkTodosMesesGlobal").addEventListener("change", ()=>{
       const checked = $("chkTodosMesesGlobal").checked;
@@ -3813,17 +3813,19 @@
     }
 
     async function actualizarResumen(){
-      // --- Poblar filtros globales de Rol y Proveedor (multi-selección) ---
-      const rolesG = [...new Set([ ...gastosCache.map((g)=>(g.numeroRol||"").trim()), ...ingresosCache.map((g)=>(g.numeroRol||"").trim()) ].filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
+      // --- Poblar filtros: Centro de Costo (rol) y Planta/Cliente ---
+      const rolesG = [...new Set([ ...recepcionesCache.map((r)=>(r.numeroRol||"").trim()), ...gastosCache.map((g)=>(g.numeroRol||"").trim()), ...ingresosCache.map((g)=>(g.numeroRol||"").trim()) ].filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
       poblarPanelMulti("listaRolesGlobal", rolesG, (r)=>{ const pr=nombrePredioDe(r,null); return esc(r)+(pr?' · '+esc(pr):''); }, "buscarRolGlobal");
 
-      const provsG = [...new Set([ ...gastosCache.map((g)=>(g.proveedor||"").trim()), ...ingresosCache.map((g)=>(g.proveedor||"").trim()) ].filter(Boolean))].sort();
-      poblarPanelMulti("listaProvsGlobal", provsG, (p)=>esc(p), "buscarProvGlobal");
+      // Plantas/Clientes: desde recepciones (campo planta) + catálogo de plantas
+      const plantaDeR = (r) => (r.planta || r.nombreBodega || "").toString().trim();
+      const plantasG = [...new Set([ ...recepcionesCache.map(plantaDeR), ...plantasCache.map((p)=>(p.nombre||"").trim()) ].filter(Boolean))].sort();
+      poblarPanelMulti("listaPlantasGlobal", plantasG, (p)=>esc(p), "buscarPlantaGlobal");
 
       const rolesSel = seleccionPanel("chkTodosRolesGlobal", "listaRolesGlobal");
-      const provsSel = seleccionPanel("chkTodosProvsGlobal", "listaProvsGlobal");
-      textoBotonPanel("btnFiltroRolGlobal", rolesSel, "rol", "roles");
-      textoBotonPanel("btnFiltroProvGlobal", provsSel, "proveedor", "proveedores");
+      const plantasSel = seleccionPanel("chkTodosPlantasGlobal", "listaPlantasGlobal");
+      textoBotonPanel("btnFiltroRolGlobal", rolesSel, "centro", "centros");
+      textoBotonPanel("btnFiltroPlantaGlobal", plantasSel, "planta", "plantas");
 
       // --- Filtro global de meses ---
       const todosM = new Set();
@@ -3852,14 +3854,14 @@
       const fRecep0 = filtroGlobal ? recepcionesCache : recepcionesCache.filter((r)=>mesesGlobal.includes(periodoDE(r,"fechaIngreso")));
       const fGastos0 = filtroGlobal ? gastosCache : gastosCache.filter((g)=>mesesGlobal.includes(periodoDE(g,"fecha")));
       const fIngresos0 = filtroGlobal ? ingresosCache : ingresosCache.filter((g)=>mesesGlobal.includes(periodoDE(g,"fecha")));
-      // Aplicar filtro de Roles (multi)
+      // Aplicar filtro de Centro de Costo (rol, multi)
       const fRecep1 = rolesSel ? fRecep0.filter((r)=>rolesSel.includes((r.numeroRol||"").toString().trim())) : fRecep0;
       const fGastos1 = rolesSel ? fGastos0.filter((g)=>rolesSel.includes((g.numeroRol||"").toString().trim())) : fGastos0;
       const fIngresos1 = rolesSel ? fIngresos0.filter((g)=>rolesSel.includes((g.numeroRol||"").toString().trim())) : fIngresos0;
-      // Aplicar filtro de Proveedores (multi)
-      const fRecep = provsSel ? fRecep1.filter((r)=>provsSel.includes((r.proveedor||"").trim())) : fRecep1;
-      const fGastos = provsSel ? fGastos1.filter((g)=>provsSel.includes((g.proveedor||"").trim())) : fGastos1;
-      const fIngresos = provsSel ? fIngresos1.filter((g)=>provsSel.includes((g.proveedor||"").trim())) : fIngresos1;
+      // Aplicar filtro de Planta/Cliente (solo afecta a recepciones, que es donde hay planta)
+      const fRecep = plantasSel ? fRecep1.filter((r)=>plantasSel.includes(plantaDeR(r))) : fRecep1;
+      const fGastos = fGastos1;
+      const fIngresos = fIngresos1;
 
       // --- KPIs (siempre, aunque Chart.js no cargue) ---
       $("kpiRoles").textContent = fmt(rolesCache.length);
@@ -4034,7 +4036,11 @@
       } else { mostrarCaja("chartTopRoles", false); if (charts["chartTopRoles"]){ charts["chartTopRoles"].destroy(); delete charts["chartTopRoles"]; } }
 
       // --- Gráfico 2: avance de OC (recibido vs solicitado) [barras dobles MR y M³, ancho completo] ---
-      const ocTop = ocCache.slice(0,12);
+      // --- Gráfico 2: avance de OC [respeta filtros de centro de costo y planta] ---
+      let ocFiltradas = ocCache;
+      if (rolesSel) ocFiltradas = ocFiltradas.filter((o)=>rolesSel.includes((o.numeroRol||"").toString().trim()));
+      if (plantasSel) ocFiltradas = ocFiltradas.filter((o)=>plantasSel.includes((o.plantaNombre||"").trim()));
+      const ocTop = ocFiltradas.slice(0,12);
       if (ocTop.length){
         dibujarChart("chartOC", {
           type:"bar",
@@ -4468,7 +4474,7 @@
     // Si onAuthStateChanged ya confirmó sesión, esto dispara el arranque de las consultas.
     // Cablear buscadores de los paneles de filtro (al final, con el DOM ya completo)
     cablearBuscadorPanel("buscarRolGlobal", "listaRolesGlobal");
-    cablearBuscadorPanel("buscarProvGlobal", "listaProvsGlobal");
+    cablearBuscadorPanel("buscarPlantaGlobal", "listaPlantasGlobal");
     cablearBuscadorPanel("buscarRolRent", "listaRolesRent");
 
     marcarScriptListo();
