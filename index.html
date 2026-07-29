@@ -308,6 +308,7 @@
               <div id="panelMesesGlobal" class="filtro-panel">
                 <div class="filtro-panel-inner">
                   <label class="filtro-todos"><input type="checkbox" id="chkTodosMesesGlobal" checked />Todos los meses</label>
+                  <div class="hint" style="margin:0 0 8px">Marca uno o varios meses para filtrar.</div>
                   <div id="listaMesesGlobal" style="font-size:12px"></div>
                 </div>
               </div>
@@ -321,6 +322,7 @@
                 <div class="filtro-panel-inner">
                   <label class="filtro-todos"><input type="checkbox" id="chkTodosRolesGlobal" checked />Todos los centros de costo</label>
                   <input type="text" id="buscarRolGlobal" placeholder="🔍 Buscar centro de costo o predio…" autocomplete="off" class="filtro-search" />
+                  <div class="hint" style="margin:0 0 8px">Marca uno o varios para filtrar.</div>
                   <div id="listaRolesGlobal" style="font-size:12px"></div>
                 </div>
               </div>
@@ -334,6 +336,7 @@
                 <div class="filtro-panel-inner">
                   <label class="filtro-todos"><input type="checkbox" id="chkTodosPlantasGlobal" checked />Todas las plantas</label>
                   <input type="text" id="buscarPlantaGlobal" placeholder="🔍 Buscar planta o cliente…" autocomplete="off" class="filtro-search" />
+                  <div class="hint" style="margin:0 0 8px">Marca una o varias para filtrar.</div>
                   <div id="listaPlantasGlobal" style="font-size:12px"></div>
                 </div>
               </div>
@@ -3985,21 +3988,17 @@
         p.style.display = p.style.display==="none" ? "block" : "none";
       });
       $(panelId).addEventListener("click", (e)=>e.stopPropagation());
+      // "Todos" = limpiar la selección (siempre queda marcado)
       $(chkTodosId).addEventListener("change", ()=>{
-        const checked = $(chkTodosId).checked;
-        // Si hay búsqueda activa, marcar/desmarcar solo los visibles
-        $(listaId).querySelectorAll("label").forEach((lbl)=>{
-          if (lbl.style.display === "none") return;
-          const cb = lbl.querySelector("input[type=checkbox]");
-          if (cb) cb.checked = checked;
-        });
+        $(chkTodosId).checked = true;
+        $(listaId).querySelectorAll("input[type=checkbox]").forEach((cb)=>{ cb.checked = false; });
         programarResumen();
       });
+      // Marcar uno o varios ítems filtra por ellos
       $(listaId).addEventListener("change", (e)=>{
         if (e.target.type==="checkbox"){
-          const todos = $(listaId).querySelectorAll("input[type=checkbox]");
           const marcados = $(listaId).querySelectorAll("input[type=checkbox]:checked");
-          $(chkTodosId).checked = marcados.length === todos.length;
+          $(chkTodosId).checked = (marcados.length === 0);
           programarResumen();
         }
       });
@@ -4016,15 +4015,14 @@
     document.addEventListener("click", ()=>{ ["panelMesesGlobal","panelMesesRent","panelRolesGlobal","panelPlantasGlobal","panelRolesRent"].forEach((pid)=>$(pid).style.display="none"); });
     $("panelMesesGlobal").addEventListener("click", (e)=>e.stopPropagation());
     $("chkTodosMesesGlobal").addEventListener("change", ()=>{
-      const checked = $("chkTodosMesesGlobal").checked;
-      $("listaMesesGlobal").querySelectorAll(".chkMesG").forEach((cb)=>cb.checked = checked);
+      $("chkTodosMesesGlobal").checked = true;
+      $("listaMesesGlobal").querySelectorAll(".chkMesG").forEach((cb)=>{ cb.checked = false; });
       programarResumen();
     });
     $("listaMesesGlobal").addEventListener("change", (e)=>{
       if (e.target.classList.contains("chkMesG")){
-        const todos = $("listaMesesGlobal").querySelectorAll(".chkMesG");
         const marcados = $("listaMesesGlobal").querySelectorAll(".chkMesG:checked");
-        $("chkTodosMesesGlobal").checked = marcados.length === todos.length;
+        $("chkTodosMesesGlobal").checked = (marcados.length === 0);
         programarResumen();
       }
     });
@@ -4046,35 +4044,29 @@
     });
     $("panelRolesRent").addEventListener("click", (e)=>e.stopPropagation());
     $("chkTodosRolesRent").addEventListener("change", ()=>{
-      const c = $("chkTodosRolesRent").checked;
-      $("listaRolesRent").querySelectorAll("label").forEach((lbl)=>{
-        if (lbl.style.display === "none") return;
-        const cb = lbl.querySelector(".chkRolRent");
-        if (cb) cb.checked = c;
-      });
+      $("chkTodosRolesRent").checked = true;
+      $("listaRolesRent").querySelectorAll(".chkRolRent").forEach((cb)=>{ cb.checked = false; });
       if (window._dibujarRentabilidad) window._dibujarRentabilidad();
     });
     $("listaRolesRent").addEventListener("change", (e)=>{
       if (e.target.classList.contains("chkRolRent")){
-        const todos = $("listaRolesRent").querySelectorAll(".chkRolRent");
         const marc = $("listaRolesRent").querySelectorAll(".chkRolRent:checked");
-        $("chkTodosRolesRent").checked = marc.length === todos.length;
+        $("chkTodosRolesRent").checked = (marc.length === 0);
         if (window._dibujarRentabilidad) window._dibujarRentabilidad();
       }
     });
     $("filtroRentab").addEventListener("change", ()=>{ if (window._dibujarRentabilidad) window._dibujarRentabilidad(); });
     // "Todos los meses" desmarca/marca los individuales
     $("chkTodosMesesRent").addEventListener("change", ()=>{
-      const checked = $("chkTodosMesesRent").checked;
-      $("listaMesesRent").querySelectorAll(".chkMesRent").forEach((cb)=>cb.checked = checked);
+      $("chkTodosMesesRent").checked = true;
+      $("listaMesesRent").querySelectorAll(".chkMesRent").forEach((cb)=>{ cb.checked = false; });
       if (window._dibujarRentabilidad) window._dibujarRentabilidad();
     });
     // Checkboxes individuales
     $("listaMesesRent").addEventListener("change", (e)=>{
       if (e.target.classList.contains("chkMesRent")){
-        const todos = $("listaMesesRent").querySelectorAll(".chkMesRent");
         const marcados = $("listaMesesRent").querySelectorAll(".chkMesRent:checked");
-        $("chkTodosMesesRent").checked = marcados.length === todos.length;
+        $("chkTodosMesesRent").checked = (marcados.length === 0);
         if (window._dibujarRentabilidad) window._dibujarRentabilidad();
       }
     });
@@ -4083,9 +4075,8 @@
     function poblarPanelMulti(listaId, valores, labelFn, buscadorId){
       const lista = $(listaId);
       const prevSel = [...lista.querySelectorAll("input:checked")].map((cb)=>cb.value);
-      const esInicio = lista.children.length===0;
       lista.innerHTML = valores.map((v)=>{
-        const checked = esInicio || prevSel.includes(v) ? "checked" : "";
+        const checked = prevSel.includes(v) ? "checked" : "";
         return '<label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;cursor:pointer;width:100%"><input type="checkbox" class="chkMulti" value="'+esc(v)+'" '+checked+' style="margin:0;flex-shrink:0" /><span style="flex:1;min-width:0;word-break:break-word">'+labelFn(v)+'</span></label>';
       }).join("");
       // Reaplicar el texto de búsqueda si el usuario tenía algo escrito
@@ -4094,10 +4085,11 @@
         lista.querySelectorAll("label").forEach((lbl)=>{ lbl.style.display = lbl.textContent.toLowerCase().includes(q) ? "flex" : "none"; });
       }
     }
-    // Helper: leer selección de un panel (null = todos)
+    // Helper: leer selección de un panel (null = todos, o sea ningún ítem marcado)
     function seleccionPanel(chkTodosId, listaId){
-      if ($(chkTodosId).checked) return null;
-      return [...$(listaId).querySelectorAll(".chkMulti:checked")].map((cb)=>cb.value);
+      const marc = [...$(listaId).querySelectorAll(".chkMulti:checked")].map((cb)=>cb.value);
+      if ($(chkTodosId)) $(chkTodosId).checked = (marc.length === 0);
+      return marc.length ? marc : null;
     }
     // Helper: actualizar texto del botón del panel
     function textoBotonPanel(btnId, sel, singular, plural){
@@ -4131,14 +4123,15 @@
       // Poblar checkboxes (mantener selección previa)
       const listaG = $("listaMesesGlobal");
       const prevSel = [...listaG.querySelectorAll("input:checked")].map((cb)=>cb.value);
-      const esInicio = listaG.children.length===0;
       listaG.innerHTML = todosArr.map((m)=>{
-        const checked = esInicio || prevSel.includes(m) ? "checked" : "";
+        const checked = prevSel.includes(m) ? "checked" : "";
         return '<label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;cursor:pointer;width:100%"><input type="checkbox" class="chkMesG" value="'+m+'" '+checked+' style="margin:0;flex-shrink:0" /><span style="flex:1;min-width:0;word-break:break-word">'+esc(nombreMes(m))+'</span></label>';
       }).join("");
       // Determinar meses seleccionados
-      const filtroGlobal = $("chkTodosMesesGlobal").checked;
-      const mesesGlobal = filtroGlobal ? null : [...listaG.querySelectorAll(".chkMesG:checked")].map((cb)=>cb.value);
+      const mesesMarcados = [...listaG.querySelectorAll(".chkMesG:checked")].map((cb)=>cb.value);
+      const filtroGlobal = mesesMarcados.length === 0;   // ninguno marcado = todos los meses
+      $("chkTodosMesesGlobal").checked = filtroGlobal;
+      const mesesGlobal = filtroGlobal ? null : mesesMarcados;
       // Actualizar texto del botón
       if (filtroGlobal) $("btnFiltroMesGlobal").textContent = "Todos ▾";
       else if (!mesesGlobal||mesesGlobal.length===0) $("btnFiltroMesGlobal").textContent = "Ninguno ▾";
@@ -4459,10 +4452,9 @@
       const rolesRentList = [...rolesConDatos].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
       const listaRolR = $("listaRolesRent");
       const prevRolChk = [...listaRolR.querySelectorAll("input:checked")].map((cb)=>cb.value);
-      const esInicioRolR = listaRolR.children.length===0;
       listaRolR.innerHTML = rolesRentList.map((r)=>{
         const pr = nombrePredioDe(r,null);
-        const checked = esInicioRolR || prevRolChk.includes(r) ? "checked" : "";
+        const checked = prevRolChk.includes(r) ? "checked" : "";
         return '<label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;cursor:pointer;width:100%"><input type="checkbox" class="chkRolRent" value="'+esc(r)+'" '+checked+' style="margin:0;flex-shrink:0" /><span style="flex:1;min-width:0;word-break:break-word">'+esc(r)+(pr?' · '+esc(pr):'')+'</span></label>';
       }).join("");
       // Reaplicar búsqueda activa
@@ -4480,7 +4472,7 @@
       // Mantener selección previa
       const prevChecked = [...listaDiv.querySelectorAll("input:checked")].map((cb)=>cb.value);
       listaDiv.innerHTML = mesesRentArr.map((m)=>{
-        const checked = prevChecked.length===0 || prevChecked.includes(m) ? "checked" : "";
+        const checked = prevChecked.includes(m) ? "checked" : "";
         return '<label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;cursor:pointer;width:100%"><input type="checkbox" class="chkMesRent" value="'+m+'" '+checked+' style="margin:0;flex-shrink:0" /><span style="flex:1;min-width:0;word-break:break-word">'+esc(nombreMes(m))+'</span></label>';
       }).join("");
 
@@ -4489,10 +4481,14 @@
       verificarGraficosVisibles();
 
       function dibujarRentabilidad(){
-        const todos = $("chkTodosMesesRent").checked;
-        const mesesSel = todos ? null : [...$("listaMesesRent").querySelectorAll(".chkMesRent:checked")].map((cb)=>cb.value);
-        const rolTodos = $("chkTodosRolesRent").checked;
-        const rolesSelR = rolTodos ? null : [...$("listaRolesRent").querySelectorAll(".chkRolRent:checked")].map((cb)=>cb.value);
+        const mesesMarc = [...$("listaMesesRent").querySelectorAll(".chkMesRent:checked")].map((cb)=>cb.value);
+        const todos = mesesMarc.length === 0;            // ninguno marcado = todos
+        $("chkTodosMesesRent").checked = todos;
+        const mesesSel = todos ? null : mesesMarc;
+        const rolesMarc = [...$("listaRolesRent").querySelectorAll(".chkRolRent:checked")].map((cb)=>cb.value);
+        const rolTodos = rolesMarc.length === 0;
+        $("chkTodosRolesRent").checked = rolTodos;
+        const rolesSelR = rolTodos ? null : rolesMarc;
         // Texto del botón de meses
         if (todos) $("btnFiltroMesRent").textContent = "Todos los meses ▾";
         else if (mesesSel.length===0) $("btnFiltroMesRent").textContent = "Ningún mes ▾";
