@@ -816,9 +816,18 @@
           <button class="primary" id="btnNuevoGasto">+ Registrar gasto</button>
         </div>
         <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:12px; padding:10px 12px; background:#f7f9fb; border:1px solid var(--line); border-radius:8px">
-          <div style="flex:1; min-width:250px">
-            <label style="font-size:11px">Rol / Predio</label>
-            <select id="gFiltroRol"><option value="">Todos los roles</option></select>
+          <div style="flex:1; min-width:260px">
+            <label style="font-size:11px">ROL / PREDIO</label>
+            <span style="position:relative;display:block">
+              <button id="btnFiltroRolGasto" class="filtro-btn">Todos los roles &#9662;</button>
+              <div id="panelRolesGasto" class="filtro-panel">
+                <div class="filtro-panel-inner">
+                  <label class="filtro-todos"><input type="checkbox" id="chkTodosRolesGasto" checked />Todos los roles</label>
+                  <input type="text" id="buscarRolGasto" placeholder="&#128269; Buscar rol o predio…" autocomplete="off" class="filtro-search" />
+                  <div id="listaRolesGasto" style="font-size:12px"></div>
+                </div>
+              </div>
+            </span>
           </div>
           <div style="min-width:170px">
             <label style="font-size:11px">Mes</label>
@@ -907,7 +916,8 @@
           </div>
         </div>
         <div class="modal-foot">
-          <button id="btnExportarDetalleGasto" style="margin-right:auto">&#11015; Exportar CSV</button>
+          <button class="primary" id="btnExportarDetalleXLSX" style="margin-right:8px">&#128202; Generar Excel</button>
+          <button id="btnExportarDetalleGasto" style="margin-right:auto">&#11015; CSV</button>
           <button data-close-modal="modalGastoDetalleFull">Cerrar</button>
         </div>
       </div>
@@ -1542,7 +1552,8 @@
       // nRol ahora es un buscador dinámico (usa rolesCache directamente)
       setSelect($("rRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona rol —");
       setSelect($("gRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona rol —");
-      setSelect($("gFiltroRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "Todos los roles");
+      // El filtro de Gastos es un panel multi-selección: se repuebla al llegar/cambiar los roles
+      if (typeof renderGastos === "function" && gastosCache.length) renderGastos();
       setSelect($("gmRol"), rolesCache, (r)=>'<option value="'+r.id+'">'+esc(r.numeroRol)+' · '+esc(r.nombrePredio||"")+'</option>', "— Selecciona rol —");
     }, (e)=>{
       if (e.code === "permission-denied" || /insufficient permissions/i.test(e.message||"")){
@@ -3105,16 +3116,48 @@
       $("gastoFile").value=""; $("gastoPreviewCard").style.display="none"; gastosPreview=[];
     });
 
-    $("gFiltroRol")?.addEventListener("change", renderGastos);
     $("gFiltroMes")?.addEventListener("change", renderGastos);
     $("btnLimpiarFiltroGasto")?.addEventListener("click", ()=>{
-      if ($("gFiltroRol")) $("gFiltroRol").value = "";
+      if ($("chkTodosRolesGasto")) $("chkTodosRolesGasto").checked = true;
+      $("listaRolesGasto")?.querySelectorAll(".chkMulti").forEach((cb)=>{ cb.checked = true; });
+      if ($("buscarRolGasto")) $("buscarRolGasto").value = "";
+      $("listaRolesGasto")?.querySelectorAll("label").forEach((l)=>{ l.style.display = "flex"; });
       if ($("gFiltroMes")) $("gFiltroMes").value = "";
       renderGastos();
     });
     $("btnDetalleGastos")?.addEventListener("click", ()=> abrirDetalleGastosFiltrado());
     $("gDetBuscar")?.addEventListener("input", ()=> pintarDetalleGastos());
     $("btnExportarDetalleGasto")?.addEventListener("click", ()=> exportarDetalleGastosCSV());
+    $("btnExportarDetalleXLSX")?.addEventListener("click", ()=> exportarDetalleGastosXLSX());
+
+    // ---- Panel multi-selección de ROL/PREDIO para Gastos (buscador + varios roles) ----
+    (function cablearPanelRolesGasto(){
+      const btn = $("btnFiltroRolGasto"); if (!btn) return;
+      btn.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        const p = $("panelRolesGasto");
+        p.style.display = p.style.display === "block" ? "none" : "block";
+      });
+      $("panelRolesGasto").addEventListener("click", (e)=>e.stopPropagation());
+      document.addEventListener("click", ()=>{ const p=$("panelRolesGasto"); if (p) p.style.display="none"; });
+      $("chkTodosRolesGasto").addEventListener("change", ()=>{
+        const c = $("chkTodosRolesGasto").checked;
+        $("listaRolesGasto").querySelectorAll("label").forEach((lbl)=>{
+          if (lbl.style.display === "none") return;
+          const cb = lbl.querySelector(".chkMulti"); if (cb) cb.checked = c;
+        });
+        renderGastos();
+      });
+      $("listaRolesGasto").addEventListener("change", (e)=>{
+        if (e.target.classList.contains("chkMulti")){
+          const todos = $("listaRolesGasto").querySelectorAll(".chkMulti");
+          const marc = $("listaRolesGasto").querySelectorAll(".chkMulti:checked");
+          $("chkTodosRolesGasto").checked = todos.length>0 && marc.length === todos.length;
+          renderGastos();
+        }
+      });
+      cablearBuscadorPanel("buscarRolGasto", "listaRolesGasto");
+    })();
 
     // ---- REGISTRO MANUAL DE GASTOS (operador y admin) ----
     $("btnNuevoGasto").addEventListener("click", ()=>{
@@ -3171,19 +3214,54 @@
     // ---- FILTROS DE GASTOS (rol/predio + mes) ----
     function periodoDeGasto(g){ return g.periodo || (g.fecha||"").slice(0,7) || "Sin fecha"; }
 
-    function rolSeleccionadoGasto(){
-      const rid = $("gFiltroRol")?.value || "";
-      if (!rid) return null;
-      return rolesCache.find((r)=>r.id===rid) || null;
+    const normRolG = (v) => (v||"").toString().trim().toUpperCase();
+
+    // Roles seleccionados en el panel. null = todos
+    function rolesSelGasto(){
+      const lista = $("listaRolesGasto"), todos = $("chkTodosRolesGasto");
+      if (!lista || !todos) return null;
+      if (todos.checked) return null;
+      return [...lista.querySelectorAll(".chkMulti:checked")].map((cb)=>cb.value);
+    }
+
+    // Etiqueta "105-13 · Predio" para un número de rol
+    function etiquetaRolGasto(num){
+      const pr = nombrePredioDe(num, null);
+      return num + (pr ? " · " + pr : "");
+    }
+
+    function actualizarBotonRolGasto(){
+      const sel = rolesSelGasto();
+      const btn = $("btnFiltroRolGasto"); if (!btn) return;
+      if (sel === null) btn.textContent = "Todos los roles ▾";
+      else if (sel.length === 0) btn.textContent = "Ningún rol ▾";
+      else if (sel.length === 1) btn.textContent = etiquetaRolGasto(sel[0]).slice(0,34) + " ▾";
+      else btn.textContent = sel.length + " roles seleccionados ▾";
+    }
+
+    // Repuebla la lista de roles solo si el conjunto cambió (evita perder el foco al hacer clic)
+    let _gRolesFirma = null;
+    function poblarPanelRolesGasto(){
+      const lista = $("listaRolesGasto"); if (!lista) { actualizarBotonRolGasto(); return; }
+      const valores = [...new Set(gastosCache.map((g)=>(g.numeroRol||"").toString().trim()).filter(Boolean))]
+        .sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
+      const firma = valores.map((v)=>v+"|"+(nombrePredioDe(v,null)||"")).join("~");
+      if (firma !== _gRolesFirma){
+        _gRolesFirma = firma;
+        poblarPanelMulti("listaRolesGasto", valores, (v)=>esc(etiquetaRolGasto(v)), "buscarRolGasto");
+        const t = lista.querySelectorAll(".chkMulti"), m = lista.querySelectorAll(".chkMulti:checked");
+        if ($("chkTodosRolesGasto") && t.length) $("chkTodosRolesGasto").checked = (m.length === t.length);
+      }
+      actualizarBotonRolGasto();
     }
 
     function gastosFiltrados(){
-      const rol = rolSeleccionadoGasto();
+      const sel = rolesSelGasto();
       const mes = $("gFiltroMes")?.value || "";
-      const num = (rol?.numeroRol||"").toString().trim().toUpperCase();
+      const set = sel ? new Set(sel.map(normRolG)) : null;
       return gastosCache.filter((g)=>{
-        if (rol && !(g.rolId===rol.id || (num && (g.numeroRol||"").toString().trim().toUpperCase()===num))) return false;
-        if (mes && periodoDeGasto(g)!==mes) return false;
+        if (set && !set.has(normRolG(g.numeroRol))) return false;
+        if (mes && periodoDeGasto(g) !== mes) return false;
         return true;
       });
     }
@@ -3200,15 +3278,19 @@
     function renderGastos(){
       const cont = $("gastosAgrupados");
       poblarMesesGasto();
+      poblarPanelRolesGasto();
 
-      const rolSel = rolSeleccionadoGasto();
+      const rolSel = rolesSelGasto();
       const mesSel = $("gFiltroMes")?.value || "";
       const resEl = $("gastoFiltroResumen");
       if (resEl){
         const partes = [];
-        if (rolSel) partes.push('Rol <strong>'+esc(rolSel.numeroRol)+'</strong>'+(rolSel.nombrePredio?' · <strong>'+esc(rolSel.nombrePredio)+'</strong>':''));
-        if (mesSel) partes.push('<strong>'+esc(nombreMes(mesSel))+'</strong>');
-        resEl.innerHTML = partes.length ? 'Filtrando por: '+partes.join(' · ') : '';
+        if (rolSel){
+          const muestra = rolSel.slice(0,3).map((r)=>'<strong>'+esc(etiquetaRolGasto(r))+'</strong>').join(' · ');
+          partes.push((rolSel.length===1?'Rol: ':'Roles ('+rolSel.length+'): ') + (muestra || '—') + (rolSel.length>3 ? ' · y '+(rolSel.length-3)+' más' : ''));
+        }
+        if (mesSel) partes.push('Mes: <strong>'+esc(nombreMes(mesSel))+'</strong>');
+        resEl.innerHTML = partes.length ? 'Filtrando por &rarr; '+partes.join(' &nbsp;|&nbsp; ') : '';
       }
 
       if (!gastosCache.length){ cont.innerHTML = '<p class="empty">Sin gastos aún.</p>'; return; }
@@ -3270,12 +3352,20 @@
     let _gDetDatos = [];
     const G_DET_MAX = 800;
 
-    function abrirDetalleGastosFiltrado(){
-      const rol = rolSeleccionadoGasto();
+    function tituloFiltroGasto(){
+      const sel = rolesSelGasto();
       const mes = $("gFiltroMes")?.value || "";
-      $("gastoDetFullTitulo").textContent = "Detalle de gastos"
-        + (rol ? " · Rol "+rol.numeroRol+(rol.nombrePredio?" · "+rol.nombrePredio:"") : " · Todos los roles")
-        + (mes ? " · "+nombreMes(mes) : "");
+      let t = "Detalle de gastos";
+      if (sel === null) t += " · Todos los roles";
+      else if (sel.length === 0) t += " · Ningún rol";
+      else if (sel.length === 1) t += " · " + etiquetaRolGasto(sel[0]);
+      else t += " · " + sel.length + " roles";
+      if (mes) t += " · " + nombreMes(mes);
+      return t;
+    }
+
+    function abrirDetalleGastosFiltrado(){
+      $("gastoDetFullTitulo").textContent = tituloFiltroGasto();
       _gDetDatos = gastosFiltrados().slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
       if ($("gDetBuscar")) $("gDetBuscar").value = "";
       pintarDetalleGastos();
@@ -3304,6 +3394,60 @@
         : '<tr><td colspan="4" class="empty">Sin resultados.</td></tr>';
     }
 
+    function nombreArchivoGasto(ext){
+      const sel = rolesSelGasto();
+      const mes = $("gFiltroMes")?.value || "";
+      let base = "gastos";
+      if (sel && sel.length === 1) base += "_" + sel[0].replace(/[^\w\-]+/g,"-");
+      else if (sel && sel.length > 1) base += "_" + sel.length + "roles";
+      if (mes) base += "_" + mes;
+      return base + "_" + new Date().toISOString().slice(0,10) + "." + ext;
+    }
+
+    async function exportarDetalleGastosXLSX(){
+      const filas = gDetFilas();
+      const btn = $("btnExportarDetalleXLSX");
+      if (!filas.length){ if (btn) btn.textContent = "Sin datos"; setTimeout(()=>{ if(btn) btn.innerHTML = "&#128202; Generar Excel"; }, 1200); return; }
+      const txt = btn ? btn.innerHTML : "";
+      if (btn){ btn.disabled = true; btn.textContent = "Generando…"; }
+      try {
+        await cargarXLSX();
+        const datos = filas.map((g)=>{
+          const rolN = (g.numeroRol||"").toString().trim();
+          return {
+            "FECHA": g.fecha || "",
+            "ROL": rolN,
+            "PREDIO": nombrePredioDe(rolN, g.rolId) || "",
+            "DESCRIPCIÓN": g.descripcion || g.producto || "",
+            "PRODUCTO": g.producto || "",
+            "CUENTA": g.cuenta || g.categoria || "",
+            "PROVEEDOR": g.proveedor || "",
+            "CANTIDAD": Number(g.cantidad || 0),
+            "MONTO NETO": Math.round(g.monto || 0),
+          };
+        });
+        const ws = XLSX.utils.json_to_sheet(datos);
+        const total = filas.reduce((a,g)=>a+(g.monto||0),0);
+        const nFilas = datos.length;
+        XLSX.utils.sheet_add_aoa(ws, [["","","","","","","","TOTAL NETO", Math.round(total)]], { origin: -1 });
+        ws["!cols"] = [{wch:11},{wch:12},{wch:26},{wch:46},{wch:18},{wch:20},{wch:26},{wch:10},{wch:14}];
+        ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:nFilas, c:8} }) };
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Gastos");
+        const out = XLSX.write(wb, { bookType:"xlsx", type:"array" });
+        const blob = new Blob([out], { type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = nombreArchivoGasto("xlsx");
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
+      } catch(e){
+        alert("No se pudo generar el Excel: " + (e.message||e));
+      } finally {
+        if (btn){ btn.disabled = false; btn.innerHTML = txt || "&#128202; Generar Excel"; }
+      }
+    }
+
     function exportarDetalleGastosCSV(){
       const filas = gDetFilas();
       if (!filas.length) return;
@@ -3316,7 +3460,7 @@
       const blob = new Blob(["\uFEFF"+lineas.join("\r\n")], {type:"text/csv;charset=utf-8;"});
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = "detalle_gastos_"+new Date().toISOString().slice(0,10)+".csv";
+      a.download = nombreArchivoGasto("csv");
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
     }
