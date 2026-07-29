@@ -812,10 +812,23 @@
 
       <section class="card">
         <h2><span class="num">02</span> Gastos registrados</h2>
-        <div class="actions" style="margin-top:0; margin-bottom:14px">
+        <div class="actions" style="margin-top:0; margin-bottom:10px">
           <button class="primary" id="btnNuevoGasto">+ Registrar gasto</button>
         </div>
-        <div id="gastosAgrupados" style="max-height:calc(100vh - 220px); overflow-y:auto; overflow-x:hidden; padding-right:4px">
+        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:12px; padding:10px 12px; background:#f7f9fb; border:1px solid var(--line); border-radius:8px">
+          <div style="flex:1; min-width:250px">
+            <label style="font-size:11px">Rol / Predio</label>
+            <select id="gFiltroRol"><option value="">Todos los roles</option></select>
+          </div>
+          <div style="min-width:170px">
+            <label style="font-size:11px">Mes</label>
+            <select id="gFiltroMes"><option value="">Todos los meses</option></select>
+          </div>
+          <button class="primary" id="btnDetalleGastos">&#128203; Mostrar detalle</button>
+          <button id="btnLimpiarFiltroGasto">Limpiar</button>
+        </div>
+        <div id="gastoFiltroResumen" class="hint" style="margin-bottom:10px"></div>
+        <div id="gastosAgrupados" style="max-height:calc(100vh - 300px); overflow-y:auto; overflow-x:hidden; padding-right:4px">
           <p class="empty">Cargando…</p>
         </div>
       </section>
@@ -875,6 +888,27 @@
         <div class="modal-body" id="gastoDetBody" style="max-height:60vh; overflow-y:auto"></div>
         <div class="modal-foot">
           <button data-close-modal="modalGastoDetalle">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: detalle plano de gastos (fecha / descripcion / cantidad / monto neto) -->
+    <div class="modal-overlay" id="modalGastoDetalleFull">
+      <div class="modal" style="max-width:900px">
+        <div class="modal-head"><h3 id="gastoDetFullTitulo">Detalle de gastos</h3><button class="modal-close" data-close-modal="modalGastoDetalleFull">&times;</button></div>
+        <div class="modal-body">
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px">
+            <input id="gDetBuscar" placeholder="Buscar en descripci&oacute;n, producto o proveedor…" style="max-width:300px" />
+            <span class="msg" id="gDetResumen" style="margin-left:auto"></span>
+          </div>
+          <div style="max-height:56vh; overflow:auto; border:1px solid var(--line); border-radius:6px">
+            <table style="font-size:13px"><thead><tr><th style="width:96px">Fecha</th><th>Descripci&oacute;n</th><th class="num-cell" style="width:90px">Cantidad</th><th class="num-cell" style="width:130px">Monto neto $</th></tr></thead>
+            <tbody id="gDetTabla"></tbody></table>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button id="btnExportarDetalleGasto" style="margin-right:auto">&#11015; Exportar CSV</button>
+          <button data-close-modal="modalGastoDetalleFull">Cerrar</button>
         </div>
       </div>
     </div>
@@ -3072,6 +3106,15 @@
     });
 
     $("gFiltroRol")?.addEventListener("change", renderGastos);
+    $("gFiltroMes")?.addEventListener("change", renderGastos);
+    $("btnLimpiarFiltroGasto")?.addEventListener("click", ()=>{
+      if ($("gFiltroRol")) $("gFiltroRol").value = "";
+      if ($("gFiltroMes")) $("gFiltroMes").value = "";
+      renderGastos();
+    });
+    $("btnDetalleGastos")?.addEventListener("click", ()=> abrirDetalleGastosFiltrado());
+    $("gDetBuscar")?.addEventListener("input", ()=> pintarDetalleGastos());
+    $("btnExportarDetalleGasto")?.addEventListener("click", ()=> exportarDetalleGastosCSV());
 
     // ---- REGISTRO MANUAL DE GASTOS (operador y admin) ----
     $("btnNuevoGasto").addEventListener("click", ()=>{
@@ -3125,17 +3168,61 @@
       renderGastos();
     }, ()=>{});
 
+    // ---- FILTROS DE GASTOS (rol/predio + mes) ----
+    function periodoDeGasto(g){ return g.periodo || (g.fecha||"").slice(0,7) || "Sin fecha"; }
+
+    function rolSeleccionadoGasto(){
+      const rid = $("gFiltroRol")?.value || "";
+      if (!rid) return null;
+      return rolesCache.find((r)=>r.id===rid) || null;
+    }
+
+    function gastosFiltrados(){
+      const rol = rolSeleccionadoGasto();
+      const mes = $("gFiltroMes")?.value || "";
+      const num = (rol?.numeroRol||"").toString().trim().toUpperCase();
+      return gastosCache.filter((g)=>{
+        if (rol && !(g.rolId===rol.id || (num && (g.numeroRol||"").toString().trim().toUpperCase()===num))) return false;
+        if (mes && periodoDeGasto(g)!==mes) return false;
+        return true;
+      });
+    }
+
+    function poblarMesesGasto(){
+      const sel = $("gFiltroMes"); if (!sel) return;
+      const actual = sel.value;
+      const meses = [...new Set(gastosCache.map(periodoDeGasto))].sort((a,b)=>b.localeCompare(a));
+      sel.innerHTML = '<option value="">Todos los meses</option>'
+        + meses.map((m)=>'<option value="'+esc(m)+'">'+esc(nombreMes(m))+'</option>').join("");
+      sel.value = meses.includes(actual) ? actual : "";
+    }
+
     function renderGastos(){
       const cont = $("gastosAgrupados");
+      poblarMesesGasto();
+
+      const rolSel = rolSeleccionadoGasto();
+      const mesSel = $("gFiltroMes")?.value || "";
+      const resEl = $("gastoFiltroResumen");
+      if (resEl){
+        const partes = [];
+        if (rolSel) partes.push('Rol <strong>'+esc(rolSel.numeroRol)+'</strong>'+(rolSel.nombrePredio?' · <strong>'+esc(rolSel.nombrePredio)+'</strong>':''));
+        if (mesSel) partes.push('<strong>'+esc(nombreMes(mesSel))+'</strong>');
+        resEl.innerHTML = partes.length ? 'Filtrando por: '+partes.join(' · ') : '';
+      }
+
       if (!gastosCache.length){ cont.innerHTML = '<p class="empty">Sin gastos aún.</p>'; return; }
+
+      const lista = gastosFiltrados();
+      if (!lista.length){ cont.innerHTML = '<p class="empty">Sin gastos para el filtro seleccionado.</p>'; return; }
 
       // Agrupar por mes (más reciente primero)
       const porMes = {};
-      gastosCache.forEach((g)=>{ const m = g.periodo || g.fecha?.slice(0,7) || "Sin fecha"; (porMes[m] = porMes[m] || []).push(g); });
+      lista.forEach((g)=>{ const m = periodoDeGasto(g); (porMes[m] = porMes[m] || []).push(g); });
       const mesesOrd = Object.keys(porMes).sort((a,b)=>b.localeCompare(a));
-      const granTotal = gastosCache.reduce((a,g)=>a+(g.monto||0),0);
+      const granTotal = lista.reduce((a,g)=>a+(g.monto||0),0);
 
-      cont.innerHTML = '<div style="margin-bottom:12px;font-size:14px"><strong>Total general: <span class="unit">$</span> '+fmt(granTotal)+'</strong> · '+gastosCache.length+' gasto'+(gastosCache.length!==1?'s':'')+'</div>'
+      cont.innerHTML = '<div style="margin-bottom:12px;font-size:14px"><strong>'+((rolSel||mesSel)?'Total filtrado':'Total general')+': <span class="unit">$</span> '+fmt(Math.round(granTotal))+'</strong> · '+lista.length+' gasto'+(lista.length!==1?'s':'')+'</div>'
         + mesesOrd.map((mes)=>{
           const items = porMes[mes];
           const totalMes = items.reduce((a,g)=>a+(g.monto||0),0);
@@ -3153,7 +3240,7 @@
     }
 
     function abrirDetalleGastoMes(mes){
-      const items = gastosCache.filter((g)=>(g.periodo||g.fecha?.slice(0,7)||"Sin fecha")===mes);
+      const items = gastosFiltrados().filter((g)=>periodoDeGasto(g)===mes);
       $("gastoDetTitulo").textContent = "Gastos · "+nombreMes(mes);
       const ordenados = items.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
       const totalMes = ordenados.reduce((a,g)=>a+(g.monto||0),0);
@@ -3177,6 +3264,61 @@
       }).join("");
       $("gastoDetBody").innerHTML = html;
       abrirModal("modalGastoDetalle");
+    }
+
+    // ---- MODAL "MOSTRAR DETALLE": fecha · descripción · cantidad · monto neto ----
+    let _gDetDatos = [];
+    const G_DET_MAX = 800;
+
+    function abrirDetalleGastosFiltrado(){
+      const rol = rolSeleccionadoGasto();
+      const mes = $("gFiltroMes")?.value || "";
+      $("gastoDetFullTitulo").textContent = "Detalle de gastos"
+        + (rol ? " · Rol "+rol.numeroRol+(rol.nombrePredio?" · "+rol.nombrePredio:"") : " · Todos los roles")
+        + (mes ? " · "+nombreMes(mes) : "");
+      _gDetDatos = gastosFiltrados().slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+      if ($("gDetBuscar")) $("gDetBuscar").value = "";
+      pintarDetalleGastos();
+      abrirModal("modalGastoDetalleFull");
+    }
+
+    function gDetFilas(){
+      const q = ($("gDetBuscar")?.value||"").trim().toUpperCase();
+      if (!q) return _gDetDatos;
+      return _gDetDatos.filter((g)=>((g.descripcion||"")+" "+(g.producto||"")+" "+(g.proveedor||"")).toUpperCase().includes(q));
+    }
+
+    function pintarDetalleGastos(){
+      const filas = gDetFilas();
+      const total = filas.reduce((a,g)=>a+(g.monto||0),0);
+      $("gDetResumen").innerHTML = '<strong>'+filas.length+'</strong> gasto'+(filas.length!==1?'s':'')
+        +' · Neto total <strong><span class="unit">$</span> '+fmt(Math.round(total))+'</strong>';
+      $("gDetTabla").innerHTML = filas.length
+        ? filas.slice(0,G_DET_MAX).map((g)=>'<tr>'
+            +'<td>'+esc(fmtFecha(g.fecha)||"")+'</td>'
+            +'<td>'+esc(g.descripcion||g.producto||"")+'</td>'
+            +'<td class="num-cell">'+fmt(g.cantidad||0)+'</td>'
+            +'<td class="num-cell">'+fmt(Math.round(g.monto||0))+'</td>'
+            +'</tr>').join("")
+          + (filas.length>G_DET_MAX ? '<tr><td colspan="4" class="empty">… mostrando '+G_DET_MAX+' de '+filas.length+'. Filtra por rol o mes, o usa el buscador. El CSV exporta todo.</td></tr>' : '')
+        : '<tr><td colspan="4" class="empty">Sin resultados.</td></tr>';
+    }
+
+    function exportarDetalleGastosCSV(){
+      const filas = gDetFilas();
+      if (!filas.length) return;
+      const q = (v)=>'"'+(v==null?"":v.toString().replace(/"/g,'""'))+'"';
+      const lineas = [["FECHA","ROL","PREDIO","DESCRIPCION","CANTIDAD","MONTO NETO"].map(q).join(";")];
+      filas.forEach((g)=>{
+        const rolN = (g.numeroRol||"").toString().trim();
+        lineas.push([ g.fecha||"", rolN, nombrePredioDe(rolN, g.rolId)||"", g.descripcion||g.producto||"", g.cantidad||0, Math.round(g.monto||0) ].map(q).join(";"));
+      });
+      const blob = new Blob(["\uFEFF"+lineas.join("\r\n")], {type:"text/csv;charset=utf-8;"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "detalle_gastos_"+new Date().toISOString().slice(0,10)+".csv";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
     }
 
     // renderTotales ya no se necesita (se eliminó la sección de totales por rol)
