@@ -911,11 +911,11 @@
         <div class="modal-head"><h3 id="gastoDetFullTitulo">Detalle de gastos</h3><button class="modal-close" data-close-modal="modalGastoDetalleFull">&times;</button></div>
         <div class="modal-body">
           <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px">
-            <input id="gDetBuscar" placeholder="Buscar en descripci&oacute;n, producto o proveedor…" style="max-width:300px" />
+            <input id="gDetBuscar" placeholder="Buscar descripci&oacute;n, proveedor o N&deg; documento…" style="max-width:320px" />
             <span class="msg" id="gDetResumen" style="margin-left:auto"></span>
           </div>
           <div style="max-height:56vh; overflow:auto; border:1px solid var(--line); border-radius:6px">
-            <table style="font-size:13px"><thead><tr><th style="width:96px">Fecha</th><th>Descripci&oacute;n</th><th class="num-cell" style="width:90px">Cantidad</th><th class="num-cell" style="width:130px">Monto neto $</th></tr></thead>
+            <table style="font-size:13px"><thead><tr><th style="width:96px">Fecha</th><th style="width:110px">N&deg; documento</th><th>Descripci&oacute;n</th><th style="width:170px">Proveedor</th><th class="num-cell" style="width:90px">Cantidad</th><th class="num-cell" style="width:130px">Monto neto $</th></tr></thead>
             <tbody id="gDetTabla"></tbody></table>
           </div>
         </div>
@@ -935,6 +935,7 @@
           <div class="grid">
             <div><label>Rol de predio *</label><select id="gmRol"><option value="">— Selecciona rol —</option></select></div>
             <div><label>Fecha</label><input id="gmFecha" type="date" /></div>
+            <div><label>N° documento</label><input id="gmNumero" placeholder="N° factura / boleta / guía" /></div>
             <div><label>Producto</label><input id="gmProducto" placeholder="Código o nombre del producto" /></div>
             <div><label>Descripción *</label><input id="gmDescripcion" placeholder="Detalle del gasto" /></div>
             <div><label>Cantidad</label><input id="gmCantidad" type="number" step="0.01" placeholder="0" /></div>
@@ -3164,7 +3165,7 @@
     // ---- REGISTRO MANUAL DE GASTOS (operador y admin) ----
     $("btnNuevoGasto").addEventListener("click", ()=>{
       if (!puede("editar","gastos")) return;
-      ["gmRol","gmProducto","gmDescripcion","gmCantidad","gmCostoUnit","gmTotal","gmCentroCosto","gmCuenta","gmProveedor"].forEach((id)=>$(id).value="");
+      ["gmRol","gmNumero","gmProducto","gmDescripcion","gmCantidad","gmCostoUnit","gmTotal","gmCentroCosto","gmCuenta","gmProveedor"].forEach((id)=>$(id).value="");
       $("gmFecha").value = new Date().toISOString().slice(0,10);
       $("gastoManualMsg").textContent="";
       abrirModal("modalGastoForm");
@@ -3192,6 +3193,7 @@
       try {
         await addDoc(collection(db,"gastos"), {
           rolId: rol.id, numeroRol: rol.numeroRol,
+          numero: up($("gmNumero").value) || null,
           producto: up($("gmProducto").value), descripcion,
           cantidad: parseFloat($("gmCantidad").value)||0,
           costoUnitario: parseFloat($("gmCostoUnit").value)||0,
@@ -3351,8 +3353,8 @@
         return '<div style="margin-bottom:14px">'
           +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--sap-blue)">'+esc(rol)+(predio?' · '+esc(predio):'')
           +' <span style="font-weight:400;color:var(--muted)">('+gs.length+') · <span class="unit">$</span> '+fmt(totalRol)+'</span></div>'
-          +'<table style="font-size:13px"><thead><tr><th>Fecha</th><th>Producto</th><th>Descripción</th><th>Cuenta</th><th>Proveedor</th><th class="num-cell">Total $</th></tr></thead>'
-          +'<tbody>'+gs.map((g)=>'<tr><td>'+esc(fmtFecha(g.fecha)||"")+'</td><td>'+esc(g.producto||"")+'</td><td>'+esc(g.descripcion||"")+'</td><td>'+esc(g.cuenta||g.categoria||"")+'</td><td>'+esc(g.proveedor||"")+'</td><td class="num-cell">'+fmt(g.monto||0)+'</td></tr>').join("")
+          +'<table style="font-size:13px"><thead><tr><th>Fecha</th><th>N° doc.</th><th>Producto</th><th>Descripción</th><th>Cuenta</th><th>Proveedor</th><th class="num-cell">Total $</th></tr></thead>'
+          +'<tbody>'+gs.map((g)=>'<tr><td>'+esc(fmtFecha(g.fecha)||"")+'</td><td>'+esc(g.numero||g.numeroDocumento||g.nroDocumento||"")+'</td><td>'+esc(g.producto||"")+'</td><td>'+esc(g.descripcion||"")+'</td><td>'+esc(g.cuenta||g.categoria||"")+'</td><td>'+esc(g.proveedor||"")+'</td><td class="num-cell">'+fmt(g.monto||0)+'</td></tr>').join("")
           +'</tbody></table></div>';
       }).join("");
       $("gastoDetBody").innerHTML = html;
@@ -3387,7 +3389,7 @@
     function gDetFilas(){
       const q = ($("gDetBuscar")?.value||"").trim().toUpperCase();
       if (!q) return _gDetDatos;
-      return _gDetDatos.filter((g)=>((g.descripcion||"")+" "+(g.producto||"")+" "+(g.proveedor||"")).toUpperCase().includes(q));
+      return _gDetDatos.filter((g)=>((g.descripcion||"")+" "+(g.producto||"")+" "+(g.proveedor||"")+" "+(g.numero||g.numeroDocumento||g.nroDocumento||"")).toUpperCase().includes(q));
     }
 
     function pintarDetalleGastos(){
@@ -3398,12 +3400,14 @@
       $("gDetTabla").innerHTML = filas.length
         ? filas.slice(0,G_DET_MAX).map((g)=>'<tr>'
             +'<td>'+esc(fmtFecha(g.fecha)||"")+'</td>'
+            +'<td>'+esc(g.numero||g.numeroDocumento||g.nroDocumento||"")+'</td>'
             +'<td>'+esc(g.descripcion||g.producto||"")+'</td>'
+            +'<td>'+esc(g.proveedor||"")+'</td>'
             +'<td class="num-cell">'+fmt(g.cantidad||0)+'</td>'
             +'<td class="num-cell">'+fmt(Math.round(g.monto||0))+'</td>'
             +'</tr>').join("")
-          + (filas.length>G_DET_MAX ? '<tr><td colspan="4" class="empty">… mostrando '+G_DET_MAX+' de '+filas.length+'. Filtra por rol o mes, o usa el buscador. El CSV exporta todo.</td></tr>' : '')
-        : '<tr><td colspan="4" class="empty">Sin resultados.</td></tr>';
+          + (filas.length>G_DET_MAX ? '<tr><td colspan="6" class="empty">… mostrando '+G_DET_MAX+' de '+filas.length+'. Filtra por rol o mes, o usa el buscador. El Excel exporta todo.</td></tr>' : '')
+        : '<tr><td colspan="6" class="empty">Sin resultados.</td></tr>';
     }
 
     function nombreArchivoGasto(ext){
@@ -3428,6 +3432,7 @@
           const rolN = (g.numeroRol||"").toString().trim();
           return {
             "FECHA": g.fecha || "",
+            "N° DOCUMENTO": (g.numero || g.numeroDocumento || g.nroDocumento || "").toString(),
             "ROL": rolN,
             "PREDIO": nombrePredioDe(rolN, g.rolId) || "",
             "DESCRIPCIÓN": g.descripcion || g.producto || "",
@@ -3441,9 +3446,9 @@
         const ws = XLSX.utils.json_to_sheet(datos);
         const total = filas.reduce((a,g)=>a+(g.monto||0),0);
         const nFilas = datos.length;
-        XLSX.utils.sheet_add_aoa(ws, [["","","","","","","","TOTAL NETO", Math.round(total)]], { origin: -1 });
-        ws["!cols"] = [{wch:11},{wch:12},{wch:26},{wch:46},{wch:18},{wch:20},{wch:26},{wch:10},{wch:14}];
-        ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:nFilas, c:8} }) };
+        XLSX.utils.sheet_add_aoa(ws, [["","","","","","","","","TOTAL NETO", Math.round(total)]], { origin: -1 });
+        ws["!cols"] = [{wch:11},{wch:14},{wch:12},{wch:26},{wch:46},{wch:18},{wch:20},{wch:26},{wch:10},{wch:14}];
+        ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:nFilas, c:9} }) };
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Gastos");
         const out = XLSX.write(wb, { bookType:"xlsx", type:"array" });
@@ -3464,10 +3469,10 @@
       const filas = gDetFilas();
       if (!filas.length) return;
       const q = (v)=>'"'+(v==null?"":v.toString().replace(/"/g,'""'))+'"';
-      const lineas = [["FECHA","ROL","PREDIO","DESCRIPCION","CANTIDAD","MONTO NETO"].map(q).join(";")];
+      const lineas = [["FECHA","N DOCUMENTO","ROL","PREDIO","DESCRIPCION","PROVEEDOR","CANTIDAD","MONTO NETO"].map(q).join(";")];
       filas.forEach((g)=>{
         const rolN = (g.numeroRol||"").toString().trim();
-        lineas.push([ g.fecha||"", rolN, nombrePredioDe(rolN, g.rolId)||"", g.descripcion||g.producto||"", g.cantidad||0, Math.round(g.monto||0) ].map(q).join(";"));
+        lineas.push([ g.fecha||"", (g.numero||g.numeroDocumento||g.nroDocumento||""), rolN, nombrePredioDe(rolN, g.rolId)||"", g.descripcion||g.producto||"", g.proveedor||"", g.cantidad||0, Math.round(g.monto||0) ].map(q).join(";"));
       });
       const blob = new Blob(["\uFEFF"+lineas.join("\r\n")], {type:"text/csv;charset=utf-8;"});
       const a = document.createElement("a");
