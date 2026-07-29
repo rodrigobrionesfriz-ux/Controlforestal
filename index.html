@@ -824,6 +824,7 @@
                 <div class="filtro-panel-inner">
                   <label class="filtro-todos"><input type="checkbox" id="chkTodosRolesGasto" checked />Todos los roles</label>
                   <input type="text" id="buscarRolGasto" placeholder="&#128269; Buscar rol o predio…" autocomplete="off" class="filtro-search" />
+                  <div class="hint" style="margin:0 0 8px">Marca uno o varios roles para filtrar.</div>
                   <div id="listaRolesGasto" style="font-size:12px"></div>
                 </div>
               </div>
@@ -3119,7 +3120,7 @@
     $("gFiltroMes")?.addEventListener("change", renderGastos);
     $("btnLimpiarFiltroGasto")?.addEventListener("click", ()=>{
       if ($("chkTodosRolesGasto")) $("chkTodosRolesGasto").checked = true;
-      $("listaRolesGasto")?.querySelectorAll(".chkMulti").forEach((cb)=>{ cb.checked = true; });
+      $("listaRolesGasto")?.querySelectorAll(".chkRolG").forEach((cb)=>{ cb.checked = false; });
       if ($("buscarRolGasto")) $("buscarRolGasto").value = "";
       $("listaRolesGasto")?.querySelectorAll("label").forEach((l)=>{ l.style.display = "flex"; });
       if ($("gFiltroMes")) $("gFiltroMes").value = "";
@@ -3140,19 +3141,17 @@
       });
       $("panelRolesGasto").addEventListener("click", (e)=>e.stopPropagation());
       document.addEventListener("click", ()=>{ const p=$("panelRolesGasto"); if (p) p.style.display="none"; });
+      // "Todos los roles" = limpiar la selección
       $("chkTodosRolesGasto").addEventListener("change", ()=>{
-        const c = $("chkTodosRolesGasto").checked;
-        $("listaRolesGasto").querySelectorAll("label").forEach((lbl)=>{
-          if (lbl.style.display === "none") return;
-          const cb = lbl.querySelector(".chkMulti"); if (cb) cb.checked = c;
-        });
+        $("chkTodosRolesGasto").checked = true;
+        $("listaRolesGasto").querySelectorAll(".chkRolG").forEach((cb)=>{ cb.checked = false; });
         renderGastos();
       });
+      // Marcar uno o varios roles filtra por ellos
       $("listaRolesGasto").addEventListener("change", (e)=>{
-        if (e.target.classList.contains("chkMulti")){
-          const todos = $("listaRolesGasto").querySelectorAll(".chkMulti");
-          const marc = $("listaRolesGasto").querySelectorAll(".chkMulti:checked");
-          $("chkTodosRolesGasto").checked = todos.length>0 && marc.length === todos.length;
+        if (e.target.classList.contains("chkRolG")){
+          const marc = $("listaRolesGasto").querySelectorAll(".chkRolG:checked").length;
+          $("chkTodosRolesGasto").checked = (marc === 0);
           renderGastos();
         }
       });
@@ -3216,12 +3215,12 @@
 
     const normRolG = (v) => (v||"").toString().trim().toUpperCase();
 
-    // Roles seleccionados en el panel. null = todos
+    // Roles seleccionados en el panel. null = todos (ningún checkbox marcado)
     function rolesSelGasto(){
-      const lista = $("listaRolesGasto"), todos = $("chkTodosRolesGasto");
-      if (!lista || !todos) return null;
-      if (todos.checked) return null;
-      return [...lista.querySelectorAll(".chkMulti:checked")].map((cb)=>cb.value);
+      const lista = $("listaRolesGasto");
+      if (!lista) return null;
+      const marcados = [...lista.querySelectorAll(".chkRolG:checked")].map((cb)=>cb.value);
+      return marcados.length ? marcados : null;
     }
 
     // Etiqueta "105-13 · Predio" para un número de rol
@@ -3248,10 +3247,19 @@
       const firma = valores.map((v)=>v+"|"+(nombrePredioDe(v,null)||"")).join("~");
       if (firma !== _gRolesFirma){
         _gRolesFirma = firma;
-        poblarPanelMulti("listaRolesGasto", valores, (v)=>esc(etiquetaRolGasto(v)), "buscarRolGasto");
-        const t = lista.querySelectorAll(".chkMulti"), m = lista.querySelectorAll(".chkMulti:checked");
-        if ($("chkTodosRolesGasto") && t.length) $("chkTodosRolesGasto").checked = (m.length === t.length);
+        // Conservar lo que el usuario ya tenía marcado
+        const prev = new Set([...lista.querySelectorAll(".chkRolG:checked")].map((cb)=>cb.value));
+        lista.innerHTML = valores.map((v)=>
+          '<label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;cursor:pointer;width:100%">'
+          + '<input type="checkbox" class="chkRolG" value="'+esc(v)+'" '+(prev.has(v)?'checked':'')+' style="margin:0;flex-shrink:0" />'
+          + '<span style="flex:1;min-width:0;word-break:break-word">'+esc(etiquetaRolGasto(v))+'</span></label>'
+        ).join("") || '<p class="empty" style="margin:0">Sin roles con gastos.</p>';
+        // Reaplicar el texto de búsqueda si había algo escrito
+        const q = ($("buscarRolGasto")?.value||"").trim().toLowerCase();
+        if (q) lista.querySelectorAll("label").forEach((lbl)=>{ lbl.style.display = lbl.textContent.toLowerCase().includes(q) ? "flex" : "none"; });
       }
+      const marc = lista.querySelectorAll(".chkRolG:checked").length;
+      if ($("chkTodosRolesGasto")) $("chkTodosRolesGasto").checked = (marc === 0);
       actualizarBotonRolGasto();
     }
 
@@ -3365,6 +3373,7 @@
     }
 
     function abrirDetalleGastosFiltrado(){
+      $("panelRolesGasto") && ($("panelRolesGasto").style.display = "none");
       $("gastoDetFullTitulo").textContent = tituloFiltroGasto();
       _gDetDatos = gastosFiltrados().slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
       if ($("gDetBuscar")) $("gDetBuscar").value = "";
