@@ -222,6 +222,15 @@
     .chart-box { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; box-shadow: 0 4px 14px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06); }
     .chart-box h3 { margin: 0 0 14px; font-size: 14px; font-weight: 700; }
     .chart-box canvas { max-height: 260px; }
+    /* En móvil los gráficos necesitan más alto para ser legibles */
+    @media (max-width: 760px) {
+      .chart-box { padding: 14px 12px; }
+      .chart-box canvas { max-height: 420px !important; }
+    }
+    @media (max-width: 420px) {
+      .chart-box canvas { max-height: 460px !important; }
+    }
+    @media (max-width: 760px) { .chart-box canvas.canvas-alto { max-height: 520px !important; } }
 
     /* Login */
     #loginScreen { position: fixed; inset: 0; background: var(--sap-shell); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
@@ -381,7 +390,7 @@
       <div style="margin-top:18px">
         <div class="chart-box" style="max-width:100%">
           <h3 style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-            Rentabilidad por rol — Ingresos vs Gastos
+            <span id="tituloRentab">Rentabilidad por rol — Ingresos vs Gastos</span>
             <span style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:12px">
               <select id="filtroRentab" style="width:auto;font-size:12px;padding:4px 8px"><option value="">Todos</option><option value="rentable">Solo rentables</option><option value="norentable">Solo no rentables</option></select>
               <span style="position:relative">
@@ -403,7 +412,7 @@
               <div id="listaMesesRent" style="font-size:12px"></div>
             </div>
           </div>
-          <canvas id="chartRentabilidad" style="max-height:480px"></canvas>
+          <canvas id="chartRentabilidad" style="max-height:480px" class="canvas-alto"></canvas>
         </div>
       </div>
     </div>
@@ -3885,6 +3894,10 @@
     const SAP_COLORS = ["#0a6ed1","#107e3e","#e9730c","#bb0000","#6b3fa0","#0892a5","#925ace","#1c4c98","#5b738b","#d04a02"];
     let charts = {};  // referencias a los Chart para destruir antes de redibujar
 
+    // Relación de aspecto según el ancho de pantalla (en móvil, gráficos más altos)
+    const esPantallaAngosta = () => (window.innerWidth || 1200) <= 760;
+    const arResp = (escritorio, movil) => esPantallaAngosta() ? movil : escritorio;
+
     function dibujarChart(id, config){
       const ctx = $(id); if (!ctx) return;
       // ¿El gráfico tiene algún dato distinto de cero?
@@ -3961,6 +3974,12 @@
 
     let resumenTimer = null;
     function programarResumen(){ clearTimeout(resumenTimer); resumenTimer = setTimeout(actualizarResumen, 400); }
+    // Al girar el teléfono o cambiar de tamaño, recalcular la proporción de los gráficos
+    let _anchoAngosto = esPantallaAngosta();
+    window.addEventListener("resize", ()=>{
+      const ahora = esPantallaAngosta();
+      if (ahora !== _anchoAngosto){ _anchoAngosto = ahora; programarResumen(); }
+    });
     $("filtroMesGasto").addEventListener("change", ()=>{ if (window._dibujarGastosRol) window._dibujarGastosRol(); });
 
     // Panel filtro global de meses del dashboard
@@ -4291,7 +4310,7 @@
         dibujarChart("chartPlantaMR", {
           type:"doughnut",
           data:{ labels:mrE.map((e)=>e[0]), datasets:[{ data:mrE.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS, borderColor:"#fff", borderWidth:2, hoverOffset:10, hoverBorderWidth:3 }] },
-          plugins:[dona3D], options:{ responsive:true, maintainAspectRatio:true, aspectRatio:1.35, layout:donaLayout, cutout:"52%", plugins:{ legend:donaLegend, datalabels:dlDona("mr"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" mr" } } } }
+          plugins:[dona3D], options:{ responsive:true, maintainAspectRatio:true, aspectRatio:arResp(1.35,1.05), layout:donaLayout, cutout:"52%", plugins:{ legend:donaLegend, datalabels:dlDona("mr"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" mr" } } } }
         });
       } else { mostrarCaja("chartPlantaMR", false); if (charts["chartPlantaMR"]){ charts["chartPlantaMR"].destroy(); delete charts["chartPlantaMR"]; } }
       // Dona M³ (solo plantas con M³ > 0)
@@ -4300,7 +4319,7 @@
         dibujarChart("chartPlantaM3", {
           type:"doughnut",
           data:{ labels:m3E.map((e)=>e[0]), datasets:[{ data:m3E.map((e)=>Math.round(e[1])), backgroundColor:SAP_COLORS, borderColor:"#fff", borderWidth:2, hoverOffset:10, hoverBorderWidth:3 }] },
-          plugins:[dona3D], options:{ responsive:true, maintainAspectRatio:true, aspectRatio:1.35, layout:donaLayout, cutout:"52%", plugins:{ legend:donaLegend, datalabels:dlDona("m³"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" m³" } } } }
+          plugins:[dona3D], options:{ responsive:true, maintainAspectRatio:true, aspectRatio:arResp(1.35,1.05), layout:donaLayout, cutout:"52%", plugins:{ legend:donaLegend, datalabels:dlDona("m³"), tooltip:{ callbacks:{ label:(c)=>c.label+": "+fmt(c.parsed)+" m³" } } } }
         });
       } else { mostrarCaja("chartPlantaM3", false); if (charts["chartPlantaM3"]){ charts["chartPlantaM3"].destroy(); delete charts["chartPlantaM3"]; } }
 
@@ -4348,7 +4367,7 @@
               { label:"MR", data:dataMR, borderColor:"#0a6ed1", backgroundColor:"#0a6ed122", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 },
               { label:"M³", data:dataM3, borderColor:"#e9730c", backgroundColor:"#e9730c22", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 },
             ].filter((d)=>d.data.some((v)=>v>0)) },
-          options:{ responsive:true, maintainAspectRatio:true, aspectRatio:2.5,
+          options:{ responsive:true, maintainAspectRatio:true, aspectRatio:arResp(2.5,1.15),
             plugins:{ legend:{position:"bottom", labels:{boxWidth:14}}, datalabels:{display:false},
               tooltip:{ callbacks:{ label:(c)=>c.dataset.label+": "+fmt(c.parsed.y) } } },
             scales:{ y:{ beginAtZero:true }, x:{ ticks:{ font:{size:ejeXMesR?11:9}, maxRotation:45, minRotation:0 } } } }
@@ -4371,7 +4390,7 @@
               { label:"M³ Solicitado", data:ocTop.map((o)=>o.solicitado?.m3||0), backgroundColor:"#f5d0a9" },
               { label:"M³ Recibido", data:ocTop.map((o)=>o.recibido?.m3||0), backgroundColor:"#e9730c" },
             ].filter((d)=>d.data.some((v)=>v>0)) },
-          options:{ responsive:true, maintainAspectRatio:true, aspectRatio:2.5,
+          options:{ responsive:true, maintainAspectRatio:true, aspectRatio:arResp(2.5,1.15),
             plugins:{legend:{position:"bottom", labels:{boxWidth:14}}, datalabels:{display:false},
               tooltip:{ callbacks:{ label:(c)=>c.dataset.label+": "+fmt(c.parsed.y) } }},
             scales:{ y:{beginAtZero:true}, x:{ ticks:{ font:{size:10} } } } }
@@ -4429,7 +4448,7 @@
             type:"line",
             data:{ labels:labelsG,
               datasets:[{ label:"Gasto", data:dataG, borderColor:"#bb0000", backgroundColor:"#bb000022", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 }] },
-            options:{ responsive:true, maintainAspectRatio:true, aspectRatio:2.5,
+            options:{ responsive:true, maintainAspectRatio:true, aspectRatio:arResp(2.5,1.15),
               onClick:(evt, elems)=>{ if (elems.length){ const rol = unicoRolG || rolesGasto[elems[0].index]?.[0]; if (rol) abrirDetalleGastoRolDash(rol); } },
               onHover:(evt, elems)=>{ evt.native.target.style.cursor = elems.length ? "pointer" : "default"; },
               plugins:{ legend:{display:false}, datalabels:{display:false},
@@ -4457,7 +4476,7 @@
             { label:"MR", data:mesesVol.map((m)=>Math.round(porMesMR[m]||0)), borderColor:"#0a6ed1", backgroundColor:"#0a6ed1", tension:0.3, fill:false },
             { label:"M³", data:mesesVol.map((m)=>Math.round(porMesM3[m]||0)), borderColor:"#e9730c", backgroundColor:"#e9730c", tension:0.3, fill:false },
           ] },
-        options:{ responsive:true, plugins:{legend:{position:"bottom"}, datalabels:dlLinea}, scales:{ y:{beginAtZero:true, grace:"12%"} } }
+        options:{ responsive:true, maintainAspectRatio:true, aspectRatio:arResp(2,1.15), plugins:{legend:{position:"bottom"}, datalabels:dlLinea}, scales:{ y:{beginAtZero:true, grace:"12%"} } }
       });
 
       // --- Gráficos 5 y 6: evolución mensual por planta (líneas), uno MR y otro M3 ---
@@ -4488,14 +4507,14 @@
       dibujarChart("chartLineaMR", {
         type:"line",
         data:{ labels: lineasMR.meses, datasets: lineasMR.datasets },
-        options:{ responsive:true, plugins:{legend:{position:"bottom", labels:{boxWidth:12, font:{size:10}}}}, scales:{ y:{beginAtZero:true, title:{display:true, text:"MR"}} } }
+        options:{ responsive:true, maintainAspectRatio:true, aspectRatio:arResp(2,1.15), plugins:{legend:{position:"bottom", labels:{boxWidth:12, font:{size:10}}}}, scales:{ y:{beginAtZero:true, title:{display:true, text:"MR"}} } }
       });
 
       const lineasM3 = construirLineas("m3");
       dibujarChart("chartLineaM3", {
         type:"line",
         data:{ labels: lineasM3.meses, datasets: lineasM3.datasets },
-        options:{ responsive:true, plugins:{legend:{position:"bottom", labels:{boxWidth:12, font:{size:10}}}}, scales:{ y:{beginAtZero:true, title:{display:true, text:"M³"}} } }
+        options:{ responsive:true, maintainAspectRatio:true, aspectRatio:arResp(2,1.15), plugins:{legend:{position:"bottom", labels:{boxWidth:12, font:{size:10}}}}, scales:{ y:{beginAtZero:true, title:{display:true, text:"M³"}} } }
       });
 
       // --- Gráfico: Rentabilidad por rol — Ingresos vs Gastos [líneas, M$, filtro multi-mes + filtro rol] ---
@@ -4576,21 +4595,50 @@
 
         if (rolesRentab.length){
           const fmtM2 = (v)=> (v/1000000).toFixed(2)+" M$";
-          const labels = rolesRentab.map((r)=>{ const pr=nombrePredioDe(r,null); return pr ? r+"\n"+pr.slice(0,16) : r; });
+          // Con un solo rol: eje X = meses (evolución de ingresos y gastos)
+          const unicoRolRent = rolesRentab.length===1 ? rolesRentab[0] : null;
+          let labels, datosIng, datosGas, tituloRent;
+          if (unicoRolRent){
+            const porMesRent = {};
+            const acumular = (lista, campoMonto, destino) => {
+              lista.forEach((g)=>{
+                const k = (g.numeroRol||"").toString().trim();
+                if (k !== unicoRolRent) return;
+                const per = g.periodo || g.fecha?.slice(0,7) || "s/f";
+                if (!todos && mesesSel && !mesesSel.includes(per)) return;
+                if (!porMesRent[per]) porMesRent[per] = { ing:0, gas:0 };
+                porMesRent[per][destino] += (g[campoMonto]||0);
+              });
+            };
+            acumular(fIngresos, "neto", "ing");
+            acumular(fGastos, "monto", "gas");
+            const mesesRentX = Object.keys(porMesRent).sort();
+            labels = mesesRentX.map((m)=>nombreMes(m));
+            datosIng = mesesRentX.map((m)=>porMesRent[m].ing);
+            datosGas = mesesRentX.map((m)=>porMesRent[m].gas);
+            const prR = nombrePredioDe(unicoRolRent,null);
+            tituloRent = "Rentabilidad por mes — "+unicoRolRent+(prR?" · "+prR:"");
+          } else {
+            labels = rolesRentab.map((r)=>{ const pr=nombrePredioDe(r,null); return pr ? r+"\n"+pr.slice(0,16) : r; });
+            datosIng = rolesRentab.map((r)=>ingresoPorRol[r]||0);
+            datosGas = rolesRentab.map((r)=>gastoPorRol[r]||0);
+            tituloRent = "Rentabilidad por rol — Ingresos vs Gastos";
+          }
+          if ($("tituloRentab")) $("tituloRentab").textContent = tituloRent;
           dibujarChart("chartRentabilidad", {
             type:"line",
             data:{ labels,
               datasets:[
-                { label:"Ingresos", data:rolesRentab.map((r)=>ingresoPorRol[r]||0), borderColor:"#107e3e", backgroundColor:"#107e3e22", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 },
-                { label:"Gastos", data:rolesRentab.map((r)=>gastoPorRol[r]||0), borderColor:"#bb0000", backgroundColor:"#bb000022", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 },
+                { label:"Ingresos", data:datosIng, borderColor:"#107e3e", backgroundColor:"#107e3e22", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 },
+                { label:"Gastos", data:datosGas, borderColor:"#bb0000", backgroundColor:"#bb000022", pointRadius:4, pointHoverRadius:6, fill:false, tension:0.3, borderWidth:2.5 },
               ] },
-            options:{ responsive:true, maintainAspectRatio:true, aspectRatio:1.8,
-              onClick:(evt, elems)=>{ if (elems.length){ const rol = rolesRentab[elems[0].index]; if (rol) abrirDetalleRentabRol(rol, gastoPorRol[rol]||0, ingresoPorRol[rol]||0); } },
+            options:{ responsive:true, maintainAspectRatio:true, aspectRatio:arResp(1.8,1.05),
+              onClick:(evt, elems)=>{ if (elems.length){ const rol = unicoRolRent || rolesRentab[elems[0].index]; if (rol) abrirDetalleRentabRol(rol, gastoPorRol[rol]||0, ingresoPorRol[rol]||0); } },
               onHover:(evt, elems)=>{ evt.native.target.style.cursor = elems.length ? "pointer" : "default"; },
               plugins:{ legend:{position:"bottom", labels:{boxWidth:14}},
                 datalabels:{ display:false },
                 tooltip:{ callbacks:{ label:(c)=>c.dataset.label+": "+fmtM2(c.parsed.y), afterBody:()=>"Clic para ver el detalle" } } },
-              scales:{ y:{ beginAtZero:true, ticks:{ callback:(v)=>fmtM2(v) } }, x:{ ticks:{ font:{size:9}, maxRotation:45, minRotation:0 } } } }
+              scales:{ y:{ beginAtZero:true, ticks:{ callback:(v)=>fmtM2(v) } }, x:{ ticks:{ font:{size:unicoRolRent?11:9}, maxRotation:45, minRotation:0 } } } }
           });
         } else { mostrarCaja("chartRentabilidad", false); if (charts["chartRentabilidad"]){ charts["chartRentabilidad"].destroy(); delete charts["chartRentabilidad"]; } }
         verificarGraficosVisibles();
