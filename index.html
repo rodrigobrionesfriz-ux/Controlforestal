@@ -191,7 +191,21 @@
     .filtro-todos { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 10px; font-size: 13px; font-weight: 700; cursor: pointer; }
     .filtro-search { width: 100%; padding: 6px 9px; font-size: 12px; margin-bottom: 8px; border: 1px solid var(--line-2); border-radius: 4px; }
     @media (max-width: 640px){ .filtro-item { min-width: 45%; flex-basis: 45%; max-width: none; } .filtro-item-btn { min-width: 100%; flex-basis: 100%; } }
-    @media (max-width: 860px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 860px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
+      .kpi { padding: 13px 11px 11px; }
+      .kpi .label { font-size: 10px; letter-spacing: .03em; }
+      .kpi .value { font-size: 20px; margin-top: 6px; }
+      .kpi .sub { font-size: 10px; margin-top: 4px; }
+      .kpi .unit { font-size: 11px; }
+    }
+    @media (max-width: 420px) {
+      .kpi-grid { gap: 8px; }
+      .kpi { padding: 11px 9px 9px; }
+      .kpi .label { font-size: 9px; }
+      .kpi .value { font-size: 17px; }
+      .kpi .sub { font-size: 9px; }
+    }
     /* Tarjetas KPI con barra superior de color y subtexto */
     .kpi { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
            padding: 18px 18px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden;
@@ -3898,6 +3912,23 @@
     const esPantallaAngosta = () => (window.innerWidth || 1200) <= 760;
     const arResp = (escritorio, movil) => esPantallaAngosta() ? movil : escritorio;
 
+    // Reduce la fuente del número de cada KPI hasta que quepa en su tarjeta
+    function ajustarFuenteKPI(){
+      document.querySelectorAll(".kpi .value").forEach((el)=>{
+        el.style.fontSize = "";
+        const ancho = el.clientWidth;
+        if (!ancho) return;
+        let size = parseFloat(getComputedStyle(el).fontSize) || 26;
+        let guard = 0;
+        while (el.scrollWidth > ancho + 0.5 && size > 9 && guard++ < 60){
+          size -= 0.5;
+          el.style.fontSize = size + "px";
+        }
+      });
+    }
+    let _kpiTimer = null;
+    window.addEventListener("resize", ()=>{ clearTimeout(_kpiTimer); _kpiTimer = setTimeout(ajustarFuenteKPI, 150); });
+
     function dibujarChart(id, config){
       const ctx = $(id); if (!ctx) return;
       // ¿El gráfico tiene algún dato distinto de cero?
@@ -4186,18 +4217,12 @@
       const totalM3 = fRecep.reduce((a,r)=>a+(r.m3||0),0);
       $("kpiM3").innerHTML = fmt(Math.round(totalM3)) + ' <span class="unit">m³</span>';
       const totalGastos = fGastos.reduce((a,g)=>a+(g.monto||0),0);
-      // Formato compacto para montos grandes: 3.565.363.860 → "3.565,4 M" | valor completo en tooltip
-      const fmtCompacto = (v) => {
-        const abs = Math.abs(v);
-        if (abs >= 1e9) return (v/1e6).toLocaleString("es-CL",{maximumFractionDigits:0}) + " M";
-        if (abs >= 1e6) return (v/1e6).toLocaleString("es-CL",{maximumFractionDigits:1}) + " M";
-        if (abs >= 1e3) return (v/1e3).toLocaleString("es-CL",{maximumFractionDigits:0}) + " mil";
-        return fmt(Math.round(v));
-      };
+      // Monto entero completo con separador de miles: 3.074.411.767
       const setMonto = (id, v) => {
         const el = $(id);
-        el.innerHTML = '<span class="unit">$</span> ' + fmtCompacto(v);
-        el.title = "$ " + fmt(Math.round(v));   // valor exacto al pasar el cursor
+        const txt = fmt(Math.round(v));
+        el.innerHTML = '<span class="unit">$</span> ' + txt;
+        el.title = "$ " + txt;
       };
       setMonto("kpiGastos", totalGastos);
       const totalIngresos = fIngresos.reduce((a,g)=>a+(g.neto||0),0);
@@ -4229,6 +4254,7 @@
       }
       const ocAlerta = ocCache.filter((o)=>{ const rm=(o.solicitado?.metrosRuma||0)-(o.recibido?.metrosRuma||0); const r3=(o.solicitado?.m3||0)-(o.recibido?.m3||0); const u=o.umbralAlerta??300; return (rm>0||r3>0)&&(rm<=u||r3<=u); }).length;
       $("kpiOCAlerta").textContent = fmt(ocAlerta);
+      ajustarFuenteKPI();
 
       // Cargar Chart.js de forma diferida; si falla, los KPIs ya se mostraron
       try { await cargarChart(); } catch(e){ console.error("Chart.js no se pudo cargar:", e); return; }
