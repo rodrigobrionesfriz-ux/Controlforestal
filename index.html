@@ -3435,6 +3435,12 @@
       abrirModal("modalGastoDetalleFull");
     }
 
+    // Vuelve a leer los filtros vigentes (no usa la foto tomada al abrir el modal)
+    function gDetFilasVigentes(){
+      _gDetDatos = gastosFiltrados().slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+      return gDetFilas();
+    }
+
     function gDetFilas(){
       const q = ($("gDetBuscar")?.value||"").trim().toUpperCase();
       if (!q) return _gDetDatos;
@@ -3455,7 +3461,7 @@
             +'<td class="num-cell">'+fmt(g.cantidad||0)+'</td>'
             +'<td class="num-cell">'+fmt(Math.round(g.monto||0))+'</td>'
             +'</tr>').join("")
-          + (filas.length>G_DET_MAX ? '<tr><td colspan="6" class="empty">… mostrando '+G_DET_MAX+' de '+filas.length+'. Filtra por rol o mes, o usa el buscador. El Excel exporta todo.</td></tr>' : '')
+          + (filas.length>G_DET_MAX ? '<tr><td colspan="6" class="empty">… mostrando '+G_DET_MAX+' de '+filas.length+' filtrados. El Excel exporta los '+filas.length+' registros filtrados.</td></tr>' : '')
         : '<tr><td colspan="6" class="empty">Sin resultados.</td></tr>';
     }
 
@@ -3470,7 +3476,7 @@
     }
 
     async function exportarDetalleGastosXLSX(){
-      const filas = gDetFilas();
+      const filas = gDetFilasVigentes();
       const btn = $("btnExportarDetalleXLSX");
       if (!filas.length){ if (btn) btn.textContent = "Sin datos"; setTimeout(()=>{ if(btn) btn.innerHTML = "&#128202; Generar Excel"; }, 1200); return; }
       const txt = btn ? btn.innerHTML : "";
@@ -3492,12 +3498,17 @@
             "MONTO NETO": Math.round(g.monto || 0),
           };
         });
-        const ws = XLSX.utils.json_to_sheet(datos);
         const total = filas.reduce((a,g)=>a+(g.monto||0),0);
         const nFilas = datos.length;
+        const busq = ($("gDetBuscar")?.value||"").trim();
+        const encabezado = tituloFiltroGasto().replace(/^Detalle de gastos · /,"Filtro: ")
+          + (busq ? ' · búsqueda "'+busq+'"' : "")
+          + " — " + nFilas + " registro" + (nFilas!==1?"s":"");
+        const ws = XLSX.utils.aoa_to_sheet([[encabezado],[]]);
+        XLSX.utils.sheet_add_json(ws, datos, { origin:"A3" });
         XLSX.utils.sheet_add_aoa(ws, [["","","","","","","","","TOTAL NETO", Math.round(total)]], { origin: -1 });
         ws["!cols"] = [{wch:11},{wch:14},{wch:12},{wch:26},{wch:46},{wch:18},{wch:20},{wch:26},{wch:10},{wch:14}];
-        ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:nFilas, c:9} }) };
+        ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s:{r:2,c:0}, e:{r:2+nFilas, c:9} }) };
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Gastos");
         const out = XLSX.write(wb, { bookType:"xlsx", type:"array" });
@@ -3515,7 +3526,7 @@
     }
 
     function exportarDetalleGastosCSV(){
-      const filas = gDetFilas();
+      const filas = gDetFilasVigentes();
       if (!filas.length) return;
       const q = (v)=>'"'+(v==null?"":v.toString().replace(/"/g,'""'))+'"';
       const lineas = [["FECHA","N DOCUMENTO","ROL","PREDIO","DESCRIPCION","PROVEEDOR","CANTIDAD","MONTO NETO"].map(q).join(";")];
@@ -3806,16 +3817,27 @@
     }
 
     let _iDetDatos = [];
+    let _iDetMes = null;      // mes del detalle abierto (null = filtro completo)
+    let _iDetTitulo = "";
 
     function abrirDetalleIngresoMes(mes){
+      _iDetMes = mes;
       const items = ingresosFiltrados().filter((g)=>periodoDeIngreso(g)===mes);
-      $("ingresoDetTitulo").textContent = "Ingresos · "+nombreMes(mes);
+      _iDetTitulo = "Ingresos · "+nombreMes(mes);
+      $("ingresoDetTitulo").textContent = _iDetTitulo;
       pintarDetalleIngresos(items);
+    }
+
+    // Vuelve a leer los filtros vigentes al exportar
+    function iDetFilasVigentes(){
+      const base = ingresosFiltrados();
+      return _iDetMes ? base.filter((g)=>periodoDeIngreso(g)===_iDetMes) : base;
     }
 
     // Detalle del filtro completo (botón "Mostrar detalle")
     function abrirDetalleIngresosFiltrado(){
       if ($("panelRolesIng")) $("panelRolesIng").style.display = "none";
+      _iDetMes = null;
       const sel = rolesSelIng();
       const mes = $("iFiltroMes")?.value || "";
       let t = "Ingresos";
@@ -3823,6 +3845,7 @@
       else if (sel.length === 1) t += " · " + etiquetaRolIng(sel[0]);
       else t += " · " + sel.length + " centros de costo";
       if (mes) t += " · " + nombreMes(mes);
+      _iDetTitulo = t;
       $("ingresoDetTitulo").textContent = t;
       pintarDetalleIngresos(ingresosFiltrados());
     }
@@ -3838,7 +3861,7 @@
       const rolesOrd = Object.keys(porRol).sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
 
       if (!ordenados.length){ $("ingresoDetBody").innerHTML = '<p class="empty">Sin ingresos para el filtro seleccionado.</p>'; abrirModal("modalIngresoDetalle"); return; }
-      let html = '<div style="margin-bottom:12px;font-size:14px"><strong>Total: <span class="unit">$</span> '+fmt(Math.round(totalMes))+'</strong> · '+ordenados.length+' ingreso'+(ordenados.length!==1?'s':'')+'</div>';
+      let html = '<div style="margin-bottom:12px;font-size:14px"><strong>Total: <span class="unit">$</span> '+fmt(Math.round(totalMes))+'</strong> · '+ordenados.length+' ingreso'+(ordenados.length!==1?'s':'')+' <span class="hint">(el Excel exporta exactamente estos registros)</span></div>';
       html += rolesOrd.map((rol)=>{
         const gs = porRol[rol];
         const totalRol = gs.reduce((a,g)=>a+(g.neto||0),0);
@@ -3893,7 +3916,7 @@
     })();
 
     async function exportarDetalleIngresosXLSX(){
-      const filas = _iDetDatos.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+      const filas = iDetFilasVigentes().slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
       const btn = $("btnExportarDetalleIngXLSX");
       if (!filas.length) return;
       const txt = btn ? btn.innerHTML : "";
@@ -3915,11 +3938,14 @@
             "NETO": Math.round(g.neto || 0),
           };
         });
-        const ws = XLSX.utils.json_to_sheet(datos);
         const total = filas.reduce((a,g)=>a+(g.neto||0),0);
+        const encabezadoI = (_iDetTitulo || "Ingresos").replace(/^Ingresos · /,"Filtro: ")
+          + " — " + datos.length + " registro" + (datos.length!==1?"s":"");
+        const ws = XLSX.utils.aoa_to_sheet([[encabezadoI],[]]);
+        XLSX.utils.sheet_add_json(ws, datos, { origin:"A3" });
         XLSX.utils.sheet_add_aoa(ws, [["","","","","","","","","TOTAL NETO", Math.round(total)]], { origin: -1 });
         ws["!cols"] = [{wch:11},{wch:12},{wch:12},{wch:26},{wch:26},{wch:20},{wch:40},{wch:10},{wch:13},{wch:14}];
-        ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:datos.length, c:9} }) };
+        ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s:{r:2,c:0}, e:{r:2+datos.length, c:9} }) };
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Ingresos");
         const out = XLSX.write(wb, { bookType:"xlsx", type:"array" });
