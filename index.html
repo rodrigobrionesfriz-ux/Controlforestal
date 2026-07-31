@@ -893,7 +893,30 @@
 
       <section class="card">
         <h2><span class="num">02</span> Ingresos registrados</h2>
-        <div id="ingresosAgrupados" style="max-height:calc(100vh - 220px); overflow-y:auto; overflow-x:hidden; padding-right:4px">
+        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:12px; padding:10px 12px; background:#f7f9fb; border:1px solid var(--line); border-radius:8px">
+          <div style="flex:1; min-width:260px">
+            <label style="font-size:11px">CENTRO DE COSTO / PREDIO</label>
+            <span style="position:relative;display:block">
+              <button id="btnFiltroRolIng" class="filtro-btn">Todos los centros de costo &#9662;</button>
+              <div id="panelRolesIng" class="filtro-panel">
+                <div class="filtro-panel-inner">
+                  <label class="filtro-todos"><input type="checkbox" id="chkTodosRolesIng" checked />Todos los centros de costo</label>
+                  <input type="text" id="buscarRolIng" placeholder="&#128269; Buscar centro de costo o predio…" autocomplete="off" class="filtro-search" />
+                  <div class="hint" style="margin:0 0 8px">Marca uno o varios para filtrar.</div>
+                  <div id="listaRolesIng" style="font-size:12px"></div>
+                </div>
+              </div>
+            </span>
+          </div>
+          <div style="min-width:170px">
+            <label style="font-size:11px">Mes</label>
+            <select id="iFiltroMes"><option value="">Todos los meses</option></select>
+          </div>
+          <button class="primary" id="btnDetalleIngresos">&#128203; Mostrar detalle</button>
+          <button id="btnLimpiarFiltroIng">Limpiar</button>
+        </div>
+        <div id="ingresoFiltroResumen" class="hint" style="margin-bottom:10px"></div>
+        <div id="ingresosAgrupados" style="max-height:calc(100vh - 300px); overflow-y:auto; overflow-x:hidden; padding-right:4px">
           <p class="empty">Sin ingresos aún.</p>
         </div>
       </section>
@@ -904,7 +927,10 @@
       <div class="modal" style="max-width:820px">
         <div class="modal-head"><h3 id="ingresoDetTitulo">Ingresos</h3><button class="modal-close" data-close-modal="modalIngresoDetalle">&times;</button></div>
         <div class="modal-body" id="ingresoDetBody" style="max-height:60vh; overflow-y:auto"></div>
-        <div class="modal-foot"><button data-close-modal="modalIngresoDetalle">Cerrar</button></div>
+        <div class="modal-foot">
+          <button class="primary" id="btnExportarDetalleIngXLSX" style="margin-right:auto">&#128202; Generar Excel</button>
+          <button data-close-modal="modalIngresoDetalle">Cerrar</button>
+        </div>
       </div>
     </div>
 
@@ -3664,17 +3690,102 @@
       }
     });
 
+    // ---- FILTROS DE INGRESOS (centro de costo + mes) ----
+    function periodoDeIngreso(g){ return g.periodo || (g.fecha||"").slice(0,7) || "Sin fecha"; }
+    const normRolI = (v) => (v||"").toString().trim().toUpperCase();
+
+    function rolesSelIng(){
+      const lista = $("listaRolesIng");
+      if (!lista) return null;
+      const marcados = [...lista.querySelectorAll(".chkRolI:checked")].map((cb)=>cb.value);
+      return marcados.length ? marcados : null;
+    }
+
+    function etiquetaRolIng(num){
+      const pr = nombrePredioDe(num, null);
+      return num + (pr ? " · " + pr : "");
+    }
+
+    function actualizarBotonRolIng(){
+      const sel = rolesSelIng();
+      const btn = $("btnFiltroRolIng"); if (!btn) return;
+      if (sel === null) btn.textContent = "Todos los centros de costo ▾";
+      else if (sel.length === 1) btn.textContent = etiquetaRolIng(sel[0]).slice(0,34) + " ▾";
+      else btn.textContent = sel.length + " centros seleccionados ▾";
+    }
+
+    let _iRolesFirma = null;
+    function poblarPanelRolesIng(){
+      const lista = $("listaRolesIng"); if (!lista) { actualizarBotonRolIng(); return; }
+      const valores = [...new Set(ingresosCache.map((g)=>(g.numeroRol||"").toString().trim()).filter(Boolean))]
+        .sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
+      const firma = valores.map((v)=>v+"|"+(nombrePredioDe(v,null)||"")).join("~");
+      if (firma !== _iRolesFirma){
+        _iRolesFirma = firma;
+        const prev = new Set([...lista.querySelectorAll(".chkRolI:checked")].map((cb)=>cb.value));
+        lista.innerHTML = valores.map((v)=>
+          '<label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;cursor:pointer;width:100%">'
+          + '<input type="checkbox" class="chkRolI" value="'+esc(v)+'" '+(prev.has(v)?'checked':'')+' style="margin:0;flex-shrink:0" />'
+          + '<span style="flex:1;min-width:0;word-break:break-word">'+esc(etiquetaRolIng(v))+'</span></label>'
+        ).join("") || '<p class="empty" style="margin:0">Sin centros de costo con ingresos.</p>';
+        const q = ($("buscarRolIng")?.value||"").trim().toLowerCase();
+        if (q) lista.querySelectorAll("label").forEach((lbl)=>{ lbl.style.display = lbl.textContent.toLowerCase().includes(q) ? "flex" : "none"; });
+      }
+      const marc = lista.querySelectorAll(".chkRolI:checked").length;
+      if ($("chkTodosRolesIng")) $("chkTodosRolesIng").checked = (marc === 0);
+      actualizarBotonRolIng();
+    }
+
+    function poblarMesesIng(){
+      const sel = $("iFiltroMes"); if (!sel) return;
+      const actual = sel.value;
+      const meses = [...new Set(ingresosCache.map(periodoDeIngreso))].sort((a,b)=>b.localeCompare(a));
+      sel.innerHTML = '<option value="">Todos los meses</option>'
+        + meses.map((m)=>'<option value="'+esc(m)+'">'+esc(nombreMes(m))+'</option>').join("");
+      sel.value = meses.includes(actual) ? actual : "";
+    }
+
+    function ingresosFiltrados(){
+      const sel = rolesSelIng();
+      const mes = $("iFiltroMes")?.value || "";
+      const set = sel ? new Set(sel.map(normRolI)) : null;
+      return ingresosCache.filter((g)=>{
+        if (set && !set.has(normRolI(g.numeroRol))) return false;
+        if (mes && periodoDeIngreso(g) !== mes) return false;
+        return true;
+      });
+    }
+
     function renderIngresos(){
       const cont = $("ingresosAgrupados");
+      poblarMesesIng();
+      poblarPanelRolesIng();
+
+      const rolSel = rolesSelIng();
+      const mesSel = $("iFiltroMes")?.value || "";
+      const resEl = $("ingresoFiltroResumen");
+      if (resEl){
+        const partes = [];
+        if (rolSel){
+          const muestra = rolSel.slice(0,3).map((r)=>'<strong>'+esc(etiquetaRolIng(r))+'</strong>').join(' · ');
+          partes.push((rolSel.length===1?'Centro de costo: ':'Centros ('+rolSel.length+'): ') + muestra + (rolSel.length>3 ? ' · y '+(rolSel.length-3)+' más' : ''));
+        }
+        if (mesSel) partes.push('Mes: <strong>'+esc(nombreMes(mesSel))+'</strong>');
+        resEl.innerHTML = partes.length ? 'Filtrando por &rarr; '+partes.join(' &nbsp;|&nbsp; ') : '';
+      }
+
       if (!ingresosCache.length){ cont.innerHTML = '<p class="empty">Sin ingresos aún.</p>'; return; }
+
+      const lista = ingresosFiltrados();
+      if (!lista.length){ cont.innerHTML = '<p class="empty">Sin ingresos para el filtro seleccionado.</p>'; return; }
 
       // Agrupar por mes (periodo), más reciente primero
       const porMes = {};
-      ingresosCache.forEach((g)=>{ const m = g.periodo || g.fecha?.slice(0,7) || "Sin fecha"; (porMes[m] = porMes[m] || []).push(g); });
+      lista.forEach((g)=>{ const m = periodoDeIngreso(g); (porMes[m] = porMes[m] || []).push(g); });
       const mesesOrd = Object.keys(porMes).sort((a,b)=>b.localeCompare(a));
-      const granTotal = ingresosCache.reduce((a,g)=>a+(g.neto||0),0);
+      const granTotal = lista.reduce((a,g)=>a+(g.neto||0),0);
 
-      cont.innerHTML = '<div style="margin-bottom:12px;font-size:14px"><strong>Total general: <span class="unit">$</span> '+fmt(Math.round(granTotal))+'</strong> · '+ingresosCache.length+' ingreso'+(ingresosCache.length!==1?'s':'')+'</div>'
+      cont.innerHTML = '<div style="margin-bottom:12px;font-size:14px"><strong>'+((rolSel||mesSel)?'Total filtrado':'Total general')+': <span class="unit">$</span> '+fmt(Math.round(granTotal))+'</strong> · '+lista.length+' ingreso'+(lista.length!==1?'s':'')+'</div>'
         + mesesOrd.map((mes)=>{
           const items = porMes[mes];
           const totalMes = items.reduce((a,g)=>a+(g.neto||0),0);
@@ -3694,9 +3805,30 @@
       }));
     }
 
+    let _iDetDatos = [];
+
     function abrirDetalleIngresoMes(mes){
-      const items = ingresosCache.filter((g)=>(g.periodo||g.fecha?.slice(0,7)||"Sin fecha")===mes);
+      const items = ingresosFiltrados().filter((g)=>periodoDeIngreso(g)===mes);
       $("ingresoDetTitulo").textContent = "Ingresos · "+nombreMes(mes);
+      pintarDetalleIngresos(items);
+    }
+
+    // Detalle del filtro completo (botón "Mostrar detalle")
+    function abrirDetalleIngresosFiltrado(){
+      if ($("panelRolesIng")) $("panelRolesIng").style.display = "none";
+      const sel = rolesSelIng();
+      const mes = $("iFiltroMes")?.value || "";
+      let t = "Ingresos";
+      if (sel === null) t += " · Todos los centros de costo";
+      else if (sel.length === 1) t += " · " + etiquetaRolIng(sel[0]);
+      else t += " · " + sel.length + " centros de costo";
+      if (mes) t += " · " + nombreMes(mes);
+      $("ingresoDetTitulo").textContent = t;
+      pintarDetalleIngresos(ingresosFiltrados());
+    }
+
+    function pintarDetalleIngresos(items){
+      _iDetDatos = items.slice();
       const ordenados = items.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
       const totalMes = ordenados.reduce((a,g)=>a+(g.neto||0),0);
 
@@ -3705,6 +3837,7 @@
       ordenados.forEach((g)=>{ const k = (g.numeroRol||"").trim() || "(sin rol)"; (porRol[k] = porRol[k] || []).push(g); });
       const rolesOrd = Object.keys(porRol).sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
 
+      if (!ordenados.length){ $("ingresoDetBody").innerHTML = '<p class="empty">Sin ingresos para el filtro seleccionado.</p>'; abrirModal("modalIngresoDetalle"); return; }
       let html = '<div style="margin-bottom:12px;font-size:14px"><strong>Total: <span class="unit">$</span> '+fmt(Math.round(totalMes))+'</strong> · '+ordenados.length+' ingreso'+(ordenados.length!==1?'s':'')+'</div>';
       html += rolesOrd.map((rol)=>{
         const gs = porRol[rol];
@@ -3720,6 +3853,92 @@
       }).join("");
       $("ingresoDetBody").innerHTML = html;
       abrirModal("modalIngresoDetalle");
+    }
+
+    // ---- Controles del filtro de ingresos ----
+    $("iFiltroMes")?.addEventListener("change", renderIngresos);
+    $("btnDetalleIngresos")?.addEventListener("click", ()=> abrirDetalleIngresosFiltrado());
+    $("btnLimpiarFiltroIng")?.addEventListener("click", ()=>{
+      if ($("chkTodosRolesIng")) $("chkTodosRolesIng").checked = true;
+      $("listaRolesIng")?.querySelectorAll(".chkRolI").forEach((cb)=>{ cb.checked = false; });
+      if ($("buscarRolIng")) $("buscarRolIng").value = "";
+      $("listaRolesIng")?.querySelectorAll("label").forEach((l)=>{ l.style.display = "flex"; });
+      if ($("iFiltroMes")) $("iFiltroMes").value = "";
+      renderIngresos();
+    });
+    $("btnExportarDetalleIngXLSX")?.addEventListener("click", ()=> exportarDetalleIngresosXLSX());
+
+    (function cablearPanelRolesIng(){
+      const btn = $("btnFiltroRolIng"); if (!btn) return;
+      btn.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        const p = $("panelRolesIng");
+        p.style.display = p.style.display === "block" ? "none" : "block";
+      });
+      $("panelRolesIng").addEventListener("click", (e)=>e.stopPropagation());
+      document.addEventListener("click", ()=>{ const p=$("panelRolesIng"); if (p) p.style.display="none"; });
+      $("chkTodosRolesIng").addEventListener("change", ()=>{
+        $("chkTodosRolesIng").checked = true;
+        $("listaRolesIng").querySelectorAll(".chkRolI").forEach((cb)=>{ cb.checked = false; });
+        renderIngresos();
+      });
+      $("listaRolesIng").addEventListener("change", (e)=>{
+        if (e.target.classList.contains("chkRolI")){
+          const marc = $("listaRolesIng").querySelectorAll(".chkRolI:checked").length;
+          $("chkTodosRolesIng").checked = (marc === 0);
+          renderIngresos();
+        }
+      });
+      cablearBuscadorPanel("buscarRolIng", "listaRolesIng");
+    })();
+
+    async function exportarDetalleIngresosXLSX(){
+      const filas = _iDetDatos.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+      const btn = $("btnExportarDetalleIngXLSX");
+      if (!filas.length) return;
+      const txt = btn ? btn.innerHTML : "";
+      if (btn){ btn.disabled = true; btn.textContent = "Generando…"; }
+      try {
+        await cargarXLSX();
+        const datos = filas.map((g)=>{
+          const rolN = (g.numeroRol||"").toString().trim();
+          return {
+            "FECHA": g.fecha || "",
+            "N° GUÍA": (g.numero||"").toString(),
+            "ROL": rolN,
+            "PREDIO": nombrePredioDe(rolN, g.rolId) || "",
+            "PROVEEDOR": g.proveedor || "",
+            "MOTIVO": g.motivo || "",
+            "DESCRIPCIÓN": g.descripcion || "",
+            "CANTIDAD": Number(g.cantidad || 0),
+            "C. UNITARIO": Math.round(g.costoUnitario || 0),
+            "NETO": Math.round(g.neto || 0),
+          };
+        });
+        const ws = XLSX.utils.json_to_sheet(datos);
+        const total = filas.reduce((a,g)=>a+(g.neto||0),0);
+        XLSX.utils.sheet_add_aoa(ws, [["","","","","","","","","TOTAL NETO", Math.round(total)]], { origin: -1 });
+        ws["!cols"] = [{wch:11},{wch:12},{wch:12},{wch:26},{wch:26},{wch:20},{wch:40},{wch:10},{wch:13},{wch:14}];
+        ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:datos.length, c:9} }) };
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Ingresos");
+        const out = XLSX.write(wb, { bookType:"xlsx", type:"array" });
+        const blob = new Blob([out], { type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        const selI = rolesSelIng(); const mesI = $("iFiltroMes")?.value || "";
+        let base = "ingresos";
+        if (selI && selI.length === 1) base += "_" + selI[0].replace(/[^\w\-]+/g,"-");
+        else if (selI && selI.length > 1) base += "_" + selI.length + "centros";
+        if (mesI) base += "_" + mesI;
+        a.download = base + "_" + new Date().toISOString().slice(0,10) + ".xlsx";
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
+      } catch(e){
+        alert("No se pudo generar el Excel: " + (e.message||e));
+      } finally {
+        if (btn){ btn.disabled = false; btn.innerHTML = txt || "&#128202; Generar Excel"; }
+      }
     }
 
     // ================== GESTIÓN DE USUARIOS (admin) ==================
